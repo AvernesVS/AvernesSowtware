@@ -1,0 +1,26 @@
+name: Export YnixTrainer 1.2.6 source package
+on:
+  push:
+    branches:
+      - work/vehicle-stability-next
+    paths:
+      - '.github/workflows/export-1.2.6-source.yml'
+permissions:
+  contents: read
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the authoritative 1.2.6 archive
+        shell: bash
+        run: |
+          test -f AvernesSowtware_v1.2.6.zip
+          unzip -t AvernesSowtware_v1.2.6.zip
+          sha256sum AvernesSowtware_v1.2.6.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-1.2.6-source
+          path: AvernesSowtware_v1.2.6.zip
+          if-no-files-found: error
+          retention-days: 3
