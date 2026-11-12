@@ -1,0 +1,46 @@
+name: Validate and package YnixTrainer 1.2.5
+on:
+  push:
+    paths:
+      - 'YnixTrainer_Extended_1_2_5_Installer_Fix.zip'
+      - '.github/workflows/validate-ynixtrainer.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ZIP contents on Windows
+        shell: pwsh
+        run: |
+          $zip = Join-Path $PWD 'YnixTrainer_Extended_1_2_5_Installer_Fix.zip'
+          $temp = Join-Path $env:RUNNER_TEMP 'ynix-125'
+          Expand-Archive -LiteralPath $zip -DestinationPath $temp -Force
+          $root = Join-Path $temp 'YnixTrainer_Extended_1_2_5'
+          $required = @('Install_YnixTrainer.bat','Uninstall_YnixTrainer.bat','build\Build.bat','src\YnixTrainerExtended.cs','package\YnixTrainer\YnixTrainerExtended.ini','package\YnixTrainer\addons.json','package\YnixTrainer\Vehicles\vehicles.json','TEST_REPORT_1_2_5_RU.md')
+          foreach ($relative in $required) { if (-not (Test-Path (Join-Path $root $relative))) { throw "Missing required package file: $relative" } }
+          foreach ($relative in @('Install_YnixTrainer.bat','Uninstall_YnixTrainer.bat','build\Build.bat')) {
+            $text = Get-Content -Raw -LiteralPath (Join-Path $root $relative)
+            $labels = [regex]::Matches($text, '(?im)^:([A-Za-z0-9_]+)') | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() }
+            $labelSet = @{}; foreach ($label in $labels) { $labelSet[$label] = $true }
+            $refs = [regex]::Matches($text, '(?i)\b(?:goto|call)\s+:([A-Za-z0-9_]+)') | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() }
+            foreach ($ref in $refs) { if (-not $labelSet.ContainsKey($ref)) { throw "Unresolved batch label '$ref' in $relative" } }
+            if ($relative -ne 'Uninstall_YnixTrainer.bat' -and $text -match '(?i)find_shvdn') { throw "Obsolete dependency lookup label in $relative" }
+          }
+          $vehicles = Get-Content -Raw -LiteralPath (Join-Path $root 'package\YnixTrainer\Vehicles\vehicles.json') | ConvertFrom-Json
+          $addons = Get-Content -Raw -LiteralPath (Join-Path $root 'package\YnixTrainer\addons.json') | ConvertFrom-Json
+          if ($vehicles.Count -ne 470) { throw "Expected 470 vehicle entries, got $($vehicles.Count)" }
+          if ($addons.Count -ne 85) { throw "Expected 85 add-on entries, got $($addons.Count)" }
+          $source = Get-Content -Raw -LiteralPath (Join-Path $root 'src\YnixTrainerExtended.cs')
+          if ($source -notmatch 'ProductVersion = "1\.2\.5"') { throw 'Source ProductVersion is not 1.2.5' }
+          if (Test-Path (Join-Path $root 'dist\YnixTrainerExtended.dll')) { throw 'Unexpected prebuilt DLL found; source-only package expected.' }
+          Write-Host 'ZIP structure, package files, batch labels, JSON catalogs and source version validated.'
+          New-Item -ItemType Directory -Path (Join-Path $PWD 'artifact') -Force | Out-Null
+          Copy-Item -LiteralPath $zip -Destination (Join-Path $PWD 'artifact\YnixTrainer_Extended_1_2_5_Installer_Fix.zip')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YnixTrainer-1.2.5-full-package
+          path: artifact\YnixTrainer_Extended_1_2_5_Installer_Fix.zip
+          if-no-files-found: error
+          retention-days: 14
