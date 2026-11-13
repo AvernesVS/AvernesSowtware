@@ -118,8 +118,9 @@ jobs:
               Write-Host "COMPILED DLL: $($dllEntries[0])"
             } finally { $zr.Dispose() }
 
-            New-Item "release-artifact" -ItemType Directory -Force | Out-Null
-            Copy-Item $release "release-artifact/AvernesSowtware_v1.2.8_RELEASE.zip" -Force
+            $artifactDir = Join-Path $env:GITHUB_WORKSPACE "release-artifact"
+            New-Item $artifactDir -ItemType Directory -Force | Out-Null
+            Copy-Item $release (Join-Path $artifactDir "AvernesSowtware_v1.2.8_RELEASE.zip") -Force
           } finally { Pop-Location }
       - name: Upload full 1.2.8 release candidate
         uses: actions/upload-artifact@v4
