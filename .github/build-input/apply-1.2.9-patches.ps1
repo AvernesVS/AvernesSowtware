@@ -23,6 +23,12 @@ function Replace-One([string]$RelativePath, [string]$Old, [string]$New, [string]
     $text = $text.Replace($Old, $New)
     Write-Text $RelativePath $text
 }
+function Replace-All([string]$RelativePath, [string]$Old, [string]$New, [string]$Label) {
+    $text = Read-Text $RelativePath
+    if (-not $text.Contains($Old)) { throw "$Label was not found in $RelativePath." }
+    $text = $text.Replace($Old, $New)
+    Write-Text $RelativePath $text
+}
 
 # 1) New product identity and version in the visible trainer UI.
 Replace-One "src\YnixTrainerExtended.cs" 'private const string ProductName = "YnixTrainer Extended";' 'private const string ProductName = "AvernesSowtware";' "Product name"
@@ -316,16 +322,16 @@ if (-not $install.Contains($anchor)) { throw "Installer saved slots helper inser
 $install = $install.Replace($anchor, $helper + $anchor)
 Write-Text "Install_YnixTrainer.bat" $install
 Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' ('for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')') + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
-Replace-One "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
-Replace-One "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
-Replace-One "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
+Replace-All "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
+Replace-All "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
+Replace-All "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
 
 # 10) Update release metadata, static validator expectations and documentation.
 Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder title"
 Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware_v1.2.8_RELEASE.zip' 'AvernesSowtware_v1.2.9_RELEASE.zip' "Release archive version"
-Replace-One "BUILD_RELEASE.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder branding"
+Replace-All "BUILD_RELEASE.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder branding"
 Replace-One "BUILD_RELEASE.bat" '"1.2.8"' '"1.2.9"' "Release packager version"
-Replace-One "build\Build.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Compiler branding/version"
+Replace-All "build\Build.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Compiler branding/version"
 Replace-One "build\ReleaseValidator.cs" 'pre_1_2_8' 'pre_1_2_9' "Validator backup expectation"
 Replace-One "build\ReleaseValidator.cs" '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md"' '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "CHANGELOG_1_2_9_RU.md", "TEST_REPORT_1_2_9_RU.md"' "Validator release documentation list"
 Replace-One "build\ReleasePackager.cs" '"CHANGELOG_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md",' '"CHANGELOG_1_2_8_RU.md", "CHANGELOG_1_2_9_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md", "TEST_REPORT_1_2_9_RU.md",' "Release packager documentation list"
