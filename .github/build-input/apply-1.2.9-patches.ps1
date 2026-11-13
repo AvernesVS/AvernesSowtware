@@ -93,6 +93,12 @@ Replace-One "src\YnixTrainerExtended.cs" '            player.Add(ActionEntry("Su
 
 # 5) Wardrobe: wrap textures, preserve valid drawable progression and do not clamp Previous Texture at zero.
 $wardrobe = Read-Text "src\Wardrobe.cs"
+$wardrobeMethodStart = $wardrobe.IndexOf("ChangeWardrobeComponent")
+if ($wardrobeMethodStart -ge 0) {
+    $wardrobeSnippetLength = [Math]::Min(1800, $wardrobe.Length - $wardrobeMethodStart)
+    Write-Host "WARDROBE COMPONENT SOURCE:"
+    Write-Host $wardrobe.Substring($wardrobeMethodStart, $wardrobeSnippetLength)
+}
 $oldWardrobe = @'
             int currentDrawable = Function.Call<int>((Hash)0x67F3780DD425D4FCUL, ped.Handle, componentId);
             int currentTexture = Function.Call<int>((Hash)0x04A355E041E004E6UL, ped.Handle, componentId);
