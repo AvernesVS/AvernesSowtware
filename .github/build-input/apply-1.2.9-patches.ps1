@@ -388,6 +388,15 @@ Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.jso
 Replace-All "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
 Replace-All "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
 Replace-All "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
+Copy-Item (Join-Path $root "Install_YnixTrainer.bat") (Join-Path $root "Install_AvernesSowtware.bat") -Force
+Copy-Item (Join-Path $root "Uninstall_YnixTrainer.bat") (Join-Path $root "Uninstall_AvernesSowtware.bat") -Force
+
+Replace-One "build\ReleaseValidator.cs" '"YnixTrainerExtended.csproj", "YnixTrainerExtended.sln", "BUILD_RELEASE.bat", "START_HERE_RU.txt", "Install_YnixTrainer.bat",' '"YnixTrainerExtended.csproj", "YnixTrainerExtended.sln", "BUILD_RELEASE.bat", "START_HERE_RU.txt", "Install_AvernesSowtware.bat",' "Validator installer file list"
+Replace-One "build\ReleaseValidator.cs" '"Uninstall_YnixTrainer.bat", "build/Build.bat",' '"Uninstall_AvernesSowtware.bat", "build/Build.bat",' "Validator uninstaller file list"
+Replace-One "build\ReleaseValidator.cs" 'Path.Combine(root, "Install_YnixTrainer.bat")' 'Path.Combine(root, "Install_AvernesSowtware.bat")' "Validator installer path"
+Replace-One "build\ReleasePackager.cs" '"Install_YnixTrainer.bat", "Uninstall_YnixTrainer.bat", "README_RU.md",' '"Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat", "README_RU.md",' "Packager installer names"
+Replace-One "build\ReleasePackager.cs" 'archiveRootName + "/Install_YnixTrainer.bat", archiveRootName + "/Uninstall_YnixTrainer.bat",' 'archiveRootName + "/Install_AvernesSowtware.bat", archiveRootName + "/Uninstall_AvernesSowtware.bat",' "Packager installer required entries"
+Replace-All "START_HERE_RU.txt" 'Install_YnixTrainer.bat' 'Install_AvernesSowtware.bat' "Start guide installer name"
 
 # 10) Update release metadata, static validator expectations and documentation.
 Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder title"
