@@ -109,13 +109,13 @@ jobs:
             Add-Type -AssemblyName System.IO.Compression.FileSystem
             $zr = [IO.Compression.ZipFile]::OpenRead($release)
             try {
-              $names = @($zr.Entries | ForEach-Object { $_.FullName })
-              $dllEntries = @($zr.Entries | Where-Object { $_.FullName.Replace('\\','/').EndsWith('/dist/YnixTrainerExtended.dll', [StringComparison]::OrdinalIgnoreCase) })
+              $names = @($zr.Entries | ForEach-Object { $_.FullName.Replace([char]92, '/') })
+              $dllEntries = @($names | Where-Object { $_.EndsWith('/dist/YnixTrainerExtended.dll', [StringComparison]::OrdinalIgnoreCase) })
               if ($dllEntries.Count -lt 1) { throw "Compiled trainer DLL missing from ZIP. Entries: $($names -join '; ')" }
               $roots = @($names | Where-Object { $_ } | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
               if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.2.8") { throw "Bad archive root: $($roots -join ', ')." }
               Write-Host "RELEASE ZIP VALID: $release; entries=$($names.Count)"
-              Write-Host "COMPILED DLL: $($dllEntries[0].FullName)"
+              Write-Host "COMPILED DLL: $($dllEntries[0])"
             } finally { $zr.Dispose() }
 
             New-Item "release-artifact" -ItemType Directory -Force | Out-Null
