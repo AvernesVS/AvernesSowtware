@@ -16,7 +16,7 @@ function Write-Source($File, [string]$Text) {
     [IO.File]::WriteAllText($File.Path, $Text, $utf8Bom)
 }
 
-# Replace the syntactically invalid standalone try statement with the native call.
+# Fix the syntactically invalid standalone try statement.
 $f = Read-Source "src\VehicleSystems.cs"
 $invalidLine = "                try { Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); } // REQUEST_COLLISION_AT_COORD"
 $validLine = "                Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); // REQUEST_COLLISION_AT_COORD"
@@ -24,14 +24,11 @@ if ($f.Text.Contains($invalidLine)) {
     $f.Text = $f.Text.Replace($invalidLine, $validLine)
     Write-Source $f $f.Text
 }
-if ($f.Text.Contains($invalidLine)) {
-    throw "VehicleSystems.cs invalid standalone try statement remains after patch."
-}
-if (-not $f.Text.Contains($validLine)) {
-    throw "VehicleSystems.cs collision request line was not found."
+if ($f.Text.Contains($invalidLine) -or -not $f.Text.Contains($validLine)) {
+    throw "VehicleSystems.cs collision request syntax fix did not apply."
 }
 
-# Add the native namespace needed by the keyboard native calls.
+# Add GTA.Native for Function / Hash in the vehicle catalog module.
 $f = Read-Source "src\VehicleCatalog.cs"
 if (-not $f.Text.Contains("using GTA.Native;")) {
     $marker = "using System.Web.Script.Serialization;"
@@ -43,7 +40,7 @@ if (-not $f.Text.Contains("using GTA.Native;")) {
     throw "VehicleCatalog.cs GTA.Native import is missing after patch."
 }
 
-# CI may already use the explicit SHVDN2 path. Add support only if it is absent.
+# Keep the build script compatible with a CI-supplied SHVDN2 reference assembly.
 $f = Read-Source "build\Build.bat"
 $old = @'
 set "SHVDN_DLL="
@@ -60,10 +57,10 @@ if ($f.Text.Contains($old)) {
     throw "Build.bat SHVDN2 reference path is not compatible with CI."
 }
 
-# Avoid CMD parsing FAIL_REASON parentheses as part of an IF block.
+# Find the actual :fail label (not a preceding "goto :fail" statement).
 $f = Read-Source "BUILD_RELEASE.bat"
-$start = $f.Text.IndexOf(":fail" + [char]10)
-if ($start -lt 0) { throw "BUILD_RELEASE.bat :fail label was not found." }
+$label = [regex]::Match($f.Text, '(?m)^:fail[ \t]*$')
+if (-not $label.Success) { throw "BUILD_RELEASE.bat :fail label was not found." }
 $replacement = @'
 :fail
 if defined FAIL_REASON call :write_fail_report
@@ -88,7 +85,14 @@ echo.>>"%REPORT%"
 echo No new release ZIP was published by this build.>>"%REPORT%"
 exit /b 0
 '@
-$f.Text = $f.Text.Substring(0, $start) + $replacement
+$f.Text = $f.Text.Substring(0, $label.Index) + $replacement
 Write-Source $f $f.Text
 
-Write-Host "Applied and verified 1.2.8 build fixes."
+if (-not $f.Text.Contains("--build-only --no-pause")) {
+    throw "BUILD_RELEASE.bat build-only invocation was lost during patch."
+}
+if (-not $f.Text.Contains("installation was not executed")) {
+    throw "BUILD_RELEASE.bat report no longer states that GTA V installation was skipped."
+}
+
+Write-Host "Applied and verified 1.2.8 source and release-script fixes."
