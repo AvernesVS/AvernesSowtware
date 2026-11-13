@@ -39,6 +39,7 @@ jobs:
           if (-not (Select-String -Path (Join-Path $root "src\YnixTrainerExtended.cs") -Pattern 'ProductVersion = "1.2.9"' -Quiet)) { throw "Product version patch did not apply." }
           if (-not (Select-String -Path (Join-Path $root "src\Atlas.cs") -Pattern 'GTA SAVE COMPLETION IS NOT READ' -Quiet)) { throw "Atlas manual-progress correction did not apply." }
           if (-not (Select-String -Path (Join-Path $root "Install_YnixTrainer.bat") -Pattern ':ensure_saved_vehicle_slots' -Quiet)) { throw "Saved vehicle slots installer patch did not apply." }
+          if (-not (Select-String -Path (Join-Path $root "src\VehicleSystems.cs") -Pattern 'fallbackModelName' -Quiet)) { throw "Arwing/Tornado B fallback patch did not apply." }
       - name: Get ScriptHookVDotNet2 reference assembly
         shell: pwsh
         run: |
