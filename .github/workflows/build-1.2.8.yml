@@ -1,0 +1,108 @@
+name: YnixTrainer 1.2.8 Windows release build
+
+on:
+  push:
+    branches:
+      - work/1.2.8-development
+    paths:
+      - ".github/build-input/YnixTrainer_1.2.8_BUILD_INPUT_*.b64"
+      - ".github/workflows/build-1.2.8.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+
+      - name: Reassemble full source archive
+        shell: pwsh
+        run: |
+          $chunks = Get-ChildItem ".github/build-input/YnixTrainer_1.2.8_BUILD_INPUT_*.b64" | Sort-Object Name
+          if ($chunks.Count -ne 10) { throw "Expected 10 source chunks, found $($chunks.Count)." }
+          $encoded = ($chunks | ForEach-Object { (Get-Content -Raw $_.FullName).Trim() }) -join ""
+          $archive = Join-Path $env:RUNNER_TEMP "ynix-source.tar.gz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($encoded))
+          $extract = Join-Path $env:RUNNER_TEMP "ynix-source"
+          New-Item -ItemType Directory -Path $extract -Force | Out-Null
+          tar -xzf $archive -C $extract
+          $root = Join-Path $extract "AvernesSowtware_v1.2.8"
+          if (-not (Test-Path (Join-Path $root "BUILD_RELEASE.bat"))) { throw "Source archive root or BUILD_RELEASE.bat is missing." }
+          "YNIX_PROJECT_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Obtain ScriptHookVDotNet2 reference assembly
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP "ScriptHookVDotNet2.2.10.13.nupkg"
+          $zip = Join-Path $env:RUNNER_TEMP "ScriptHookVDotNet2.2.10.13.zip"
+          $extract = Join-Path $env:RUNNER_TEMP "shvdn2"
+          Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13" -OutFile $package
+          Copy-Item $package $zip -Force
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          $dll = Get-ChildItem $extract -Recurse -Filter "ScriptHookVDotNet2.dll" | Select-Object -First 1
+          if (-not $dll) { throw "ScriptHookVDotNet2.dll was not found in the 2.10.13 package." }
+          "YNIX_SHVDN_DLL=$($dll.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Using reference: $($dll.FullName)"
+
+      - name: Compile and create release ZIP
+        shell: pwsh
+        run: |
+          $root = $env:YNIX_PROJECT_ROOT
+          $game = Join-Path $env:RUNNER_TEMP "GTA5-build-target"
+          New-Item -ItemType Directory -Path $game -Force | Out-Null
+          Push-Location $root
+          try {
+            $bat = Join-Path $root "BUILD_RELEASE.bat"
+            & $env:ComSpec /d /c ('call "{0}" "{1}" --no-pause' -f $bat, $game)
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              Write-Host "=== BUILD_RELEASE.log ==="
+              if (Test-Path "BUILD_RELEASE.log") { Get-Content "BUILD_RELEASE.log" }
+              Write-Host "=== YniXTrainer_Build.log ==="
+              if (Test-Path "YniXTrainer_Build.log") { Get-Content "YniXTrainer_Build.log" }
+              throw "BUILD_RELEASE.bat failed with exit code $code."
+            }
+
+            $zips = Get-ChildItem (Join-Path $root "dist") -Recurse -Filter "*.zip" -ErrorAction SilentlyContinue
+            if (-not $zips) { throw "Build succeeded but no release ZIP was produced in dist." }
+            $release = $zips | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive = [IO.Compression.ZipFile]::OpenRead($release.FullName)
+            try {
+              $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+              $dll = @($entries | Where-Object { $_ -match '(^|/)YnixTrainerExtended\.dll$' })
+              if ($dll.Count -lt 1) { throw "Release ZIP does not contain the compiled YnixTrainerExtended.dll." }
+              $roots = @($entries | Where-Object { $_ -ne "" } | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
+              if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.2.8") { throw "Release ZIP does not have the expected single version root." }
+              if ($entries -notcontains "AvernesSowtware_v1.2.8/INSTALL.bat" -and -not ($entries | Where-Object { $_ -match '^AvernesSowtware_v1\.2\.8/.*install.*\.bat$' })) {
+                Write-Warning "Installer name was not matched by the standard names; inspect archive contents."
+              }
+              $empty = @($archive.Entries | Where-Object { $_.Length -eq 0 -and -not $_.FullName.EndsWith("/") })
+              if ($empty.Count -gt 0) { throw "Release ZIP contains empty files: $($empty.FullName -join ', ')" }
+              Write-Host "Validated release ZIP: $($release.FullName)"
+              Write-Host "Compiled DLL entry: $($dll -join ', ')"
+              Write-Host "Entries: $($entries.Count)"
+            } finally {
+              $archive.Dispose()
+            }
+
+            $artifactDir = Join-Path $env:GITHUB_WORKSPACE "release-artifact"
+            New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+            Copy-Item $release.FullName (Join-Path $artifactDir "AvernesSowtware_v1.2.8_RELEASE.zip") -Force
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload full 1.2.8 release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.2.8-RELEASE
+          path: release-artifact/AvernesSowtware_v1.2.8_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 14
