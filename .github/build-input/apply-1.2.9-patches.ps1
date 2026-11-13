@@ -71,6 +71,7 @@ $newRow = @'
                     0.205f * scale * fontScale,
 '@
 Replace-One "src\YnixTrainerExtended.cs" $oldRow $newRow "Menu row width clipping"
+$main = Read-Text "src\YnixTrainerExtended.cs"
 $insert = @'
         private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
         {
