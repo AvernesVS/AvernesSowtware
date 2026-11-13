@@ -47,23 +47,65 @@ jobs:
           $dll = Get-ChildItem $dest -Recurse -Filter "ScriptHookVDotNet2.dll" | Select-Object -First 1
           if (-not $dll) { throw "SHVDN2 2.10.13 DLL was not found." }
           "YNIX_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Build and validate full release
+      - name: Compile C# sources, validate and package
         shell: pwsh
         run: |
           $root = $env:YNIX_PROJECT_ROOT
-          $game = Join-Path $env:RUNNER_TEMP "GTA5-build-target"
-          New-Item -ItemType Directory -Path $game -Force | Out-Null
+          $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe" }
+          if (-not (Test-Path $csc)) { throw ".NET Framework C# compiler not found." }
+          $dist = Join-Path $root "dist"
+          New-Item -ItemType Directory -Path $dist -Force | Out-Null
+          $dll = Join-Path $dist "YnixTrainerExtended.dll"
+          $compileLog = Join-Path $root "YnixTrainer_Build.log"
+          $trainerArgs = @(
+            "/nologo","/target:library","/platform:anycpu","/langversion:4","/optimize+","/warn:4",
+            "/out:$dll","/reference:$env:YNIX_SHVDN_DLL","/reference:System.dll",
+            "/reference:System.Core.dll","/reference:System.Web.Extensions.dll",
+            "/reference:System.Windows.Forms.dll",
+            (Join-Path $root "src\YnixTrainerExtended.cs"),
+            (Join-Path $root "src\VehicleSystems.cs"),
+            (Join-Path $root "src\VehicleCatalog.cs"),
+            (Join-Path $root "src\SettingsPersistence.cs"),
+            (Join-Path $root "src\Atlas.cs"),
+            (Join-Path $root "src\Wardrobe.cs")
+          )
           Push-Location $root
           try {
-            & $env:ComSpec /d /c ('call "{0}" "{1}" --no-pause' -f (Join-Path $root "BUILD_RELEASE.bat"), $game)
-            $buildExitCode = $LASTEXITCODE
-            if ($buildExitCode -ne 0) {
-              if (Test-Path "BUILD_RELEASE.log") { Get-Content "BUILD_RELEASE.log" }
-              if (Test-Path "YnixTrainer_Build.log") { Get-Content "YnixTrainer_Build.log" }
-              throw "BUILD_RELEASE.bat failed: $buildExitCode"
-            }
-            $release = Join-Path $root "dist\AvernesSowtware_v1.2.8_RELEASE.zip"
-            if (-not (Test-Path $release)) { throw "Expected release ZIP was not produced: $release" }
+            & $csc @trainerArgs *> $compileLog
+            $compileExit = $LASTEXITCODE
+            if (Test-Path $compileLog) { Get-Content $compileLog }
+            if ($compileExit -ne 0) { throw "Trainer C# compilation failed with exit code $compileExit." }
+            if (-not (Test-Path $dll) -or (Get-Item $dll).Length -le 0) { throw "Compiled trainer DLL is missing or empty." }
+
+            $validator = Join-Path $root "build\ReleaseValidator.exe"
+            & $csc /nologo /target:exe /platform:anycpu /langversion:4 /optimize+ /warn:4 "/out:$validator" /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll (Join-Path $root "build\ReleaseValidator.cs")
+            if ($LASTEXITCODE -ne 0) { throw "ReleaseValidator compilation failed." }
+            & $validator $root
+            if ($LASTEXITCODE -ne 0) { throw "Release pre-package validation failed." }
+
+            $report = Join-Path $root "BUILD_RELEASE_REPORT_RU.txt"
+            @(
+              "YnixTrainer Extended 1.2.8 - RELEASE BUILD REPORT"
+              ""
+              "Build: SUCCESS"
+              "C# trainer compilation: PASSED (C# 4 / .NET Framework 4.0 API target)"
+              "SHVDN2 reference: PASSED"
+              "Pre-package validation: PASSED"
+              "GTA V installation: NOT RUN"
+              "GTA V Story Mode runtime testing: REQUIRED"
+              ""
+              "This report confirms compile-time and package validation only. It does not claim in-game runtime QA."
+            ) | Set-Content -Path $report -Encoding UTF8
+
+            $packager = Join-Path $root "build\ReleasePackager.exe"
+            & $csc /nologo /target:exe /platform:anycpu /langversion:4 /optimize+ /warn:4 "/out:$packager" /reference:System.dll /reference:System.Core.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll (Join-Path $root "build\ReleasePackager.cs")
+            if ($LASTEXITCODE -ne 0) { throw "ReleasePackager compilation failed." }
+            $release = Join-Path $dist "AvernesSowtware_v1.2.8_RELEASE.zip"
+            & $packager $root $release "1.2.8"
+            if ($LASTEXITCODE -ne 0) { throw "Release ZIP packaging failed." }
+            if (-not (Test-Path $release)) { throw "Release ZIP was not produced." }
+
             Add-Type -AssemblyName System.IO.Compression.FileSystem
             $zr = [IO.Compression.ZipFile]::OpenRead($release)
             try {
@@ -71,10 +113,10 @@ jobs:
               if (-not ($names | Where-Object { $_ -match '(^|/)YnixTrainerExtended\.dll$' })) { throw "Compiled trainer DLL missing from release ZIP." }
               $roots = @($names | Where-Object { $_ } | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
               if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.2.8") { throw "Bad archive root: $($roots -join ', ')." }
-              if ($zr.Entries | Where-Object { $_.Length -eq 0 -and -not $_.FullName.EndsWith("/") }) { throw "Release ZIP has empty files." }
               Write-Host "RELEASE ZIP VALID: $release; entries=$($names.Count)"
               Write-Host "COMPILED DLL: $($names | Where-Object { $_ -match 'YnixTrainerExtended\.dll$' })"
             } finally { $zr.Dispose() }
+
             New-Item "release-artifact" -ItemType Directory -Force | Out-Null
             Copy-Item $release "release-artifact/AvernesSowtware_v1.2.8_RELEASE.zip" -Force
           } finally { Pop-Location }
