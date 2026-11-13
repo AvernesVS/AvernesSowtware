@@ -1,0 +1,60 @@
+name: YnixTrainer Extended 1.2.8 Windows build
+
+on:
+  push:
+    branches:
+      - work/1.2.8-development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Get official ScriptHookVDotNet v2.10.6 compile reference
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'ScriptHookVDotNet-v2.10.6.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'ScriptHookVDotNet-v2.10.6'
+          $reference = Join-Path $env:RUNNER_TEMP 'shvdn-reference'
+          Invoke-WebRequest -Uri 'https://github.com/scripthookvdotnet/scripthookvdotnet/releases/download/v2.10.6/ScriptHookVDotNet.zip' -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath $extract -Force
+          $dll = Get-ChildItem -Path $extract -Filter 'ScriptHookVDotNet2.dll' -Recurse | Select-Object -First 1
+          if ($null -eq $dll) { throw 'Official v2.10.6 archive does not contain ScriptHookVDotNet2.dll.' }
+          New-Item -ItemType Directory -Path $reference -Force | Out-Null
+          Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $reference 'ScriptHookVDotNet2.dll') -Force
+          Write-Host ('Using compile reference: ' + $dll.FullName)
+
+      - name: Build, validate and package 1.2.8
+        shell: pwsh
+        run: |
+          $reference = Join-Path $env:RUNNER_TEMP 'shvdn-reference'
+          $script = Join-Path $env:GITHUB_WORKSPACE 'BUILD_RELEASE.bat'
+          & cmd.exe /d /c ('"' + $script + '" "' + $reference + '"')
+          if ($LASTEXITCODE -ne 0) { throw ('BUILD_RELEASE.bat failed with exit code ' + $LASTEXITCODE) }
+
+      - name: Upload compiled release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.2.8-RELEASE
+          path: dist/AvernesSowtware_v1.2.8_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YnixTrainer-v1.2.8-build-diagnostics
+          path: |
+            BUILD_RELEASE.log
+            BUILD_RELEASE_REPORT_RU.txt
+            YnixTrainer_Build.log
+          if-no-files-found: warn
+          retention-days: 30
