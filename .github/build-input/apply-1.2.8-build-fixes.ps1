@@ -95,4 +95,30 @@ if (-not $f.Text.Contains("installation was not executed")) {
     throw "BUILD_RELEASE.bat report no longer states that GTA V installation was skipped."
 }
 
+# Emit ZIP entry names with forward slashes, as required by the ZIP format.
+$f = Read-Source "build\ReleasePackager.cs"
+$zipOld = "            ZipFile.CreateFromDirectory(stage, output, CompressionLevel.Optimal, false);"
+$zipNew = @'
+            using (FileStream archiveStream = new FileStream(output, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+            using (ZipArchive archive = new ZipArchive(archiveStream, ZipArchiveMode.Create))
+            {
+                string[] stagedFiles = Directory.GetFiles(stage, "*", SearchOption.AllDirectories);
+                for (int i = 0; i < stagedFiles.Length; i++)
+                {
+                    string relative = stagedFiles[i].Substring(stage.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    string entryName = relative.Replace('\\', '/');
+                    archive.CreateEntryFromFile(stagedFiles[i], entryName, CompressionLevel.Optimal);
+                }
+            }
+'@
+if ($f.Text.Contains($zipOld)) {
+    $f.Text = $f.Text.Replace($zipOld, $zipNew)
+    Write-Source $f $f.Text
+} elseif (-not $f.Text.Contains("new ZipArchive(archiveStream, ZipArchiveMode.Create)")) {
+    throw "ReleasePackager.cs ZIP path normalization patch point was not found."
+}
+if (-not $f.Text.Contains("relative.Replace('\\', '/')")) {
+    throw "ReleasePackager.cs does not normalize ZIP entry paths."
+}
+
 Write-Host "Applied and verified 1.2.8 source and release-script fixes."
