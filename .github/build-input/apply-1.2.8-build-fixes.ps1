@@ -16,31 +16,19 @@ function Write-Source($File, [string]$Text) {
     [IO.File]::WriteAllText($File.Path, $Text, $utf8Bom)
 }
 
-# Fix a try block that had no catch/finally and prevented C# compilation.
+# Replace the syntactically invalid standalone try statement with the native call.
 $f = Read-Source "src\VehicleSystems.cs"
-$old = @'
-                try { Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); } // REQUEST_COLLISION_AT_COORD
-                try
-                {
-                    if (Function.Call<bool>((Hash)0x61E1DD6125A3EEE6UL, candidate.X, candidate.Y, candidate.Z, 3.5f))
-                        continue; // Do not overlap an existing vehicle when an alternate point is available.
-                }
-                catch (Exception proximityException) { LogException("Vehicle spawn proximity check", proximityException); }
-'@
-$new = @'
-                try
-                {
-                    Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); // REQUEST_COLLISION_AT_COORD
-                    if (Function.Call<bool>((Hash)0x61E1DD6125A3EEE6UL, candidate.X, candidate.Y, candidate.Z, 3.5f))
-                        continue; // Do not overlap an existing vehicle when an alternate point is available.
-                }
-                catch (Exception proximityException) { LogException("Vehicle spawn proximity check", proximityException); }
-'@
-if ($f.Text.Contains($old)) {
-    $f.Text = $f.Text.Replace($old, $new)
+$invalidLine = "                try { Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); } // REQUEST_COLLISION_AT_COORD"
+$validLine = "                Function.Call((Hash)0x07503F7948F491A7UL, candidate.X, candidate.Y, candidate.Z); // REQUEST_COLLISION_AT_COORD"
+if ($f.Text.Contains($invalidLine)) {
+    $f.Text = $f.Text.Replace($invalidLine, $validLine)
     Write-Source $f $f.Text
-} elseif (-not $f.Text.Contains("catch (Exception proximityException)")) {
-    throw "VehicleSystems.cs collision/proximity block did not match expected source."
+}
+if ($f.Text.Contains($invalidLine)) {
+    throw "VehicleSystems.cs invalid standalone try statement remains after patch."
+}
+if (-not $f.Text.Contains($validLine)) {
+    throw "VehicleSystems.cs collision request line was not found."
 }
 
 # Add the native namespace needed by the keyboard native calls.
@@ -50,6 +38,9 @@ if (-not $f.Text.Contains("using GTA.Native;")) {
     if (-not $f.Text.Contains($marker)) { throw "VehicleCatalog.cs using insertion point was not found." }
     $f.Text = $f.Text.Replace($marker, $marker + [char]10 + "using GTA.Native;")
     Write-Source $f $f.Text
+}
+if (-not $f.Text.Contains("using GTA.Native;")) {
+    throw "VehicleCatalog.cs GTA.Native import is missing after patch."
 }
 
 # CI may already use the explicit SHVDN2 path. Add support only if it is absent.
@@ -66,7 +57,7 @@ if ($f.Text.Contains($old)) {
     $f.Text = $f.Text.Replace($old, $new)
     Write-Source $f $f.Text
 } elseif (-not $f.Text.Contains("%YNIX_SHVDN_DLL%")) {
-    throw "Build.bat SHVDN2 reference block did not match expected source."
+    throw "Build.bat SHVDN2 reference path is not compatible with CI."
 }
 
 # Avoid CMD parsing FAIL_REASON parentheses as part of an IF block.
@@ -100,4 +91,4 @@ exit /b 0
 $f.Text = $f.Text.Substring(0, $start) + $replacement
 Write-Source $f $f.Text
 
-Write-Host "Applied 1.2.8 build fixes."
+Write-Host "Applied and verified 1.2.8 build fixes."
