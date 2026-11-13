@@ -95,7 +95,7 @@ Write-Text "src\YnixTrainerExtended.cs" $main
 
 # 4) Keep the clothing/outfit feature reachable under Player instead of the main menu.
 Replace-One "src\YnixTrainerExtended.cs" '            main.Add(PageEntry("Wardrobe", "Wardrobe", "Compatible clothing and saved outfits for the current Story Mode character."));' '' "Move Wardrobe out of main menu"
-Replace-One "src\YnixTrainerExtended.cs" '            player.Add(ActionEntry("Suicide", "Suicide", "Kills the current player character.", SuicidePlayer));' '            player.Add(ActionEntry("Suicide", "Suicide", "Kills the current player character.", SuicidePlayer));' + [char]10 + '            player.Add(PageEntry("Clothing & outfits", "Wardrobe", "Legacy outfit and component editor; saved presets remain compatible."));' "Move clothing page to Player"
+Replace-One "src\YnixTrainerExtended.cs" '            player.Add(ActionEntry("Suicide", "Suicide", "Kills the current player character.", SuicidePlayer));' ('            player.Add(ActionEntry("Suicide", "Suicide", "Kills the current player character.", SuicidePlayer));' + [char]10 + '            player.Add(PageEntry("Clothing & outfits", "Wardrobe", "Legacy outfit and component editor; saved presets remain compatible."));') "Move clothing page to Player"
 
 # 5) Wardrobe: wrap textures, preserve valid drawable progression and do not clamp Previous Texture at zero.
 $wardrobe = Read-Text "src\Wardrobe.cs"
@@ -173,7 +173,7 @@ $newGuard = @'
                 EnsureBodyguardGroup(player);
 '@
 Replace-One "src\YnixTrainerExtended.cs" $oldGuard $newGuard "Bodyguard damage and persistence"
-Replace-One "src\YnixTrainerExtended.cs" '                Function.Call(Hash.GIVE_WEAPON_TO_PED, guard, weapon, 9999, false, true);' '                Function.Call(Hash.GIVE_WEAPON_TO_PED, guard, weapon, 9999, false, true);' + [char]10 + '                Function.Call(Hash.SET_CURRENT_PED_WEAPON, guard, weapon, true);' "Bodyguard weapon equip"
+Replace-One "src\YnixTrainerExtended.cs" '                Function.Call(Hash.GIVE_WEAPON_TO_PED, guard, weapon, 9999, false, true);' ('                Function.Call(Hash.GIVE_WEAPON_TO_PED, guard, weapon, 9999, false, true);' + [char]10 + '                Function.Call(Hash.SET_CURRENT_PED_WEAPON, guard, weapon, true);') "Bodyguard weapon equip"
 $oldFollow = @'
                     bool inCombat = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, handle, 0);
                     if (inCombat) continue;
@@ -195,7 +195,7 @@ $newFollow = @'
 Replace-One "src\YnixTrainerExtended.cs" $oldFollow $newFollow "Bodyguard defensive combat task"
 
 # 7) Never Wanted: cap wanted level at zero to prevent flashing wanted indicators; restore the previous cap.
-Replace-One "src\YnixTrainerExtended.cs" '        private bool _weatherWasLocked;' '        private bool _weatherWasLocked;' + [char]10 + '        private bool _neverWantedMaxLevelCaptured;' + [char]10 + '        private int _previousMaxWantedLevel = 5;' "Never Wanted state fields"
+Replace-One "src\YnixTrainerExtended.cs" '        private bool _weatherWasLocked;' ('        private bool _weatherWasLocked;' + [char]10 + '        private bool _neverWantedMaxLevelCaptured;' + [char]10 + '        private int _previousMaxWantedLevel = 5;') "Never Wanted state fields"
 $oldWanted = @'
             if (_settings.NeverWanted)
             {
@@ -232,7 +232,7 @@ $newWanted = @'
             }
 '@
 Replace-One "src\YnixTrainerExtended.cs" $oldWanted $newWanted "Never Wanted wanted-level cap"
-Replace-One "src\YnixTrainerExtended.cs" '                RestoreAntiEject();' '                RestoreAntiEject();' + [char]10 + '                if (_neverWantedMaxLevelCaptured)' + [char]10 + '                {' + [char]10 + '                    Function.Call((Hash)0xAA5F02DB48D704B9UL, ClampInt(_previousMaxWantedLevel, 0, 5));' + [char]10 + '                    _neverWantedMaxLevelCaptured = false;' + [char]10 + '                }' "Restore wanted-level cap on abort"
+Replace-One "src\YnixTrainerExtended.cs" '                RestoreAntiEject();' ('                RestoreAntiEject();' + [char]10 + '                if (_neverWantedMaxLevelCaptured)' + [char]10 + '                {' + [char]10 + '                    Function.Call((Hash)0xAA5F02DB48D704B9UL, ClampInt(_previousMaxWantedLevel, 0, 5));' + [char]10 + '                    _neverWantedMaxLevelCaptured = false;' + [char]10 + '                }') "Restore wanted-level cap on abort"
 
 # 8) Safe ground-loading teleports for Galileo, Chiliad and map waypoints.
 Replace-One "src\YnixTrainerExtended.cs" '            teleport.Add(ActionEntry("Mount Chiliad", "Chiliad", null, delegate { TeleportTo(501.2f, 5604.5f, 797.9f); }));' '            teleport.Add(ActionEntry("Mount Chiliad", "Chiliad", null, delegate { TeleportToGround(501.2f, 5604.5f, 797.9f); }));' "Chiliad ground teleport"
@@ -241,7 +241,7 @@ Replace-One "src\YnixTrainerExtended.cs" '            _waypointTeleportDeadlineU
 $oldCollision = '                Function.Call((Hash)0x07503F7948F491A7UL, _waypointTeleportX, _waypointTeleportY, 1000.0f);'
 $newCollision = $oldCollision + [char]10 + '                Function.Call((Hash)0xC9156DC11411A9EAUL, _waypointTeleportX, _waypointTeleportY, 1000.0f); // REQUEST_ADDITIONAL_COLLISION_AT_COORD'
 Replace-One "src\YnixTrainerExtended.cs" $oldCollision $newCollision "Additional collision streaming request"
-Replace-One "src\YnixTrainerExtended.cs" '                    Notify("Teleported to waypoint on loaded ground.");' '                    if (ped.IsInVehicle() && ped.CurrentVehicle != null && ped.CurrentVehicle.Handle == handle)' + [char]10 + '                        Function.Call(Hash.SET_VEHICLE_ON_GROUND_PROPERLY, handle);' + [char]10 + '                    Notify("Teleported to loaded ground.");' "Ground teleport completion"
+Replace-One "src\YnixTrainerExtended.cs" '                    Notify("Teleported to waypoint on loaded ground.");' ('                    if (ped.IsInVehicle() && ped.CurrentVehicle != null && ped.CurrentVehicle.Handle == handle)' + [char]10 + '                        Function.Call(Hash.SET_VEHICLE_ON_GROUND_PROPERLY, handle);' + [char]10 + '                    Notify("Teleported to loaded ground.");') "Ground teleport completion"
 $groundMethod = @'
         private void TeleportToGround(float x, float y, float z)
         {
@@ -268,11 +268,10 @@ $groundMethod = @'
         }
 
 '@
-Replace-One "src\YnixTrainerExtended.cs" '        private void TeleportTo(float x, float y, float z)' $groundMethod + '        private void TeleportTo(float x, float y, float z)' "Ground teleport method"
+Replace-One "src\YnixTrainerExtended.cs" '        private void TeleportTo(float x, float y, float z)' ($groundMethod + '        private void TeleportTo(float x, float y, float z)') "Ground teleport method"
 
 # 9) Installer: install saved vehicle slots explicitly and verify the copied file without overwriting user data.
 Replace-One "Install_YnixTrainer.bat" 'call :copy_if_missing "%PROJECT_DIR%\package\YnixTrainer\Vehicles\saved_vehicles.json" "%VEHICLES_DIR%\saved_vehicles.json" "saved vehicle slots"' 'call :ensure_saved_vehicle_slots "%PROJECT_DIR%\package\YnixTrainer\Vehicles\saved_vehicles.json" "%VEHICLES_DIR%\saved_vehicles.json"' "Saved vehicle slots installation"
-Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\saved_vehicles.json" (' 'if not exist "%VEHICLES_DIR%\saved_vehicles.json" (' "Saved vehicle slots final check anchor"
 $install = Read-Text "Install_YnixTrainer.bat"
 $anchor = ':relocate_misplaced_dll'
 $helper = @'
@@ -316,7 +315,6 @@ exit /b 0
 if (-not $install.Contains($anchor)) { throw "Installer saved slots helper insertion point not found." }
 $install = $install.Replace($anchor, $helper + $anchor)
 Write-Text "Install_YnixTrainer.bat" $install
-Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\saved_vehicles.json" (' 'if not exist "%VEHICLES_DIR%\saved_vehicles.json" (' "Saved vehicle slots verification retained"
 Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' 'for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')' + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
 Replace-One "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
 Replace-One "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
