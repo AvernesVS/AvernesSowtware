@@ -36,7 +36,8 @@ jobs:
         run: |
           $reference = Join-Path $env:RUNNER_TEMP 'shvdn-reference'
           $script = Join-Path $env:GITHUB_WORKSPACE 'BUILD_RELEASE.bat'
-          & cmd.exe /d /c ('"' + $script + '" "' + $reference + '"')
+          $command = '""{0}" "{1}""' -f $script, $reference
+          & $env:ComSpec /d /c $command
           if ($LASTEXITCODE -ne 0) { throw ('BUILD_RELEASE.bat failed with exit code ' + $LASTEXITCODE) }
 
       - name: Upload compiled release ZIP
