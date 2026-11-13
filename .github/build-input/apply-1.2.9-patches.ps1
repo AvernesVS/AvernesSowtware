@@ -57,20 +57,7 @@ Replace-One "src\Atlas.cs" 'atlas.Add(ValueActionEntry("Manual progress", "Manua
 
 # 3) Prevent long Atlas/menu labels and values from drawing over adjacent rows.
 $main = Read-Text "src\YnixTrainerExtended.cs"
-$oldRow = @'
-                string marker = selected ? "> " : "  ";
-                string suffix = item.Value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + item.Value() + "]";
-                DrawMenuText(marker + item.Title + suffix, x + 0.010f * scale, y + 0.003f * scale,
-                    0.205f * scale * fontScale,
-'@
-$newRow = @'
-                string marker = selected ? "> " : "  ";
-                string suffix = item.Value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + item.Value() + "]";
-                string rowText = FitMenuRowText(marker, item.Title, suffix, width, scale, fontScale);
-                DrawMenuText(rowText, x + 0.010f * scale, y + 0.003f * scale,
-                    0.205f * scale * fontScale,
-'@
-Replace-One "src\YnixTrainerExtended.cs" $oldRow $newRow "Menu row width clipping"
+Replace-One "src\YnixTrainerExtended.cs" 'DrawMenuText(marker + item.Title + suffix' 'DrawMenuText(FitMenuRowText(marker, item.Title, suffix, width, scale, fontScale)' "Menu row width clipping"
 $main = Read-Text "src\YnixTrainerExtended.cs"
 $insert = @'
         private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
