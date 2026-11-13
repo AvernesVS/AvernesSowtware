@@ -18,6 +18,9 @@ function Write-Text([string]$RelativePath, [string]$Text) {
 }
 function Replace-One([string]$RelativePath, [string]$Old, [string]$New, [string]$Label) {
     $text = Read-Text $RelativePath
+    $newline = [Environment]::NewLine
+    $Old = $Old.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
+    $New = $New.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
     $count = ([regex]::Matches($text, [regex]::Escape($Old))).Count
     if ($count -ne 1) { throw "$Label expected exactly one match in $RelativePath; found $count." }
     $text = $text.Replace($Old, $New)
@@ -25,6 +28,9 @@ function Replace-One([string]$RelativePath, [string]$Old, [string]$New, [string]
 }
 function Replace-All([string]$RelativePath, [string]$Old, [string]$New, [string]$Label) {
     $text = Read-Text $RelativePath
+    $newline = [Environment]::NewLine
+    $Old = $Old.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
+    $New = $New.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
     if (-not $text.Contains($Old)) { throw "$Label was not found in $RelativePath." }
     $text = $text.Replace($Old, $New)
     Write-Text $RelativePath $text
@@ -93,12 +99,6 @@ Replace-One "src\YnixTrainerExtended.cs" '            player.Add(ActionEntry("Su
 
 # 5) Wardrobe: wrap textures, preserve valid drawable progression and do not clamp Previous Texture at zero.
 $wardrobe = Read-Text "src\Wardrobe.cs"
-$wardrobeMethodStart = $wardrobe.IndexOf("ChangeWardrobeComponent")
-if ($wardrobeMethodStart -ge 0) {
-    $wardrobeSnippetLength = [Math]::Min(1800, $wardrobe.Length - $wardrobeMethodStart)
-    Write-Host "WARDROBE COMPONENT SOURCE:"
-    Write-Host $wardrobe.Substring($wardrobeMethodStart, $wardrobeSnippetLength)
-}
 $oldWardrobe = @'
             int currentDrawable = Function.Call<int>((Hash)0x67F3780DD425D4FCUL, ped.Handle, componentId);
             int currentTexture = Function.Call<int>((Hash)0x04A355E041E004E6UL, ped.Handle, componentId);
