@@ -52,21 +52,20 @@ if (-not $f.Text.Contains("using GTA.Native;")) {
     Write-Source $f $f.Text
 }
 
-# Let CI provide the exact SHVDN2 reference assembly without needing a real GTA installation.
+# CI may already use the explicit SHVDN2 path. Add support only if it is absent.
 $f = Read-Source "build\Build.bat"
 $old = @'
 set "SHVDN_DLL="
 if exist "%GTAV_DIR%\ScriptHookVDotNet2.dll" set "SHVDN_DLL=%GTAV_DIR%\ScriptHookVDotNet2.dll"
 '@
 $new = @'
-set "SHVDN_DLL="
-if defined YNIX_SHVDN_DLL if exist "%YNIX_SHVDN_DLL%" set "SHVDN_DLL=%YNIX_SHVDN_DLL%"
+set "SHVDN_DLL=%YNIX_SHVDN_DLL%"
 if not defined SHVDN_DLL if exist "%GTAV_DIR%\ScriptHookVDotNet2.dll" set "SHVDN_DLL=%GTAV_DIR%\ScriptHookVDotNet2.dll"
 '@
 if ($f.Text.Contains($old)) {
     $f.Text = $f.Text.Replace($old, $new)
     Write-Source $f $f.Text
-} elseif (-not $f.Text.Contains("if defined YNIX_SHVDN_DLL")) {
+} elseif (-not $f.Text.Contains("%YNIX_SHVDN_DLL%")) {
     throw "Build.bat SHVDN2 reference block did not match expected source."
 }
 
