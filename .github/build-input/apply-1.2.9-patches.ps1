@@ -18,24 +18,31 @@ function Write-Text([string]$RelativePath, [string]$Text) {
 }
 function Replace-One([string]$RelativePath, [string]$Old, [string]$New, [string]$Label) {
     $text = Read-Text $RelativePath
-    $newline = [Environment]::NewLine
-    $Old = $Old.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
-    $New = $New.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
+    $crlf = [string]([char]13) + [char]10
+    $lf = [string][char]10
+    $cr = [string][char]13
+    $lineEnding = if ($text.Contains($crlf)) { $crlf } else { $lf }
+    $text = $text.Replace($crlf, $lf).Replace($cr, $lf)
+    $Old = $Old.Replace($crlf, $lf).Replace($cr, $lf)
+    $New = $New.Replace($crlf, $lf).Replace($cr, $lf)
     $count = ([regex]::Matches($text, [regex]::Escape($Old))).Count
     if ($count -ne 1) { throw "$Label expected exactly one match in $RelativePath; found $count." }
-    $text = $text.Replace($Old, $New)
+    $text = $text.Replace($Old, $New).Replace($lf, $lineEnding)
     Write-Text $RelativePath $text
 }
 function Replace-All([string]$RelativePath, [string]$Old, [string]$New, [string]$Label) {
     $text = Read-Text $RelativePath
-    $newline = [Environment]::NewLine
-    $Old = $Old.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
-    $New = $New.Replace(([string][char]13 + [char]10), [string][char]10).Replace([string][char]10, $newline)
+    $crlf = [string]([char]13) + [char]10
+    $lf = [string][char]10
+    $cr = [string][char]13
+    $lineEnding = if ($text.Contains($crlf)) { $crlf } else { $lf }
+    $text = $text.Replace($crlf, $lf).Replace($cr, $lf)
+    $Old = $Old.Replace($crlf, $lf).Replace($cr, $lf)
+    $New = $New.Replace($crlf, $lf).Replace($cr, $lf)
     if (-not $text.Contains($Old)) { throw "$Label was not found in $RelativePath." }
-    $text = $text.Replace($Old, $New)
+    $text = $text.Replace($Old, $New).Replace($lf, $lineEnding)
     Write-Text $RelativePath $text
 }
-
 # 1) New product identity and version in the visible trainer UI.
 Replace-One "src\YnixTrainerExtended.cs" 'private const string ProductName = "YnixTrainer Extended";' 'private const string ProductName = "AvernesSowtware";' "Product name"
 Replace-One "src\YnixTrainerExtended.cs" 'private const string ProductVersion = "1.2.8";' 'private const string ProductVersion = "1.2.9";' "Product version"
