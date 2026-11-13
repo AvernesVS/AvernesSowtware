@@ -315,7 +315,7 @@ exit /b 0
 if (-not $install.Contains($anchor)) { throw "Installer saved slots helper insertion point not found." }
 $install = $install.Replace($anchor, $helper + $anchor)
 Write-Text "Install_YnixTrainer.bat" $install
-Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' 'for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')' + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
+Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' ('for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')') + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
 Replace-One "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
 Replace-One "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
 Replace-One "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
