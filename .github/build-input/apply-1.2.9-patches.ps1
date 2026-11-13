@@ -277,6 +277,65 @@ $groundMethod = @'
 '@
 Replace-One "src\YnixTrainerExtended.cs" '        private void TeleportTo(float x, float y, float z)' ($groundMethod + '        private void TeleportTo(float x, float y, float z)') "Ground teleport method"
 
+# 8a) Support add-on and replace installations of Arwing and Tornado B.
+$oldSpawn = @'
+                Model model = new Model(modelName);
+                int modelHash = model.Hash;
+                bool modelValid = model.IsValid;
+                bool inCdImage = model.IsInCdImage;
+                bool isVehicle = model.IsVehicle;
+                if (!modelValid || !inCdImage || !isVehicle)
+                {
+                    string reason = "Vehicle model is not available in this game build: " + modelName;
+                    LogFailure("Vehicle spawn", reason + " (valid=" + modelValid + ", cdimage=" + inCdImage + ", vehicle=" + isVehicle + ").");
+                    Notify(reason);
+                    return;
+                }
+'@
+$newSpawn = @'
+                string requestedModelName = modelName;
+                Model model = new Model(modelName);
+                int modelHash = model.Hash;
+                bool modelValid = model.IsValid;
+                bool inCdImage = model.IsInCdImage;
+                bool isVehicle = model.IsVehicle;
+                if (!modelValid || !inCdImage || !isVehicle)
+                {
+                    string fallbackModelName = null;
+                    if (String.Equals(requestedModelName, "arwing", StringComparison.OrdinalIgnoreCase))
+                        fallbackModelName = "lazer";
+                    else if (String.Equals(requestedModelName, "tornadob", StringComparison.OrdinalIgnoreCase))
+                        fallbackModelName = "tornado";
+
+                    if (!String.IsNullOrEmpty(fallbackModelName))
+                    {
+                        Model fallbackModel = new Model(fallbackModelName);
+                        bool fallbackValid = fallbackModel.IsValid;
+                        bool fallbackInCdImage = fallbackModel.IsInCdImage;
+                        bool fallbackIsVehicle = fallbackModel.IsVehicle;
+                        if (fallbackValid && fallbackInCdImage && fallbackIsVehicle)
+                        {
+                            model = fallbackModel;
+                            modelHash = fallbackModel.Hash;
+                            modelName = fallbackModelName;
+                            modelValid = fallbackValid;
+                            inCdImage = fallbackInCdImage;
+                            isVehicle = fallbackIsVehicle;
+                            Log("Requested " + requestedModelName + " is unavailable; using compatible replacement model " + fallbackModelName + ".");
+                            Notify("Using replacement model: " + fallbackModelName);
+                        }
+                    }
+                }
+                if (!modelValid || !inCdImage || !isVehicle)
+                {
+                    string reason = "Vehicle model is not available in this game build: " + requestedModelName;
+                    LogFailure("Vehicle spawn", reason + " (valid=" + modelValid + ", cdimage=" + inCdImage + ", vehicle=" + isVehicle + ").");
+                    Notify(reason);
+                    return;
+                }
+'@
+Replace-One "src\VehicleSystems.cs" $oldSpawn $newSpawn "Arwing and Tornado B model fallback"
+
 # 9) Installer: install saved vehicle slots explicitly and verify the copied file without overwriting user data.
 Replace-One "Install_YnixTrainer.bat" 'call :copy_if_missing "%PROJECT_DIR%\package\YnixTrainer\Vehicles\saved_vehicles.json" "%VEHICLES_DIR%\saved_vehicles.json" "saved vehicle slots"' 'call :ensure_saved_vehicle_slots "%PROJECT_DIR%\package\YnixTrainer\Vehicles\saved_vehicles.json" "%VEHICLES_DIR%\saved_vehicles.json"' "Saved vehicle slots installation"
 $install = Read-Text "Install_YnixTrainer.bat"
@@ -349,6 +408,7 @@ $changelog = @'
 ## Исправления
 - Atlas теперь явно помечает 161 пункт как отдельный ручной чек-лист и не выдаёт его за процент прохождения текущего сохранения GTA V.
 - Ограничена длина строк меню; длинные названия и значения больше не должны накладываться на соседние элементы.
+- Для Arwing и Tornado B добавлен резервный поиск штатной модели, если add-on вариант отсутствует (для replace-сборок); исходные пункты каталога сохранены.
 - Навигация текстур одежды циклическая; исправлен переход при отсутствии текущего drawable. Страница одежды перемещена в Player, сохранённые комплекты и JSON не удаляются.
 - Телохранители создаются как mission entities, остаются у скрипта под контролем, экипируются оружием, не становятся бессмертными и получают задачу защищать игрока во время боя.
 - Для Обсерватории Галилео и горы Чильяд используется загрузка коллизии и высоты грунта; время ожидания для телепорта к waypoint увеличено.
