@@ -110,11 +110,12 @@ jobs:
             $zr = [IO.Compression.ZipFile]::OpenRead($release)
             try {
               $names = @($zr.Entries | ForEach-Object { $_.FullName })
-              if (-not ($names | Where-Object { $_ -match '(^|/)YnixTrainerExtended\.dll$' })) { throw "Compiled trainer DLL missing from release ZIP." }
+              $expectedDll = "AvernesSowtware_v1.2.8/dist/YnixTrainerExtended.dll"
+              if ($names -notcontains $expectedDll) { throw "Compiled trainer DLL missing from release ZIP: $expectedDll" }
               $roots = @($names | Where-Object { $_ } | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
               if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.2.8") { throw "Bad archive root: $($roots -join ', ')." }
               Write-Host "RELEASE ZIP VALID: $release; entries=$($names.Count)"
-              Write-Host "COMPILED DLL: $($names | Where-Object { $_ -match 'YnixTrainerExtended\.dll$' })"
+              Write-Host "COMPILED DLL: $expectedDll"
             } finally { $zr.Dispose() }
 
             New-Item "release-artifact" -ItemType Directory -Force | Out-Null
