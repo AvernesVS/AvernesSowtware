@@ -409,6 +409,9 @@ Replace-One "build\ReleaseValidator.cs" '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1
 Replace-One "build\ReleasePackager.cs" '"CHANGELOG_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md",' '"CHANGELOG_1_2_8_RU.md", "CHANGELOG_1_2_9_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md", "TEST_REPORT_1_2_9_RU.md",' "Release packager documentation list"
 Replace-One "README_RU.md" '# YnixTrainer Extended' '# AvernesSowtware' "README title"
 Replace-One "README_RU.md" '**Версия:** 1.2.8.' '**Версия:** 1.2.9.' "README version"
+Replace-All "README_RU.md" 'Install_YnixTrainer.bat' 'Install_AvernesSowtware.bat' "README installer filename"
+Replace-All "README_RU.md" 'Uninstall_YnixTrainer.bat' 'Uninstall_AvernesSowtware.bat' "README uninstaller filename"
+Replace-All "build\Build.bat" 'Install_YnixTrainer.bat' 'Install_AvernesSowtware.bat' "Build script installer filename"
 Replace-One "START_HERE_RU.txt" 'AvernesSowtware / YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Start guide branding/version"
 
 $changelog = @'
