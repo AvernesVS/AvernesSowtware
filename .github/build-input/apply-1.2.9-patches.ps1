@@ -319,7 +319,136 @@ if not exist "%~2" (
 exit /b 0
 
 '@
-$labelMatch = [regex]::Match($install, '(?m)^:relocate_misplaced_dll.*$')
+$labelMatch = [regex]::Match($install, '(?m)^:relocate_misplaced_dll.*Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' ('for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')') + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
+Replace-All "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
+Replace-All "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
+Replace-All "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
+
+# 10) Update release metadata, static validator expectations and documentation.
+Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder title"
+Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware_v1.2.8_RELEASE.zip' 'AvernesSowtware_v1.2.9_RELEASE.zip' "Release archive version"
+Replace-All "BUILD_RELEASE.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder branding"
+Replace-One "BUILD_RELEASE.bat" '"1.2.8"' '"1.2.9"' "Release packager version"
+Replace-All "build\Build.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Compiler branding/version"
+Replace-One "build\ReleaseValidator.cs" 'pre_1_2_8' 'pre_1_2_9' "Validator backup expectation"
+Replace-One "build\ReleaseValidator.cs" '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md"' '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "CHANGELOG_1_2_9_RU.md", "TEST_REPORT_1_2_9_RU.md"' "Validator release documentation list"
+Replace-One "build\ReleasePackager.cs" '"CHANGELOG_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md",' '"CHANGELOG_1_2_8_RU.md", "CHANGELOG_1_2_9_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md", "TEST_REPORT_1_2_9_RU.md",' "Release packager documentation list"
+Replace-One "README_RU.md" '# YnixTrainer Extended' '# AvernesSowtware' "README title"
+Replace-One "README_RU.md" '**Версия:** 1.2.8.' '**Версия:** 1.2.9.' "README version"
+Replace-One "START_HERE_RU.txt" 'AvernesSowtware / YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Start guide branding/version"
+
+$changelog = @'
+# AvernesSowtware 1.2.9 — журнал изменений
+
+## Исправления
+- Atlas теперь явно помечает 161 пункт как отдельный ручной чек-лист и не выдаёт его за процент прохождения текущего сохранения GTA V.
+- Ограничена длина строк меню; длинные названия и значения больше не должны накладываться на соседние элементы.
+- Навигация текстур одежды циклическая; исправлен переход при отсутствии текущего drawable. Страница одежды перемещена в Player, сохранённые комплекты и JSON не удаляются.
+- Телохранители создаются как mission entities, остаются у скрипта под контролем, экипируются оружием, не становятся бессмертными и получают задачу защищать игрока во время боя.
+- Для Обсерватории Галилео и горы Чильяд используется загрузка коллизии и высоты грунта; время ожидания для телепорта к waypoint увеличено.
+- Never Wanted дополнительно ограничивает максимальный уровень розыска нулём и восстанавливает прежнее значение при выключении или остановке скрипта.
+- Установщик отдельно копирует и проверяет saved_vehicles.json; существующие пользовательские слоты не перезаписываются.
+
+## Совместимость
+- Существующие пути пользовательских данных и JSON сохранены для миграции с 1.2.8.
+- GTA V Legacy / ScriptHookVDotNet2; изменения требуют игрового тестирования.
+'@
+Write-Text "CHANGELOG_1_2_9_RU.md" $changelog
+
+$testReport = @'
+# AvernesSowtware 1.2.9 — отчёт сборки
+
+Статус: исходники и сценарии сборки подготовлены; автоматическая сборка и статические проверки выполняются отдельным Windows CI заданием.
+
+Подтверждённые на этапе подготовки изменения:
+- новая метка продукта и версия 1.2.9;
+- ограничения длины строк меню и отдельная маркировка ручного прогресса Atlas;
+- изменение логики навигации одежды;
+- коррекция сопровождения телохранителей;
+- потоковый телепорт с запросами коллизии для двух проблемных локаций;
+- ограничение wanted level в Never Wanted;
+- отдельная проверка и копирование файла слотов транспорта.
+
+Не подтверждено без запуска GTA V Legacy:
+- фактическая синхронизация Atlas с игровым сохранением (в этой версии автоматический процент из save не заявляется);
+- поведение Arwing, Tornado B и Toreador на установленной пользовательской сборке игры;
+- работа пожарной техники без повреждённых стёкол;
+- все игровые сценарии телохранителей, одежды, телепортов и Fort Zancudo.
+
+Runtime-тест в GTA V не проводился этим отчётом. Он не заявляет о прохождении игровых проверок.
+'@
+Write-Text "TEST_REPORT_1_2_9_RU.md" $testReport
+
+Write-Host "Applied 1.2.9 patches and updated release metadata."
+)
+if (-not $labelMatch.Success) { throw "Installer saved slots helper insertion label not found." }
+$install = $install.Insert($labelMatch.Index, $helper)
+Write-Text "Install_YnixTrainer.bat" $install
+Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' ('for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')') + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
+Replace-All "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
+Replace-All "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
+Replace-All "Uninstall_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Uninstaller visible branding/version"
+
+# 10) Update release metadata, static validator expectations and documentation.
+Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder title"
+Replace-One "BUILD_RELEASE.bat" 'AvernesSowtware_v1.2.8_RELEASE.zip' 'AvernesSowtware_v1.2.9_RELEASE.zip' "Release archive version"
+Replace-All "BUILD_RELEASE.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Release builder branding"
+Replace-One "BUILD_RELEASE.bat" '"1.2.8"' '"1.2.9"' "Release packager version"
+Replace-All "build\Build.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Compiler branding/version"
+Replace-One "build\ReleaseValidator.cs" 'pre_1_2_8' 'pre_1_2_9' "Validator backup expectation"
+Replace-One "build\ReleaseValidator.cs" '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md"' '"CHANGELOG_1_2_8_RU.md", "TEST_REPORT_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "CHANGELOG_1_2_9_RU.md", "TEST_REPORT_1_2_9_RU.md"' "Validator release documentation list"
+Replace-One "build\ReleasePackager.cs" '"CHANGELOG_1_2_8_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md",' '"CHANGELOG_1_2_8_RU.md", "CHANGELOG_1_2_9_RU.md", "AUDIT_1_2_8_PROGRESS_RU.md", "TEST_REPORT_1_2_8_RU.md", "TEST_REPORT_1_2_9_RU.md",' "Release packager documentation list"
+Replace-One "README_RU.md" '# YnixTrainer Extended' '# AvernesSowtware' "README title"
+Replace-One "README_RU.md" '**Версия:** 1.2.8.' '**Версия:** 1.2.9.' "README version"
+Replace-One "START_HERE_RU.txt" 'AvernesSowtware / YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Start guide branding/version"
+
+$changelog = @'
+# AvernesSowtware 1.2.9 — журнал изменений
+
+## Исправления
+- Atlas теперь явно помечает 161 пункт как отдельный ручной чек-лист и не выдаёт его за процент прохождения текущего сохранения GTA V.
+- Ограничена длина строк меню; длинные названия и значения больше не должны накладываться на соседние элементы.
+- Навигация текстур одежды циклическая; исправлен переход при отсутствии текущего drawable. Страница одежды перемещена в Player, сохранённые комплекты и JSON не удаляются.
+- Телохранители создаются как mission entities, остаются у скрипта под контролем, экипируются оружием, не становятся бессмертными и получают задачу защищать игрока во время боя.
+- Для Обсерватории Галилео и горы Чильяд используется загрузка коллизии и высоты грунта; время ожидания для телепорта к waypoint увеличено.
+- Never Wanted дополнительно ограничивает максимальный уровень розыска нулём и восстанавливает прежнее значение при выключении или остановке скрипта.
+- Установщик отдельно копирует и проверяет saved_vehicles.json; существующие пользовательские слоты не перезаписываются.
+
+## Совместимость
+- Существующие пути пользовательских данных и JSON сохранены для миграции с 1.2.8.
+- GTA V Legacy / ScriptHookVDotNet2; изменения требуют игрового тестирования.
+'@
+Write-Text "CHANGELOG_1_2_9_RU.md" $changelog
+
+$testReport = @'
+# AvernesSowtware 1.2.9 — отчёт сборки
+
+Статус: исходники и сценарии сборки подготовлены; автоматическая сборка и статические проверки выполняются отдельным Windows CI заданием.
+
+Подтверждённые на этапе подготовки изменения:
+- новая метка продукта и версия 1.2.9;
+- ограничения длины строк меню и отдельная маркировка ручного прогресса Atlas;
+- изменение логики навигации одежды;
+- коррекция сопровождения телохранителей;
+- потоковый телепорт с запросами коллизии для двух проблемных локаций;
+- ограничение wanted level в Never Wanted;
+- отдельная проверка и копирование файла слотов транспорта.
+
+Не подтверждено без запуска GTA V Legacy:
+- фактическая синхронизация Atlas с игровым сохранением (в этой версии автоматический процент из save не заявляется);
+- поведение Arwing, Tornado B и Toreador на установленной пользовательской сборке игры;
+- работа пожарной техники без повреждённых стёкол;
+- все игровые сценарии телохранителей, одежды, телепортов и Fort Zancudo.
+
+Runtime-тест в GTA V не проводился этим отчётом. Он не заявляет о прохождении игровых проверок.
+'@
+Write-Text "TEST_REPORT_1_2_9_RU.md" $testReport
+
+Write-Host "Applied 1.2.9 patches and updated release metadata."
+)
+if (-not $labelMatch.Success) { throw "Installer saved slots helper insertion label not found." }
+$install = $install.Insert($labelMatch.Index, $helper + [Environment]::NewLine)
+Write-Text "Install_YnixTrainer.bat" $install
 Replace-One "Install_YnixTrainer.bat" 'if not exist "%VEHICLES_DIR%\vehicles.json" (' ('for %%I in ("%VEHICLES_DIR%\saved_vehicles.json") do set "FINAL_SAVED_SLOTS_SIZE=%%~zI"' + [char]10 + 'if "%FINAL_SAVED_SLOTS_SIZE%"=="0" (' + [char]10 + '  set "FAIL_REASON=Saved vehicle slots file is empty after installation."' + [char]10 + '  goto :fail' + [char]10 + ')') + [char]10 + 'if not exist "%VEHICLES_DIR%\vehicles.json" (' "Saved vehicle slots size validation"
 Replace-All "Install_YnixTrainer.bat" 'YnixTrainer Extended 1.2.8' 'AvernesSowtware 1.2.9' "Installer visible branding/version"
 Replace-All "Install_YnixTrainer.bat" 'pre_1_2_8' 'pre_1_2_9' "Installer backup release marker"
