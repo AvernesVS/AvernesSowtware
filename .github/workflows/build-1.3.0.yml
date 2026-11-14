@@ -42,23 +42,68 @@ jobs:
           & ".github/build-input/apply-1.2.8-build-fixes.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
           & ".github/build-input/apply-1.2.9-patches.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
 
-      - name: Prepare and apply 1.3.0 patches
+      - name: Prepare Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Apply 1.3.0 changes and run source checks
+      - name: Repair patch payload, apply 1.3.0 changes and run source checks
         shell: pwsh
         run: |
-          $payload = (Get-Content -Raw ".github/build-input/patches_1_3_0.tar.gz.b64").Trim()
-          $archive = Join-Path $env:RUNNER_TEMP "patches_1_3_0.tar.gz"
-          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($payload))
-          $patchDir = Join-Path $env:RUNNER_TEMP "patchset"
-          New-Item -ItemType Directory -Path $patchDir -Force | Out-Null
-          tar -xzf $archive -C $patchDir
-          $patchRoot = Join-Path $patchDir "patchset"
-          if (-not (Test-Path (Join-Path $patchRoot "apply_130_metadata.py"))) { throw "1.3.0 patch set is incomplete." }
+          @'
+          import base64, gzip, hashlib, io, pathlib, tarfile
 
+          encoded_path = pathlib.Path(".github/build-input/patches_1_3_0.tar.gz.b64")
+          encoded = encoded_path.read_text(encoding="ascii").strip()
+          if len(encoded) % 4:
+              print("Patch payload has a single missing base64 character; repairing against gzip CRC.")
+              alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+              matches = {}
+              for position in range(len(encoded) + 1):
+                  for character in alphabet:
+                      candidate = encoded[:position] + character + encoded[position:]
+                      try:
+                          raw = base64.b64decode(candidate, validate=True)
+                          payload = gzip.decompress(raw)
+                          with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as archive:
+                              names = archive.getnames()
+                          if not names or "patchset/apply_130_metadata.py" not in names:
+                              continue
+                          matches[hashlib.sha256(raw).hexdigest()] = raw
+                      except Exception:
+                          continue
+                  if len(matches) > 1:
+                      raise SystemExit("Patch payload repair is ambiguous; refusing to continue.")
+              if len(matches) != 1:
+                  raise SystemExit("Could not uniquely repair 1.3.0 patch payload.")
+              raw = next(iter(matches.values()))
+              print("Recovered unique gzip payload:", hashlib.sha256(raw).hexdigest())
+          else:
+              raw = base64.b64decode(encoded, validate=True)
+              gzip.decompress(raw)
+
+          archive_path = pathlib.Path(r"""$env:RUNNER_TEMP\patches_1_3_0.tar.gz""")
+          archive_path.write_bytes(raw)
+          extract_dir = pathlib.Path(r"""$env:RUNNER_TEMP\patchset""")
+          extract_dir.mkdir(parents=True, exist_ok=True)
+          with tarfile.open(archive_path, "r:gz") as archive:
+              archive.extractall(extract_dir)
+          patch_root = extract_dir / "patchset"
+          scripts = [
+              patch_root / "apply_130_source.py",
+              patch_root / "apply_130_teleport.py",
+              patch_root / "apply_130_design.py",
+              patch_root / "apply_130_metadata.py",
+          ]
+          for script in scripts:
+              if not script.is_file():
+                  raise SystemExit("Missing patch script: " + str(script))
+          print("Extracted 1.3.0 patch scripts:", ", ".join(p.name for p in scripts))
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_130.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_130.py")
+          if ($LASTEXITCODE -ne 0) { throw "Could not recover/extract the 1.3.0 patch payload." }
+
+          $patchRoot = Join-Path $env:RUNNER_TEMP "patchset\patchset"
           python -m py_compile (Join-Path $patchRoot "apply_130_source.py") (Join-Path $patchRoot "apply_130_teleport.py") (Join-Path $patchRoot "apply_130_design.py") (Join-Path $patchRoot "apply_130_metadata.py")
           if ($LASTEXITCODE -ne 0) { throw "1.3.0 patch scripts did not pass Python syntax validation." }
 
