@@ -128,6 +128,45 @@ jobs:
             Write-Host ("===== METHOD BODY: {0} :: {1} =====" -f $target[0], $target[1])
             Dump-Method $target[0] $target[1]
           }
+      - name: Inspect military, settings, vehicle seats and audio handling
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          function Dump-Method([string]$relative, [string]$name) {
+            $lines = [IO.File]::ReadAllLines((Join-Path $root $relative))
+            $start = -1
+            for ($i = 0; $i -lt $lines.Length; $i++) {
+              $t = $lines[$i].TrimStart()
+              if (($t.StartsWith("private ") -or $t.StartsWith("public ") -or $t.StartsWith("protected ")) -and $t.Contains($name + "(")) { $start = $i; break }
+            }
+            if ($start -lt 0) { Write-Host "NOT FOUND: $relative :: $name"; return }
+            $depth = 0; $opened = $false
+            for ($i = $start; $i -lt $lines.Length; $i++) {
+              $line = $lines[$i]
+              $depth += ($line.Length - $line.Replace("{", "").Length) - ($line.Length - $line.Replace("}", "").Length)
+              if ($line.Contains("{")) { $opened = $true }
+              Write-Host ("{0}: {1}" -f ($i + 1), $line)
+              if ($opened -and $depth -eq 0) { break }
+            }
+          }
+          $targets = @(
+            @("src\\YnixTrainerExtended.cs","ApplyWorldSettings"),
+            @("src\\YnixTrainerExtended.cs","ApplyPlayerSettings"),
+            @("src\\YnixTrainerExtended.cs","ProcessPendingSkinStateRestore"),
+            @("src\\VehicleSystems.cs","IsVehicleOccupied"),
+            @("src\\VehicleSystems.cs","CleanupOldTrainerVehiclesForSpawn")
+          )
+          foreach ($target in $targets) {
+            Write-Host ("===== METHOD BODY: {0} :: {1} =====" -f $target[0], $target[1])
+            Dump-Method $target[0] $target[1]
+          }
+          $scan = @("src\\YnixTrainerExtended.cs","src\\VehicleSystems.cs","src\\SettingsPersistence.cs","src\\Wardrobe.cs")
+          $pattern = "CopsIgnore|SET_POLICE_IGNORE_PLAYER|SET_EVERYONE_IGNORE_PLAYER|ENABLE_DISPATCH_SERVICE|military|MILITARY|Fort Zancudo|bombushka|cargoplane|PLAY_SOUND|STOP_SOUND|IMPACT|collision|COLLISION|FranklinHairProtection|_pendingVehicleModel|_pendingVehicleSpawn|_trainerSpawnedVehicle"
+          foreach ($relative in $scan) {
+            Write-Host ("===== MATCHES: {0} =====" -f $relative)
+            Select-String -Path (Join-Path $root $relative) -Pattern $pattern -Context 2,3 |
+              ForEach-Object { Write-Host ("{0}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
+          }
       - name: Get ScriptHookVDotNet2 reference assembly
         shell: pwsh
         run: |
