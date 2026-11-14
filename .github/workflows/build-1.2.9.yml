@@ -83,6 +83,50 @@ jobs:
               }
             }
           }
+      - name: Extract implementation methods for 1.2.9 hotfix
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          function Dump-Method([string]$relative, [string]$name) {
+            $full = Join-Path $root $relative
+            $lines = [IO.File]::ReadAllLines($full)
+            $start = -1
+            for ($i = 0; $i -lt $lines.Length; $i++) {
+              if ($lines[$i] -match ('\\b' + [regex]::Escape($name) + '\\s*\\(')) { $start = $i; break }
+            }
+            if ($start -lt 0) { Write-Host "NOT FOUND: $relative :: $name"; return }
+            $brace = 0
+            $opened = $false
+            for ($i = $start; $i -lt $lines.Length; $i++) {
+              $line = $lines[$i]
+              $opens = ([regex]::Matches($line, '\\{')).Count
+              $closes = ([regex]::Matches($line, '\\}')).Count
+              if ($opens -gt 0) { $opened = $true }
+              $brace += $opens - $closes
+              Write-Host ("{0}: {1}" -f ($i + 1), $line)
+              if ($opened -and $brace -eq 0) { break }
+            }
+          }
+          $targets = @(
+            @("src\\YnixTrainerExtended.cs","OnTick"),
+            @("src\\YnixTrainerExtended.cs","ProcessFranklinHairProtection"),
+            @("src\\YnixTrainerExtended.cs","BuildMenus"),
+            @("src\\YnixTrainerExtended.cs","DrawMenu"),
+            @("src\\YnixTrainerExtended.cs","SpawnVehicleModel"),
+            @("src\\VehicleSystems.cs","ApplyLegacyVehicleEffects"),
+            @("src\\VehicleSystems.cs","BeginVehicleSpawn"),
+            @("src\\VehicleSystems.cs","ProcessPendingVehicleSpawn"),
+            @("src\\VehicleSystems.cs","CreateVehicleEntityWithFallback"),
+            @("src\\VehicleSystems.cs","ProcessDestroyedTrainerVehicles"),
+            @("src\\VehicleSystems.cs","TryDeleteTrackedVehicle"),
+            @("src\\VehicleSystems.cs","CleanupOldTrainerVehiclesForSpawn"),
+            @("src\\VehicleSystems.cs","RestoreParachuteVisualDefaults"),
+            @("src\\Wardrobe.cs","BuildWardrobeMenus")
+          )
+          foreach ($target in $targets) {
+            Write-Host ("===== METHOD BODY: {0} :: {1} =====" -f $target[0], $target[1])
+            Dump-Method $target[0] $target[1]
+          }
       - name: Get ScriptHookVDotNet2 reference assembly
         shell: pwsh
         run: |
