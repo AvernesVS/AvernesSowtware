@@ -589,7 +589,7 @@ $newVehicleGround = @'
 '@
 Replace-One "src\VehicleSystems.cs" $oldVehicleGround $newVehicleGround "Transfer player safely to replacement aircraft"
 # Do not display a second generic notification after a successful automatic aircraft transfer.
-Replace-One "src\VehicleSystems.cs" '                else Notify("Spawned vehicle: " + displayName);' '                else if (aircraftTransferred) Notify("Aircraft replaced in flight: " + displayName);' + [char]10 + '                else Notify("Spawned vehicle: " + displayName);' "Aircraft replacement notification"
+Replace-One "src\VehicleSystems.cs" '                else Notify("Spawned vehicle: " + displayName);' ('                else if (aircraftTransferred) Notify("Aircraft replaced in flight: " + displayName);' + [char]10 + '                else Notify("Spawned vehicle: " + displayName);') "Aircraft replacement notification"
 # Pending aircraft fields are reset at the beginning of every new vehicle request; leave the original cancellation routine unchanged.
 
 # Auto-despawn: only handles in _trainerSpawnedVehicleHashes are eligible. Mission/
