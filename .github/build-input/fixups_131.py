@@ -120,11 +120,51 @@ helper = r'''
     }
 '''
 if "private static void EnsureInstallerFirst(" not in s:
-    # Insert before the class's final closing brace (four-space indentation).
-    idx = s.rfind("\n    }")
-    if idx < 0:
-        raise SystemExit("Could not find ReleasePackager class end for ZIP ordering helper.")
-    s = s[:idx] + "\n" + helper + s[idx:]
+    # Locate the closing brace of the ReleasePackager class, ignoring comments and literals.
+    class_pos = s.find("class ReleasePackager")
+    if class_pos < 0:
+        raise SystemExit("ReleasePackager class declaration not found.")
+    open_pos = s.find("{", class_pos)
+    if open_pos < 0:
+        raise SystemExit("ReleasePackager class opening brace not found.")
+    depth = 0
+    state = "code"
+    escaped = False
+    i = open_pos
+    class_close = -1
+    while i < len(s):
+        ch = s[i]
+        nxt = s[i + 1] if i + 1 < len(s) else ""
+        if state == "code":
+            if ch == "/" and nxt == "/":
+                state = "line"; i += 2; continue
+            if ch == "/" and nxt == "*":
+                state = "block"; i += 2; continue
+            if ch == '"':
+                state = "string"; i += 1; continue
+            if ch == "'":
+                state = "char"; i += 1; continue
+            if ch == "{": depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    class_close = i
+                    break
+            i += 1
+        elif state == "line":
+            if ch == "\n": state = "code"
+            i += 1
+        elif state == "block":
+            if ch == "*" and nxt == "/": state = "code"; i += 2
+            else: i += 1
+        elif state in ("string", "char"):
+            if escaped: escaped = False
+            elif ch == "\\\\": escaped = True
+            elif (state == "string" and ch == '"') or (state == "char" and ch == "'"): state = "code"
+            i += 1
+    if class_close < 0:
+        raise SystemExit("Could not locate ReleasePackager class closing brace.")
+    s = s[:class_close] + "\n" + helper + "\n" + s[class_close:]
 write(p, s)
 
 # Verify the helper runs before checking ZipArchive.Entries[0].
