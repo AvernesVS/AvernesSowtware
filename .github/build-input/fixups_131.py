@@ -171,4 +171,26 @@ write(p, s)
 s = read(p)
 if s.index("EnsureInstallerFirst(output, archiveRootName);") > s.index(anchor):
     raise SystemExit("Installer-first ZIP reordering runs after validation.")
+# 6) Rename legacy solution/project filenames if they remain in the extracted source tree.
+rename_map = {
+    "YnixTrainerExtended.sln": "AvernesSowtware.sln",
+    "YnixTrainerExtended.csproj": "AvernesSowtware.csproj",
+}
+for old_name, new_name in rename_map.items():
+    old_path = ROOT / old_name
+    new_path = ROOT / new_name
+    if old_path.is_file() and not new_path.exists():
+        old_path.rename(new_path)
+for item in ROOT.rglob("*"):
+    if not item.is_file() or item.suffix.lower() not in (".sln", ".csproj", ".bat", ".cmd", ".ps1"):
+        continue
+    try:
+        value = item.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        continue
+    updated = value.replace("YnixTrainerExtended.sln", "AvernesSowtware.sln")
+    updated = updated.replace("YnixTrainerExtended.csproj", "AvernesSowtware.csproj")
+    if updated != value:
+        item.write_text(updated, encoding="utf-8-sig", newline="")
+
 print("1.3.1 post-finalization safeguards applied; installer entry is explicitly reordered first.")
