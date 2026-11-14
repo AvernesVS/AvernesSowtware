@@ -720,6 +720,67 @@ $newMilitaryAnchor = @'
 Replace-One "src\YnixTrainerExtended.cs" $oldMilitaryAnchor $newMilitaryAnchor "Ignore soldiers and army dispatch while ignore mode is active"
 Replace-One "src\YnixTrainerExtended.cs" '                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, false);' ('                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, false);' + [char]10 + '                Function.Call((Hash)0x8EEDA153AD141BA4UL, Game.Player.Handle, false);' + [char]10 + '                Function.Call((Hash)0xDC0F817884CDD856UL, 14, true);') "Restore military dispatch and ped hostility on script stop"
 
+# Cops Ignore must suppress wanted-level escalation as well as ordinary police pursuit.
+# The military response at Fort Zancudo is tied to wanted escalation; capping wanted
+# level while either ignore mode is active prevents new army response aircraft/vehicles.
+$oldIgnoreWanted = @'
+            if (_settings.NeverWanted)
+            {
+                if (!_neverWantedMaxLevelCaptured)
+                {
+                    _previousMaxWantedLevel = Function.Call<int>((Hash)0x462E0DB9B137DC5FUL);
+                    _neverWantedMaxLevelCaptured = true;
+                }
+                Function.Call((Hash)0xAA5F02DB48D704B9UL, 0); // SET_MAX_WANTED_LEVEL
+                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player, 0, false);
+                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player, false);
+                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
+            }
+            else
+            {
+                if (_neverWantedMaxLevelCaptured)
+                {
+                    Function.Call((Hash)0xAA5F02DB48D704B9UL, ClampInt(_previousMaxWantedLevel, 0, 5));
+                    _neverWantedMaxLevelCaptured = false;
+                }
+                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _settings.CopsIgnore);
+            }
+
+            bool ignoreMilitary = _settings.CopsIgnore || _settings.NeverWanted;
+            Function.Call((Hash)0x8EEDA153AD141BA4UL, Game.Player.Handle, ignoreMilitary); // SET_EVERYONE_IGNORE_PLAYER
+            Function.Call((Hash)0xDC0F817884CDD856UL, 14, !ignoreMilitary); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+'@
+$newIgnoreWanted = @'
+            bool ignoreLawAndMilitary = _settings.CopsIgnore || _settings.NeverWanted;
+            if (ignoreLawAndMilitary)
+            {
+                if (!_neverWantedMaxLevelCaptured)
+                {
+                    _previousMaxWantedLevel = Function.Call<int>((Hash)0x462E0DB9B137DC5FUL);
+                    _neverWantedMaxLevelCaptured = true;
+                }
+                Function.Call((Hash)0xAA5F02DB48D704B9UL, 0); // SET_MAX_WANTED_LEVEL
+                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player, 0, false);
+                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player, false);
+                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
+            }
+            else
+            {
+                if (_neverWantedMaxLevelCaptured)
+                {
+                    Function.Call((Hash)0xAA5F02DB48D704B9UL, ClampInt(_previousMaxWantedLevel, 0, 5));
+                    _neverWantedMaxLevelCaptured = false;
+                }
+                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, false);
+            }
+
+            bool ignoreMilitary = ignoreLawAndMilitary;
+            Function.Call((Hash)0x8EEDA153AD141BA4UL, Game.Player.Handle, ignoreMilitary); // SET_EVERYONE_IGNORE_PLAYER
+            Function.Call((Hash)0xDC0F817884CDD856UL, 14, !ignoreMilitary); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+'@
+Replace-One "src\YnixTrainerExtended.cs" $oldIgnoreWanted $newIgnoreWanted "Cops Ignore also prevents wanted escalation and military response"
+
+
 # Number every entry in all menus, including dynamically rebuilt vehicle catalog pages.
 Replace-One "src\YnixTrainerExtended.cs" '                string marker = selected ? "> " : "  ";' ('                string itemNumber = (itemIndex + 1).ToString("00", CultureInfo.InvariantCulture);' + [char]10 + '                string marker = (selected ? "> " : "  ") + itemNumber + "  ";') "Number all menu entries"
 # Global visual redesign: dark layered frame, themed side rail, separated title band,
