@@ -77,7 +77,8 @@ jobs:
             $lineNo = 0
             foreach ($line in [IO.File]::ReadAllLines($full)) {
               $lineNo++
-              if ($line -match '^\\s*(private|public|protected)\\s+' -and $line -match '\\(' -and $line -match $filter) {
+              $trimmed = $line.TrimStart()
+              if (($trimmed.StartsWith("private ") -or $trimmed.StartsWith("public ") -or $trimmed.StartsWith("protected ")) -and $line.Contains("(") -and $line -match $filter) {
                 Write-Host ("{0}: {1}" -f $lineNo, $line.Trim())
               }
             }
