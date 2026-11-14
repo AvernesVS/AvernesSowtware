@@ -171,7 +171,7 @@ jobs:
           Expand-Archive $zip $dest -Force
           $dll = Get-ChildItem $dest -Recurse -Filter "ScriptHookVDotNet2.dll" | Select-Object -First 1
           if (-not $dll) { throw "ScriptHookVDotNet2.dll was not found in the reference package." }
-          "AVERNE_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "YNIX_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Compile 1.3.1, run validators, package and test installer
         shell: pwsh
