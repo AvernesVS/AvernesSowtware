@@ -1,0 +1,142 @@
+name: AvernesSowtware 1.3.0 Windows release build
+
+on:
+  push:
+    branches: [work/1.3.0-development]
+    paths:
+      - ".github/build-input/YnixTrainer_1.2.8_BUILD_INPUT_*.b64"
+      - ".github/build-input/apply-1.2.8-build-fixes.ps1"
+      - ".github/build-input/apply-1.2.9-patches.ps1"
+      - ".github/build-input/patches_1_3_0.tar.gz.b64"
+      - ".github/workflows/build-1.3.0.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble verified 1.2.8 source archive
+        shell: pwsh
+        run: |
+          $chunks = Get-ChildItem ".github/build-input/YnixTrainer_1.2.8_BUILD_INPUT_*.b64" | Sort-Object Name
+          if ($chunks.Count -ne 10) { throw "Expected 10 source chunks; found $($chunks.Count)." }
+          $encoded = ($chunks | ForEach-Object { (Get-Content -Raw $_.FullName).Trim() }) -join ""
+          $archive = Join-Path $env:RUNNER_TEMP "averne-source.tar.gz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($encoded))
+          $extract = Join-Path $env:RUNNER_TEMP "averne-source"
+          New-Item -ItemType Directory -Path $extract -Force | Out-Null
+          tar -xzf $archive -C $extract
+          $root = Join-Path $extract "AvernesSowtware_v1.2.8"
+          if (-not (Test-Path (Join-Path $root "BUILD_RELEASE.bat"))) { throw "Reassembled source archive is incomplete." }
+          "AVERNE_PROJECT_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Apply 1.2.8 compatibility and 1.2.9 baseline patches
+        shell: pwsh
+        run: |
+          & ".github/build-input/apply-1.2.8-build-fixes.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
+          & ".github/build-input/apply-1.2.9-patches.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
+
+      - name: Prepare and apply 1.3.0 patches
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply 1.3.0 changes and run source checks
+        shell: pwsh
+        run: |
+          $payload = (Get-Content -Raw ".github/build-input/patches_1_3_0.tar.gz.b64").Trim()
+          $archive = Join-Path $env:RUNNER_TEMP "patches_1_3_0.tar.gz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($payload))
+          $patchDir = Join-Path $env:RUNNER_TEMP "patchset"
+          New-Item -ItemType Directory -Path $patchDir -Force | Out-Null
+          tar -xzf $archive -C $patchDir
+          $patchRoot = Join-Path $patchDir "patchset"
+          if (-not (Test-Path (Join-Path $patchRoot "apply_130_metadata.py"))) { throw "1.3.0 patch set is incomplete." }
+
+          python -m py_compile (Join-Path $patchRoot "apply_130_source.py") (Join-Path $patchRoot "apply_130_teleport.py") (Join-Path $patchRoot "apply_130_design.py") (Join-Path $patchRoot "apply_130_metadata.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 patch scripts did not pass Python syntax validation." }
+
+          python (Join-Path $patchRoot "apply_130_source.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 source patch failed." }
+          python (Join-Path $patchRoot "apply_130_teleport.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 teleport patch failed." }
+          python (Join-Path $patchRoot "apply_130_design.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 UI patch failed." }
+          python (Join-Path $patchRoot "apply_130_metadata.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 metadata patch failed." }
+
+          $root = $env:AVERNE_PROJECT_ROOT
+          if (-not (Select-String -Path (Join-Path $root "src\YnixTrainerExtended.cs") -Pattern 'ProductVersion = "1.3.0"' -Quiet)) { throw "Product version is not 1.3.0." }
+          if (Select-String -Path (Join-Path $root "src\VehicleSystems.cs") -Pattern 'RestoreParachuteVisualDefaults' -Quiet) { throw "Dangerous parachute reset code remains." }
+          if (-not (Select-String -Path (Join-Path $root "src\YnixTrainerExtended.cs") -Pattern 'BeginGroundTeleport' -Quiet)) { throw "Safe remote-scene teleport implementation missing." }
+          if (-not (Select-String -Path (Join-Path $root "src\YnixTrainerExtended.cs") -Pattern '_waypointLoadSceneStarted &&' -Quiet)) { throw "Teleport scene-ready check missing." }
+          if (-not (Select-String -Path (Join-Path $root "src\YnixTrainerExtended.cs") -Pattern 'GetMenuThemeColor' -Quiet)) { throw "Red-black menu theme implementation missing." }
+          if (-not (Select-String -Path (Join-Path $root "src\VehicleSystems.cs") -Pattern 'aircraftTransferVelocity' -Quiet)) { throw "In-flight aircraft velocity transfer missing." }
+          if (-not (Select-String -Path (Join-Path $root "src\VehicleSystems.cs") -Pattern '650.0f' -Quiet)) { throw "Trainer vehicle auto-despawn range check missing." }
+
+          $jsonPaths = @(
+            (Join-Path $root "package\YnixTrainer\vehicle_catalog.json"),
+            (Join-Path $root "package\YnixTrainer\Vehicles\vehicles.json")
+          )
+          foreach ($jsonPath in $jsonPaths) {
+            $rows = Get-Content -Raw $jsonPath | ConvertFrom-Json
+            if (@($rows | Where-Object { $_.model -in @("arwing", "tornadob") }).Count -ne 0) { throw "Arwing or Tornadob remains in $jsonPath." }
+          }
+          Write-Host "1.3.0 source verification passed."
+
+      - name: Get ScriptHookVDotNet2 reference assembly
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "shvdn2.nupkg"
+          $zip = Join-Path $env:RUNNER_TEMP "shvdn2.zip"
+          $dest = Join-Path $env:RUNNER_TEMP "shvdn2"
+          Invoke-WebRequest "https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13" -OutFile $pkg
+          Copy-Item $pkg $zip -Force
+          Expand-Archive $zip $dest -Force
+          $dll = Get-ChildItem $dest -Recurse -Filter "ScriptHookVDotNet2.dll" | Select-Object -First 1
+          if (-not $dll) { throw "ScriptHookVDotNet2.dll was not found in the reference package." }
+          "YNIX_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile DLL, run ReleaseValidator and create ZIP
+        shell: pwsh
+        run: |
+          $builder = Join-Path $env:AVERNE_PROJECT_ROOT "BUILD_RELEASE.bat"
+          & $builder "" "--no-pause"
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) { throw "1.3.0 build failed with exit code $buildExit. See BUILD_RELEASE.log and YnixTrainer_Build.log." }
+
+          $root = $env:AVERNE_PROJECT_ROOT
+          $dll = Join-Path $root "dist\YnixTrainerExtended.dll"
+          $zip = Join-Path $root "dist\AvernesSowtware_v1.3.0_RELEASE.zip"
+          if (-not (Test-Path $dll) -or (Get-Item $dll).Length -le 0) { throw "Compiled trainer DLL is missing or empty." }
+          if (-not (Test-Path $zip) -or (Get-Item $zip).Length -le 0) { throw "Release ZIP is missing or empty." }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zr = [IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            $names = @($zr.Entries | ForEach-Object { $_.FullName.Replace([char]92, '/') })
+            $dllEntries = @($names | Where-Object { $_.EndsWith('/dist/YnixTrainerExtended.dll', [StringComparison]::OrdinalIgnoreCase) })
+            if ($dllEntries.Count -ne 1) { throw "Expected exactly one compiled DLL in the archive; found $($dllEntries.Count)." }
+            $roots = @($names | Where-Object { $_ } | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
+            if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.3.0") { throw "Invalid release ZIP root: $($roots -join ', ')." }
+            Write-Host "RELEASE ZIP VALID: $zip; entries=$($names.Count)"
+            Write-Host "COMPILED DLL ENTRY: $($dllEntries[0])"
+          } finally { $zr.Dispose() }
+
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "release-artifact"
+          New-Item $artifactDir -ItemType Directory -Force | Out-Null
+          Copy-Item $zip (Join-Path $artifactDir "AvernesSowtware_v1.3.0_RELEASE.zip") -Force
+
+      - name: Upload AvernesSowtware 1.3.0 release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.3.0-RELEASE
+          path: release-artifact/AvernesSowtware_v1.3.0_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 14
