@@ -65,6 +65,23 @@ jobs:
                 ForEach-Object { $_.ToString(); $_.Context.PreContext; $_.Line; $_.Context.PostContext }
             }
           }
+      - name: Index relevant methods for targeted 1.2.9 fixes
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $files = @("src\\YnixTrainerExtended.cs", "src\\VehicleSystems.cs", "src\\Wardrobe.cs")
+          $filter = "Franklin|Hair|Spawn|Vehicle|Despawn|Registry|Delete|Aircraft|Plane|Heli|Wanted|Military|Parachute|Menu|Theme|Draw|Tick|Wardrobe|Cloth|Texture|Speed|Collision"
+          foreach ($relative in $files) {
+            $full = Join-Path $root $relative
+            Write-Host "===== METHOD INDEX: $relative ====="
+            $lineNo = 0
+            foreach ($line in [IO.File]::ReadAllLines($full)) {
+              $lineNo++
+              if ($line -match '^\\s*(private|public|protected)\\s+' -and $line -match '\\(' -and $line -match $filter) {
+                Write-Host ("{0}: {1}" -f $lineNo, $line.Trim())
+              }
+            }
+          }
       - name: Get ScriptHookVDotNet2 reference assembly
         shell: pwsh
         run: |
