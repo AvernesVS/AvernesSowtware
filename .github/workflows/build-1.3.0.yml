@@ -84,9 +84,9 @@ jobs:
               raw = base64.b64decode(encoded, validate=True)
               gzip.decompress(raw)
 
-          archive_path = pathlib.Path(r"""$env:RUNNER_TEMP\patches_1_3_0.tar.gz""")
+          archive_path = pathlib.Path(os.environ["PATCH_ARCHIVE"])
           archive_path.write_bytes(raw)
-          extract_dir = pathlib.Path(r"""$env:RUNNER_TEMP\patchset""")
+          extract_dir = pathlib.Path(os.environ["PATCH_EXTRACT"])
           extract_dir.mkdir(parents=True, exist_ok=True)
           with tarfile.open(archive_path, "r:gz") as archive:
               archive.extractall(extract_dir)
