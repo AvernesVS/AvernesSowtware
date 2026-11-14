@@ -92,7 +92,8 @@ jobs:
             $lines = [IO.File]::ReadAllLines($full)
             $start = -1
             for ($i = 0; $i -lt $lines.Length; $i++) {
-              if ($lines[$i].Contains($name + "(")) { $start = $i; break }
+              $trimmed = $lines[$i].TrimStart()
+              if (($trimmed.StartsWith("private ") -or $trimmed.StartsWith("public ") -or $trimmed.StartsWith("protected ")) -and $trimmed.Contains($name + "(")) { $start = $i; break }
             }
             if ($start -lt 0) { Write-Host "NOT FOUND: $relative :: $name"; return }
             $brace = 0
