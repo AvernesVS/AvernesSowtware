@@ -141,6 +141,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "1.3.1 source transformation failed." }
           python (Join-Path $patchRoot "finalize_131.py") $env:AVERNE_PROJECT_ROOT (Join-Path $patchRoot "assets")
           if ($LASTEXITCODE -ne 0) { throw "1.3.1 asset/UI/installer test finalization failed." }
+          python -m py_compile .github/build-input/fixups_131.py
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 fixup script syntax validation failed." }
           python .github/build-input/fixups_131.py $env:AVERNE_PROJECT_ROOT
           if ($LASTEXITCODE -ne 0) { throw "1.3.1 post-finalization safeguards failed." }
 
