@@ -589,8 +589,8 @@ $newVehicleGround = @'
 '@
 Replace-One "src\VehicleSystems.cs" $oldVehicleGround $newVehicleGround "Transfer player safely to replacement aircraft"
 # Do not display a second generic notification after a successful automatic aircraft transfer.
-Replace-One "src\VehicleSystems.cs" '                else Notify("Spawned vehicle: " + displayName);' '                else if (aircraftTransferred) Notify("Aircraft replaced in flight: " + displayName);' "Aircraft replacement notification"
-Replace-One "src\VehicleSystems.cs" '                _vehicleSpawnPending = false;' ('                _vehicleSpawnPending = false;' + [char]10 + '                _pendingAircraftTransferVehicleHandle = 0;' + [char]10 + '                _pendingAircraftTransferVelocity = Vector3.Zero;' + [char]10 + '                _pendingAircraftTransferRequested = false;') "Clear pending aircraft replacement state"
+Replace-One "src\VehicleSystems.cs" '                else Notify("Spawned vehicle: " + displayName);' '                else if (aircraftTransferred) Notify("Aircraft replaced in flight: " + displayName);' + [char]10 + '                else Notify("Spawned vehicle: " + displayName);' "Aircraft replacement notification"
+# Pending aircraft fields are reset at the beginning of every new vehicle request; leave the original cancellation routine unchanged.
 
 # Auto-despawn: only handles in _trainerSpawnedVehicleHashes are eligible. Mission/
 # native traffic and NPC cars are never enumerated or deleted by this path.
