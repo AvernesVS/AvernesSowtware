@@ -38,9 +38,9 @@ jobs:
         shell: pwsh
         run: |
           & ".github/build-input/apply-1.2.8-build-fixes.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
-          if ($LASTEXITCODE -ne 0) { throw "1.2.8 compatibility patch failed." }
+          if (-not $?) { throw "1.2.8 compatibility patch failed." }
           & ".github/build-input/apply-1.2.9-patches.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
-          if ($LASTEXITCODE -ne 0) { throw "1.2.9 baseline patch failed." }
+          if (-not $?) { throw "1.2.9 baseline patch failed." }
 
       - name: Prepare Python 3.12
         uses: actions/setup-python@v5
