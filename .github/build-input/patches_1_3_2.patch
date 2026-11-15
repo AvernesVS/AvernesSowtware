@@ -393,8 +393,4 @@
 +            }
 +        }
 +
-@@ -376,1 +334,1 @@
--                Log("Max tuning result: model=" + vehicle.Model.Hash + ", class=" + (isMotorcycle ? "motorcycle" : "other") + ", supported slots=" + supportedSlots +
-+                Log("Max tuning result: model=" + vehicle.Model.Hash + ", class=" + (vehicleClass == 8 ? "motorcycle" : "other") + ", supported slots=" + supportedSlots +
-
          private void DeleteCurrentVehicle()
