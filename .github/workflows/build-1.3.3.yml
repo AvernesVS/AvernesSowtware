@@ -269,6 +269,12 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "1.3.3 patch does not apply cleanly to the 1.3.2 source." }
             git apply --ignore-whitespace $env:PATCH_PATH
             if ($LASTEXITCODE -ne 0) { throw "1.3.3 patch application failed." }
+            $hotfix = Join-Path $env:GITHUB_WORKSPACE ".github\build-input\hotfix_1_3_3.patch"
+            if (-not (Test-Path $hotfix)) { throw "1.3.3 compile hotfix is missing." }
+            git apply --ignore-whitespace --check $hotfix
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 compile hotfix does not apply cleanly." }
+            git apply --ignore-whitespace $hotfix
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 compile hotfix application failed." }
           } finally { Pop-Location }
           $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
           $settings = Join-Path $root "src\Core\SettingsPersistence.cs"
