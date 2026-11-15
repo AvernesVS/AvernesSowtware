@@ -447,7 +447,7 @@ jobs:
           compressed = base64.b64decode(encoded, validate=True)
           print("Compressed 1.3.6 hotfix bytes:", len(compressed))
           patch = gzip.decompress(compressed)
-          if hashlib.sha256(patch).hexdigest() != "2882d83a625f7104d73234437bfccf9e6f51c3a4c234ce6d49e70204ce94b804":
+          if hashlib.sha256(patch).hexdigest() != "dc1c3e2b49b8a4fba69f2909204e25ce80c09331f0f31000dc82f2ccc2358ab8":
               raise SystemExit("Expanded 1.3.6 hotfix SHA-256 mismatch")
           Path(os.environ["HOTFIX_PATH"]).write_bytes(patch)
           '@
