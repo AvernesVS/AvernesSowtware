@@ -200,7 +200,7 @@
              if (suffix == null) suffix = String.Empty;
 -            int maxChars = Math.Max(22, (int)((width - 0.006f * scale) * 175.0f /
 +            int maxChars = Math.Max(18, (int)((width - 0.008f * scale) * 158.0f /
-                 ath.Max(0.70f, scale * fontScale)));
+                 Math.Max(0.70f, scale * fontScale)));
 @@ -115,3 +108,3 @@
  
 -private void DrawMenuText(string text, float x, float y, float scale, int r, int g, int b, int a)
