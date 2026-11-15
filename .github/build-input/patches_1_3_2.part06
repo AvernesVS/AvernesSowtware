@@ -1,0 +1,60 @@
+    {
+-                        LogException("MaxTuneVehicle wheel type " + wheelTypes[wheelTypeIndex], wheelException);
+-                    }
+-                }
++                int vehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle); // GET_VEHICLE_CLASS
++                bool wheelsApplied = ApplyClassAppropriateWheels(handle, vehicleClass, ref supportedSlots, ref appliedSlots, ref verifiedSlots, ref failedSlots);
+ 
+@@ -328,2 +290,4 @@
+ 
++                ApplyMattePaintPreservingColor(handle);
++
+                 // Apply the darkest factory tint (Limo = 5) where the model supports glass.
+@@ -331,4 +295,6 @@
+                 {
+-                    Function.Call((Hash)0x57C51E6BAD752696UL, handle, 5); // SET_VEHICLE_WINDOW_TINT
+-                    tintApplied = Function.Call<int>((Hash)0x0EE21293DAD47C95UL, handle) == 5; // GET_VEHICLE_WINDOW_TINT
++                    int tintCount = Function.Call<int>((Hash)0x9D1224004B3A6707UL, handle); // GET_NUM_VEHICLE_WINDOW_TINTS
++                    int maximumTint = tintCount > 0 ? tintCount - 1 : 5;
++                    Function.Call((Hash)0x57C51E6BAD752696UL, handle, maximumTint); // SET_VEHICLE_WINDOW_TINT
++                    tintApplied = Function.Call<int>((Hash)0x0EE21293DAD47C95UL, handle) == maximumTint; // GET_VEHICLE_WINDOW_TINT
+                 }
+@@ -351,3 +317,2 @@
+ 
+-                int vehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle);
+                 bool rocketModeEnabled = false;
+@@ -391,2 +356,122 @@
+         }
++        private int GetWheelTypeForVehicleClass(int vehicleClass)
++        {
++            // GTA wheel families: Sport=0, Muscle=1, SUV=3, Off-road=4,
++            // Tuner=5, Bike=6, High End=7, Open Wheel=10.
++            switch (vehicleClass)
++            {
++                case 0: case 1: case 3: case 11: return 5;
++                case 12: return 3; // Compacts, sedans, coupes, utility
++                case 2: case 17: case 18: return 3;       // SUVs, service, emergency
++                case 4: return 1;                         // Muscle
++                case 5: return 0;                         // Sports classics
++                case 6: case 7: return 7;                 // Sports and super
++                case 8: return 6;                         // Motorcycles
++                case 9: case 10: case 19: case 20: return 4; // Off-road, industrial, military, commercial
++                case 22: return 10;                       // Open wheel
++                default: return -1;                       // Boats/aircraft/trains/unsupported
++            }
++        }
++
++        private bool ApplyClassAppropriateWheels(int handle, int vehicleClass,
++            ref int supportedSlots, ref int appliedSlots, ref int verifiedSlots, ref int failedSlots)
++        {
++            int wheelType = GetWheelTypeForVehicleClass(vehicleClass);
++            if (wheelType < 0) return false;
++
++            try
++            {
++                Function.Call((Hash)0x487EB21CC7295BA1UL, handle, wheelType); // SET_VEHICLE_WHEEL_TYPE
++                bool motorcycle = vehicleClass == 8;
++                bool anyApplied = false;
++                int[] slots = motorcycle ? new int[] { 23, 24 } : new int[] { 23 };
++                for (int i = 0; i < slots.Length; i++)
+                
