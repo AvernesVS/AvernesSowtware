@@ -1,0 +1,49 @@
+ public float MenuY = 0.006f;
+-            public float MenuWidth = 0.340f;
++            public float MenuWidth = 0.380f;
+             public float MenuScale = 1.0f;
+--- a/src/UI/MenuRenderer.cs
++++ b/src/UI/MenuRenderer.cs
+@@ -8,3 +8,3 @@
+     {
+-private void DrawMenu()
++        private void DrawMenu()
+         {
+@@ -16,9 +16,9 @@
+             float x = ClampFloat(_settings.MenuX, 0.005f, 0.995f - width);
+-            float rowHeight = 0.032f * scale;
++            float rowHeight = 0.038f * scale;
+             int visible = Math.Min(GetVisibleMenuRows(), entries.Count);
+-            float headerHeight = 0.092f * scale;
++            float headerHeight = 0.105f * scale;
+             float footerHeight = 0.038f * scale;
+-            float height = 0.010f * scale + headerHeight + visible * rowHeight + footerHeight;
++            float height = 0.008f * scale + headerHeight + visible * rowHeight + footerHeight;
+             float top = ClampFloat(_settings.MenuY, 0.005f, Math.Max(0.005f, 0.995f - height));
+-            float fontScale = ClampFloat(_settings.MenuFontScale, 0.70f, 1.25f);
++            float fontScale = ClampFloat(_settings.MenuFontScale, 0.70f, 1.40f);
+             int alpha = ClampInt(_settings.MenuOpacity, 100, 255);
+@@ -27,29 +27,25 @@
+ 
+-            // Flat dark panel. Only one thin red top accent remains; the side rails,
+-            // badges and decorative scrollbar that caused stray bars are removed.
+-            DrawRect(x + width / 2.0f, top + height / 2.0f, width, height, 5, 6, 9, alpha);
+-            DrawRect(x + width / 2.0f, top + 0.0015f * scale, width, 0.0025f * scale,
+-                accentR, accentG, accentB, 245);
+-            DrawRect(x + width / 2.0f, top + headerHeight, width - 0.018f * scale,
+-                0.0010f * scale, 48, 24, 31, 230);
+-
+-            // Winged compass emblem: silver wings, a vertical needle and a red core.
+-            // This replaces the former red square and the temporary three-bar placeholder.
+-            float logoCx = x + 0.020f * scale;
+-            float logoCy = top + 0.040f * scale;
+-            DrawRect(logoCx, logoCy - 0.006f * scale, 0.0022f * scale, 0.040f * scale, 208, 211, 220, 255);
+-            DrawRect(logoCx - 0.009f * scale, logoCy - 0.001f * scale, 0.018f * scale, 0.0032f * scale, 220, 222, 229, 255);
+-            DrawRect(logoCx - 0.007f * scale, logoCy + 0.006f * scale, 0.014f * scale, 0.0022f * scale, accentR, accentG, accentB, 255);
+-            DrawRect(logoCx - 0.006f * scale, logoCy - 0.010f * scale, 0.012f * scale, 0.0020f * scale, 160, 164, 174, 255);
+-            DrawRect(logoCx - 0.006f * scale, logoCy + 0.011f * scale, 0.012f * scale, 0.0020f * scale, 160, 164, 174, 255);
+-            DrawRect(logoCx, logoCy + 0.001f * scale, 0.0060f * scale, 0.0060f * scale, accentR, accentG, accentB, 255);
+-            DrawRect(logoCx, logoCy + 0.001f * scale, 0.0025f * scale, 0.0025f * scale, 245, 245, 249, 255);
+-
+-            float titleX = x + 0.042f * scale;
+-            
