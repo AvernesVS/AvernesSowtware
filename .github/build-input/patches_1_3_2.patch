@@ -280,7 +280,7 @@
 +            switch (vehicleClass)
 +            {
 +                case 0: case 1: case 3: case 11: return 5;
-+                case 12: return 3; // Compacts, sedans, coupes, utility
++                case 12: return 3; // Vans
 +                case 2: case 17: case 18: return 3;       // SUVs, service, emergency
 +                case 4: return 1;                         // Muscle
 +                case 5: return 0;                         // Sports classics
