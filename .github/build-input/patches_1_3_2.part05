@@ -1,0 +1,47 @@
+ath.Max(0.70f, scale * fontScale)));
+@@ -115,3 +108,3 @@
+ 
+-private void DrawMenuText(string text, float x, float y, float scale, int r, int g, int b, int a)
++        private void DrawMenuText(string text, float x, float y, float scale, int r, int g, int b, int a)
+         {
+--- a/src/Managers/VehicleSystems.cs
++++ b/src/Managers/VehicleSystems.cs
+@@ -244,42 +244,4 @@
+ 
+-                // Motorcycles use Bike wheels (6); cars retain the original family fallback.
+-                bool isMotorcycle = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle) == 8; // GET_VEHICLE_CLASS
+-                int[] wheelTypes = isMotorcycle ? new int[] { 6 } : new int[] { 7, 5, 0, 4, 1, 3, 2 };
+-                for (int wheelTypeIndex = 0; wheelTypeIndex < wheelTypes.Length; wheelTypeIndex++)
+-                {
+-                    try
+-                    {
+-                        Function.Call((Hash)0x487EB21CC7295BA1UL, handle, wheelTypes[wheelTypeIndex]); // SET_VEHICLE_WHEEL_TYPE
+-                        int frontWheelCount = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, 23);
+-                        int rearWheelCount = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, 24);
+-                        bool frontApplied = false;
+-                        bool rearApplied = false;
+-                        // Bike wheel assets ship custom front and rear tyre textures.
+-                        // Enable the native custom-tyre variation for both bike slots;
+-                        // car wheel families retain the original false flag.
+-                        bool customTyres = isMotorcycle;
+-                        if (frontWheelCount > 0)
+-                        {
+-                            Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, 23, frontWheelCount - 1, customTyres);
+-                            frontApplied = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, 23) == frontWheelCount - 1;
+-                            supportedSlots++; appliedSlots++;
+-                            if (frontApplied) verifiedSlots++; else failedSlots++;
+-                        }
+-                        if (rearWheelCount > 0)
+-                        {
+-                            Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, 24, rearWheelCount - 1, customTyres);
+-                            rearApplied = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, 24) == rearWheelCount - 1;
+-                            supportedSlots++; appliedSlots++;
+-                            if (rearApplied) verifiedSlots++; else failedSlots++;
+-                        }
+-                        wheelsApplied = isMotorcycle
+-                            ? (frontWheelCount > 0 && rearWheelCount > 0 && frontApplied && rearApplied)
+-                            : (frontApplied || rearApplied);
+-                        if (frontWheelCount > 0 || rearWheelCount > 0) break;
+-                    }
+-                    catch (Exception wheelException)
+-
