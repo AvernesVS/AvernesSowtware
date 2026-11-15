@@ -312,6 +312,15 @@ jobs:
             throw "1.3.3 build failed with exit code $buildExit. See diagnostics above."
           }
 
+          $installerPath = Join-Path $root "Install_AvernesSowtware.bat"
+          Write-Host "===== INSTALLER PERMISSION FLOW ====="
+          Select-String -Path $installerPath -Pattern "Could not determine Windows installer permissions|Program Files|WindowsIdentity|WindowsPrincipal|IsInRole|icacls|whoami|RunAs|elevat|permission|access" -Context 8,8 | ForEach-Object {
+            $_.Context.PreContext | Write-Host
+            $_.Line | Write-Host
+            $_.Context.PostContext | Write-Host
+            Write-Host "---"
+          }
+
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "build\Test-InstallerIdempotence.ps1") -ProjectRoot $root
           if ($LASTEXITCODE -ne 0) { throw "Repeated-install regression test failed." }
 
