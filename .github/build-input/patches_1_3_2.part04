@@ -1,0 +1,48 @@
+                       width - 0.016f * scale, rowHeight - 0.003f * scale,
+-                        11, 12, 17, 190);
+-                }
++                    DrawRect(x + 0.006f * scale, rowCenter, 0.0030f * scale,
++                        rowHeight - 0.006f * scale, accentR, accentG, accentB, 255);
+ 
+                 string number = (itemIndex + 1).ToString("00", CultureInfo.InvariantCulture);
+-                DrawMenuText(number, x + 0.014f * scale, y + 0.004f * scale,
+-                    0.135f * scale * fontScale, selected ? 255 : accentR,
+-                    selected ? 230 : accentG, selected ? 232 : accentB, 255);
++                DrawMenuText(number, x + 0.017f * scale, y + 0.008f * scale,
++                    0.166f * scale * fontScale,
++                    selected ? 255 : 190, selected ? 238 : 199, selected ? 240 : 211, 255);
++
+                 string suffix = item.Value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + item.Value() + "]";
+                 string rowText = FitMenuRowText(String.Empty, item.Title, suffix,
+-                    width - 0.058f * scale, scale, fontScale);
+-                DrawMenuText(rowText, x + 0.052f * scale, y + 0.005f * scale,
+-                    0.158f * scale * fontScale,
+-                    selected ? 255 : 210, selected ? 244 : 213, selected ? 246 : 221, 255);
++                    width - 0.070f * scale, scale, fontScale);
++                DrawMenuText(rowText, x + 0.064f * scale, y + 0.008f * scale,
++                    0.164f * scale * fontScale,
++                    selected ? 255 : 238, selected ? 246 : 240, selected ? 248 : 246, 255);
+             }
+ 
++            float footerY = top + height - 0.027f * scale;
+             DrawMenuText("UP/DOWN  ENTER  BACKSPACE  F11",
+-                x + 0.012f * scale, top + height - 0.026f * scale,
+-                0.078f * scale * fontScale, 165, 168, 178, 255);
++                x + 0.014f * scale, footerY,
++                0.086f * scale * fontScale, 180, 185, 196, 255);
+             DrawMenuText((_selectedIndex + 1).ToString("00", CultureInfo.InvariantCulture) +
+                 " / " + entries.Count.ToString("00", CultureInfo.InvariantCulture),
+-                x + width - 0.060f * scale, top + height - 0.026f * scale,
+-                0.088f * scale * fontScale, accentR, accentG, accentB, 255);
++                x + width - 0.060f * scale, footerY,
++                0.090f * scale * fontScale, 236, 202, 207, 255);
+         }
+ 
+-private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
++        private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
+         {
+@@ -102,3 +95,3 @@
+             if (suffix == null) suffix = String.Empty;
+-            int maxChars = Math.Max(22, (int)((width - 0.006f * scale) * 175.0f /
++            int maxChars = Math.Max(18, (int)((width - 0.008f * scale) * 158.0f /
+                 
