@@ -1,0 +1,94 @@
+l((Hash)0x487EB21CC7295BA1UL, handle, wheelType); // SET_VEHICLE_WHEEL_TYPE
++                bool motorcycle = vehicleClass == 8;
++                bool anyApplied = false;
++                int[] slots = motorcycle ? new int[] { 23, 24 } : new int[] { 23 };
++                for (int i = 0; i < slots.Length; i++)
++                {
++                    int slot = slots[i];
++                    int count = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, slot);
++                    if (count <= 0) continue;
++                    supportedSlots++;
++                    int bestIndex = count - 1;
++                    Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, slot, bestIndex, motorcycle);
++                    appliedSlots++;
++                    bool verified = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, slot) == bestIndex;
++                    if (verified) verifiedSlots++; else failedSlots++;
++                    anyApplied = anyApplied || verified;
++                }
++                Log("Max tuning wheel selection: class=" + vehicleClass + ", wheelType=" + wheelType + ", applied=" + anyApplied + ".");
++                return anyApplied;
++            }
++            catch (Exception ex)
++            {
++                failedSlots++;
++                LogException("ApplyClassAppropriateWheels class " + vehicleClass, ex);
++                return false;
++            }
++        }
++
++        private void ApplyMattePaintPreservingColor(int handle)
++        {
++            try
++            {
++                int primaryType, primaryColor, pearl;
++                int secondaryType, secondaryColor;
++                using (OutputArgument type = new OutputArgument())
++                using (OutputArgument color = new OutputArgument())
++                using (OutputArgument pearlescent = new OutputArgument())
++                {
++                    Function.Call((Hash)0xE8D65CA700C9A693UL, handle, type, color, pearlescent); // GET_VEHICLE_MOD_COLOR_1
++                    primaryType = type.GetResult<int>();
++                    primaryColor = color.GetResult<int>();
++                    pearl = pearlescent.GetResult<int>();
++                }
++                using (OutputArgument type = new OutputArgument())
++                using (OutputArgument color = new OutputArgument())
++                {
++                    Function.Call((Hash)0x81592BE4E3878728UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2
++                    secondaryType = type.GetResult<int>();
++                    secondaryColor = color.GetResult<int>();
++                }
+
+                bool customPrimary = Function.Call<bool>((Hash)0xF095C0405307B21BUL, handle); // GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM
++                bool customSecondary = Function.Call<bool>((Hash)0x910A32E7AAD2656CUL, handle); // GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM
++                int primaryR = 0, primaryG = 0, primaryB = 0;
++                int secondaryR = 0, secondaryG = 0, secondaryB = 0;
++                if (customPrimary)
++                {
++                    using (OutputArgument r = new OutputArgument())
++                    using (OutputArgument g = new OutputArgument())
++                    using (OutputArgument b = new OutputArgument())
++                    {
++                        Function.Call((Hash)0xB64CF2CCA9D95F52UL, handle, r, g, b); // GET_VEHICLE_CUSTOM_PRIMARY_COLOUR
++                        primaryR = r.GetResult<int>(); primaryG = g.GetResult<int>(); primaryB = b.GetResult<int>();
++                    }
++                }
++                if (customSecondary)
++                {
++                    using (OutputArgument r = new OutputArgument())
++                    using (OutputArgument g = new OutputArgument())
++                    using (OutputArgument b = new OutputArgument())
++                    {
++                        Function.Call((Hash)0x8389CD56CA8072DCUL, handle, r, g, b); // GET_VEHICLE_CUSTOM_SECONDARY_COLOUR
++                        secondaryR = r.GetResult<int>(); secondaryG = g.GetResult<int>(); secondaryB = b.GetResult<int>();
++                    }
++                }
+
+                // Paint type 3 is Matte. Keep the current palette indices and pearl.
++                Function.Call((Hash)0x43FEB945EE7F85B8UL, handle, 3, primaryColor, pearl); // SET_VEHICLE_MOD_COLOR_1
++                Function.Call((Hash)0x816562BADFDEC83EUL, handle, 3, secondaryColor); // SET_VEHICLE_MOD_COLOR_2
++                // Reapply exact custom RGB values if the vehicle used custom paint.
++                if (customPrimary)
++                    Function.Call((Hash)0x7141766F91D15BEAUL, handle, primaryR, primaryG, primaryB); // SET_VEHICLE_CUSTOM_PRIMARY_COLOUR
++                if (customSecondary)
++                    Function.Call((Hash)0x36CED73BFED89754UL, handle, secondaryR, secondaryG, secondaryB); // SET_VEHICLE_CUSTOM_SECONDARY_COLOUR
+
+                Log("Max tuning matte paint applied: primaryType=" + primaryType + "->3, secondaryType=" + secondaryType + "->3, customPrimary=" + customPrimary + ", customSecondary=" + customSecondary + ".");
++            }
++            catch (Exception ex)
++            {
++                LogException("ApplyMattePaintPreservingColor", ex);
++            }
++        }
++
++        private void DeleteCurrentVehicle()
