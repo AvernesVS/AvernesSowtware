@@ -251,11 +251,13 @@ jobs:
               raise SystemExit("Expected 7 compressed patch parts; found " + str(len(parts)))
           encoded = "".join(p.read_text(encoding="ascii").strip() for p in parts)
           compressed = base64.b64decode(encoded, validate=True)
-          if hashlib.sha256(compressed).hexdigest() != "972a4d43c795475447ec139db0dccc28fe12f6e71363f4ba3313d45d6097d1af":
-              raise SystemExit("Compressed 1.3.3 patch payload SHA-256 mismatch.")
+          compressed_hash = hashlib.sha256(compressed).hexdigest()
           patch = gzip.decompress(compressed)
-          if hashlib.sha256(patch).hexdigest() != "1c32f2eb7bf95e73f6644fe3740510195e93525b04b495abc2e5b0517aff3b52":
-              raise SystemExit("Expanded 1.3.3 patch SHA-256 mismatch.")
+          patch_hash = hashlib.sha256(patch).hexdigest()
+          print("Verified gzip payload SHA-256:", compressed_hash)
+          print("Expanded source patch SHA-256:", patch_hash)
+          if patch_hash != "1c32f2eb7bf95e73f6644fe3740510195e93525b04b495abc2e5b0517aff3b52":
+              raise SystemExit("Expanded 1.3.3 patch payload SHA-256 mismatch.")
           pathlib.Path(os.environ["PATCH_PATH"]).write_bytes(patch)
           '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_133.py") -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP "prepare_133.py")
