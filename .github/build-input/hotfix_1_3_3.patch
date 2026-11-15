@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: src/Core/AvernesSowtwareScript.cs
+@@
+ using System.Threading;
++using System.Text;
+ using System.Windows.Forms;
+*** Update File: src/Core/SettingsPersistence.cs
+@@
+ using System.Text;
++using System.Text.RegularExpressions;
+ using System.Threading;
+*** End Patch
