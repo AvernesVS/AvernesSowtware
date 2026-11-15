@@ -49,7 +49,7 @@
 +            }
 +
 +            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED, ped.Handle, weaponHash, thermalScope);
-+            bool installed = Function.Call<bool>((Hash)0x76A18844E743BF91UL, ped.Handle, weaponHash, thermalScope); // HAS_PED_GOT_WEAPON_COMPONENT
++            bool installed = Function.Call<bool>((Hash)0xC593212475FAE340UL, ped.Handle, weaponHash, thermalScope); // HAS_PED_GOT_WEAPON_COMPONENT
 +            Log("Heavy Sniper Mk II thermal scope install: " + installed + ".");
 +            return installed;
 +        }
