@@ -172,9 +172,9 @@ jobs:
           $patch = Join-Path $env:GITHUB_WORKSPACE ".github\build-input\patches_1_3_2.patch"
           Push-Location $root
           try {
-            git apply --ignore-space-change --check $patch
+            git apply --ignore-whitespace --check $patch
             if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch does not apply cleanly." }
-            git apply --ignore-space-change $patch
+            git apply --ignore-whitespace $patch
             if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch application failed." }
           } finally { Pop-Location }
 
