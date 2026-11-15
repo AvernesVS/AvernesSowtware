@@ -276,6 +276,22 @@ jobs:
             git apply --ignore-whitespace $hotfix
             if ($LASTEXITCODE -ne 0) { throw "1.3.3 compile hotfix application failed." }
           } finally { Pop-Location }
+
+          # .NET Framework File.Replace requires a real backup path; null breaks
+          # the second installer run when the checksum sidecars already exist.
+          $storageScript = Join-Path $root "build\Finalize-InstallStorage.ps1"
+          if (-not (Test-Path -LiteralPath $storageScript -PathType Leaf)) { throw "Storage finalization script is missing." }
+          $storageSource = [IO.File]::ReadAllText($storageScript)
+          $oldSidecarReplace = 'if (Test-Path -LiteralPath $sidecar) { [IO.File]::Replace($temporary, $sidecar, $null) }'
+          $newSidecarReplace = 'if (Test-Path -LiteralPath $sidecar) { $replaceBackup = $sidecar + "." + [Guid]::NewGuid().ToString("N") + ".replace.bak"; try { [IO.File]::Replace($temporary, $sidecar, $replaceBackup) } finally { if (Test-Path -LiteralPath $replaceBackup) { Remove-Item -LiteralPath $replaceBackup -Force } } }'
+          $oldBackupReplace = 'if (Test-Path -LiteralPath $backup) { [IO.File]::Replace($temporary, $backup, $null) }'
+          $newBackupReplace = 'if (Test-Path -LiteralPath $backup) { $replaceBackup = $backup + "." + [Guid]::NewGuid().ToString("N") + ".replace.bak"; try { [IO.File]::Replace($temporary, $backup, $replaceBackup) } finally { if (Test-Path -LiteralPath $replaceBackup) { Remove-Item -LiteralPath $replaceBackup -Force } } }'
+          if (([regex]::Matches($storageSource, [regex]::Escape($oldSidecarReplace))).Count -ne 1) { throw "Expected exactly one sidecar replacement call using null backup." }
+          if (([regex]::Matches($storageSource, [regex]::Escape($oldBackupReplace))).Count -ne 1) { throw "Expected exactly one backup replacement call using null backup." }
+          $storageSource = $storageSource.Replace($oldSidecarReplace, $newSidecarReplace).Replace($oldBackupReplace, $newBackupReplace)
+          if ($storageSource.Contains($oldSidecarReplace) -or $storageSource.Contains($oldBackupReplace)) { throw "Storage replacement fix did not apply." }
+          [IO.File]::WriteAllText($storageScript, $storageSource, [Text.UTF8Encoding]::new($false))
+          Write-Host "Storage finalization replacement now uses unique same-directory backup paths."
           $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
           $settings = Join-Path $root "src\Core\SettingsPersistence.cs"
           if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.3"' -Quiet)) { throw "Product version is not 1.3.3." }
