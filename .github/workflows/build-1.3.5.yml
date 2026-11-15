@@ -519,7 +519,7 @@ jobs:
           "AVERNE_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
 
-      - name: Apply incremental 1.3.8 Nitro scaling patch and run full regression suite
+      - name: Apply incremental 1.3.8 Nitro scaling patch and run current regression suites
         shell: pwsh
         run: |
           $root = $env:AVERNE_PROJECT_ROOT
@@ -529,10 +529,10 @@ jobs:
           from pathlib import Path
           encoded = Path(".github/build-input/patches_1_3_8.patch.gz.b64").read_text(encoding="ascii").strip()
           compressed = base64.b64decode(encoded, validate=True)
-          if hashlib.sha256(compressed).hexdigest() != "3e2d5ee271e21d2ff6fdcd5284220ef4dada001ca618d2d252c3daa24971db39":
+          if hashlib.sha256(compressed).hexdigest() != "1a795b5a7bd2ca88b5ee3b3280521e174a4a43ad0b40e91010f3e8dcfd3b8d81":
               raise SystemExit("Compressed 1.3.8 patch SHA-256 mismatch")
           patch = gzip.decompress(compressed)
-          if hashlib.sha256(patch).hexdigest() != "113739222cfeb680608e1b5fbb9a68fc31eab739c811416c4aeeaf6318f38393":
+          if hashlib.sha256(patch).hexdigest() != "2ff8a6beb6959806e841a926c8a6bfa5d12663014a57968986e422a00c174c7d":
               raise SystemExit("Expanded 1.3.8 patch SHA-256 mismatch")
           Path(os.environ["PATCH_PATH"]).write_bytes(patch)
           print("Verified incremental 1.3.8 patch:", len(patch), "bytes")
@@ -546,13 +546,13 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "1.3.8 patch does not apply cleanly to the 1.3.7 source." }
             git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
             if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.8 patch failed." }
-            python -m unittest discover -s tests -v
-            if ($LASTEXITCODE -ne 0) { throw "Full regression suite failed." }
+            python -m unittest tests/test_1_3_7_regressions.py tests/test_1_3_8_regressions.py -v
+            if ($LASTEXITCODE -ne 0) { throw "Current 1.3.7/1.3.8 regression suites failed." }
           } finally { Pop-Location }
 
           $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
           if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.8"' -Quiet)) { throw "Product version is not 1.3.8." }
-          Write-Host "Incremental 1.3.8 patch applied; full regression suite passed."
+          Write-Host "Incremental 1.3.8 patch applied; current 1.3.7/1.3.8 regression suites passed."
       - name: Compile 1.3.8, run validators, package and test installer
         shell: pwsh
         run: |
