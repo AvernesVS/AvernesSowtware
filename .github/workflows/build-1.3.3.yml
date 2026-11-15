@@ -322,8 +322,21 @@ jobs:
             throw "1.3.3 build failed with exit code $buildExit. See diagnostics above."
           }
 
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "build\Test-InstallerIdempotence.ps1") -ProjectRoot $root
-          if ($LASTEXITCODE -ne 0) { throw "Repeated-install regression test failed." }
+          $installerTest = Join-Path $root "build\Test-InstallerIdempotence.ps1"
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerTest -ProjectRoot $root
+          $installerTestExit = $LASTEXITCODE
+          if ($installerTestExit -ne 0) {
+            Write-Host "===== INSTALLER LOG AFTER REGRESSION FAILURE ====="
+            $installLog = Join-Path $root "AvernesSowtware_Install.log"
+            if (Test-Path $installLog) { Get-Content $installLog -Raw | Write-Host }
+            Write-Host "===== STORAGE FINALIZATION SCRIPT ====="
+            $storageScript = Join-Path $root "build\Finalize-InstallStorage.ps1"
+            if (Test-Path $storageScript) { Get-Content $storageScript -Raw | Write-Host }
+            Write-Host "===== MIGRATION SCRIPT ====="
+            $migrationScript = Join-Path $root "build\Migrate-LegacyData.ps1"
+            if (Test-Path $migrationScript) { Get-Content $migrationScript -Raw | Write-Host }
+            throw "Repeated-install regression test failed with exit code $installerTestExit."
+          }
 
           $dll = Join-Path $root "dist\AvernesSowtware.dll"
           $zip = Join-Path $root "dist\AvernesSowtware_v1.3.3_RELEASE.zip"
