@@ -1,0 +1,50 @@
+        DrawMenuText("AvernesSowtware", titleX, top + 0.010f * scale,
+-                0.112f * scale * fontScale, 245, 245, 249, 255);
+-            DrawMenuText("v" + ProductVersion, titleX, top + 0.034f * scale,
+-                0.094f * scale * fontScale, 176, 178, 188, 255);
+-            DrawMenuText(_currentPage.ToUpperInvariant(), titleX, top + 0.060f * scale,
+-                0.155f * scale * fontScale, 255, 245, 247, 255);
++            // Solid, high-contrast surfaces; no decorative rails or floating controls.
++            DrawRect(x + width / 2.0f, top + height / 2.0f, width, height, 7, 8, 12, alpha);
++            DrawRect(x + width / 2.0f, top + headerHeight / 2.0f, width - 0.004f * scale,
++                headerHeight - 0.004f * scale, 18, 20, 27, 255);
++            DrawRect(x + width / 2.0f, top + headerHeight, width - 0.020f * scale,
++                0.0015f * scale, 72, 76, 88, 255);
++            DrawRect(x + width / 2.0f, top + 0.0015f * scale, width, 0.003f * scale,
++                accentR, accentG, accentB, 255);
++
++            // Compact compass mark; the menu title remains the primary header element.
++            float logoCx = x + 0.022f * scale;
++            float logoCy = top + 0.050f * scale;
++            DrawRect(logoCx, logoCy, 0.0030f * scale, 0.058f * scale, 232, 235, 242, 255);
++            DrawRect(logoCx, logoCy, 0.022f * scale, 0.0030f * scale, 232, 235, 242, 255);
++            DrawRect(logoCx, logoCy, 0.0090f * scale, 0.0090f * scale, accentR, accentG, accentB, 255);
++
++            float titleX = x + 0.044f * scale;
++            DrawMenuText("AvernesSowtware", titleX, top + 0.014f * scale,
++                0.190f * scale * fontScale, 250, 251, 255, 255);
++            string headerDetails = "v" + ProductVersion + "   " + _currentPage.ToUpperInvariant();
++            DrawMenuText(FitMenuRowText(String.Empty, headerDetails, String.Empty,
++                width - 0.060f * scale, scale, fontScale), titleX, top + 0.056f * scale,
++                0.108f * scale * fontScale, 205, 211, 222, 255);
+ 
+@@ -62,39 +58,36 @@
+                 bool selected = itemIndex == _selectedIndex;
++                float rowCenter = y + rowHeight / 2.0f;
++
++                DrawRect(x + width / 2.0f, rowCenter, width - 0.014f * scale,
++                    rowHeight - 0.0025f * scale,
++                    selected ? 54 : 23, selected ? 22 : 26, selected ? 29 : 33,
++                    selected ? 255 : 235);
+                 if (selected)
+-                {
+-                    DrawRect(x + width / 2.0f, y + rowHeight / 2.0f,
+-                        width - 0.016f * scale, rowHeight - 0.003f * scale,
+-                        51, 16, 25, 240);
+-                    DrawRect(x + 0.004f * scale, y + rowHeight / 2.0f,
+-                        0.0025f * scale, rowHeight - 0.004f * scale, accentR, accentG, accentB, 255);
+-                }
+-                else
+-                {
+-                    DrawRect(x + width / 2.0f, y + rowHeight / 2.0f,
+-
