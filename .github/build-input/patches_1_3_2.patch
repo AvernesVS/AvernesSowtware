@@ -251,7 +251,7 @@
 -                    }
 -                }
 +                int vehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle); // GET_VEHICLE_CLASS
-+                bool wheelsApplied = ApplyClassAppropriateWheels(handle, vehicleClass, ref supportedSlots, ref appliedSlots, ref verifiedSlots, ref failedSlots);
++                wheelsApplied = ApplyClassAppropriateWheels(handle, vehicleClass, ref supportedSlots, ref appliedSlots, ref verifiedSlots, ref failedSlots);
  
 @@ -328,2 +290,4 @@
  
@@ -393,4 +393,8 @@
 +            }
 +        }
 +
+@@ -376,1 +334,1 @@
+-                Log("Max tuning result: model=" + vehicle.Model.Hash + ", class=" + (isMotorcycle ? "motorcycle" : "other") + ", supported slots=" + supportedSlots +
++                Log("Max tuning result: model=" + vehicle.Model.Hash + ", class=" + (vehicleClass == 8 ? "motorcycle" : "other") + ", supported slots=" + supportedSlots +
+
          private void DeleteCurrentVehicle()
