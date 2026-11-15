@@ -298,7 +298,13 @@ jobs:
           $builder = Join-Path $root "BUILD_RELEASE.bat"
           & $builder "" "--no-pause"
           $buildExit = $LASTEXITCODE
-          if ($buildExit -ne 0) { throw "1.3.3 build failed with exit code $buildExit. See BUILD_RELEASE.log and AvernesSowtware_Build.log." }
+          if ($buildExit -ne 0) {
+            $compilerLog = Join-Path $root "AvernesSowtware_Build.log"
+            $releaseLog = Join-Path $root "BUILD_RELEASE.log"
+            if (Test-Path $compilerLog) { Write-Host "===== C# COMPILER DIAGNOSTICS ====="; Get-Content $compilerLog -Raw | Write-Host }
+            if (Test-Path $releaseLog) { Write-Host "===== RELEASE BUILD DIAGNOSTICS ====="; Get-Content $releaseLog -Raw | Write-Host }
+            throw "1.3.3 build failed with exit code $buildExit. See diagnostics above."
+          }
 
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "build\Test-InstallerIdempotence.ps1") -ProjectRoot $root
           if ($LASTEXITCODE -ne 0) { throw "Repeated-install regression test failed." }
