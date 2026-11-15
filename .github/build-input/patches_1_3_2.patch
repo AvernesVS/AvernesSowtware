@@ -1,0 +1,396 @@
+--- a/src/Core/AvernesSowtwareScript.cs
++++ b/src/Core/AvernesSowtwareScript.cs
+@@ -16,3 +16,3 @@
+         private const string ProductName = "AvernesSowtware";
+-        private const string ProductVersion = "1.3.1";
++        private const string ProductVersion = "1.3.2";
+         private const int AmmoPerWeapon = 9999;
+@@ -1676,3 +1676,3 @@
+             float scale = ClampFloat(_settings.MenuScale, 0.75f, 1.30f);
+-            float estimatedHeight = (0.015f + 0.080f + GetVisibleMenuRows() * 0.029f + 0.045f) * scale;
++            float estimatedHeight = (0.008f + 0.105f + GetVisibleMenuRows() * 0.038f + 0.038f) * scale;
+             return Math.Max(0.005f, 0.995f - estimatedHeight);
+@@ -1759,3 +1759,3 @@
+             _settings.MenuY = 0.006f;
+-            _settings.MenuWidth = 0.340f;
++            _settings.MenuWidth = 0.380f;
+             _settings.MenuScale = 1.0f;
+@@ -2747,2 +2747,7 @@
+             }
++
++            // Heavy Sniper Mk II has mutually exclusive scope components. Apply the
++            // thermal optic last so an earlier maximum/NV scope cannot remain selected.
++            if (weaponHash == GetHash("WEAPON_HEAVYSNIPER_MK2"))
++                premiumApplied = EnsureHeavySniperMkIIThermalScope(ped, weaponHash) || premiumApplied;
+             return premiumApplied;
+@@ -2750,2 +2755,31 @@
+ 
++
++        private bool EnsureHeavySniperMkIIThermalScope(Ped ped, uint weaponHash)
++        {
++            uint thermalScope = GetHash("COMPONENT_AT_SCOPE_THERMAL");
++            if (thermalScope == 0 || !Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, thermalScope))
++            {
++                Log("Heavy Sniper Mk II thermal scope is not supported by this game build.");
++                return false;
++            }
++
++            string[] alternativeScopes = new string[]
++            {
++                "COMPONENT_AT_SCOPE_MACRO", "COMPONENT_AT_SCOPE_SMALL", "COMPONENT_AT_SCOPE_MEDIUM",
++                "COMPONENT_AT_SCOPE_LARGE", "COMPONENT_AT_SCOPE_MAX", "COMPONENT_AT_SCOPE_NV"
++            };
++            for (int i = 0; i < alternativeScopes.Length; i++)
++            {
++                uint alternative = GetHash(alternativeScopes[i]);
++                if (alternative == 0 || alternative == thermalScope) continue;
++                if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, alternative))
++                    Function.Call((Hash)0x1E8BE90C74FB4C09UL, ped.Handle, weaponHash, alternative); // REMOVE_WEAPON_COMPONENT_FROM_PED
++            }
++
++            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED, ped.Handle, weaponHash, thermalScope);
++            bool installed = Function.Call<bool>((Hash)0x76A18844E743BF91UL, ped.Handle, weaponHash, thermalScope); // HAS_PED_GOT_WEAPON_COMPONENT
++            Log("Heavy Sniper Mk II thermal scope install: " + installed + ".");
++            return installed;
++        }
++
+         private uint GetHash(string name)
+@@ -3083,3 +3117,3 @@
+              public float MenuY = 0.006f;
+-            public float MenuWidth = 0.340f;
++            public float MenuWidth = 0.380f;
+             public float MenuScale = 1.0f;
+--- a/src/UI/MenuRenderer.cs
++++ b/src/UI/MenuRenderer.cs
+@@ -8,3 +8,3 @@
+     {
+-private void DrawMenu()
++        private void DrawMenu()
+         {
+@@ -16,9 +16,9 @@
+             float x = ClampFloat(_settings.MenuX, 0.005f, 0.995f - width);
+-            float rowHeight = 0.032f * scale;
++            float rowHeight = 0.038f * scale;
+             int visible = Math.Min(GetVisibleMenuRows(), entries.Count);
+-            float headerHeight = 0.092f * scale;
++            float headerHeight = 0.105f * scale;
+             float footerHeight = 0.038f * scale;
+-            float height = 0.010f * scale + headerHeight + visible * rowHeight + footerHeight;
++            float height = 0.008f * scale + headerHeight + visible * rowHeight + footerHeight;
+             float top = ClampFloat(_settings.MenuY, 0.005f, Math.Max(0.005f, 0.995f - height));
+-            float fontScale = ClampFloat(_settings.MenuFontScale, 0.70f, 1.25f);
++            float fontScale = ClampFloat(_settings.MenuFontScale, 0.70f, 1.40f);
+             int alpha = ClampInt(_settings.MenuOpacity, 100, 255);
+@@ -27,29 +27,25 @@
+ 
+-            // Flat dark panel. Only one thin red top accent remains; the side rails,
+-            // badges and decorative scrollbar that caused stray bars are removed.
+-            DrawRect(x + width / 2.0f, top + height / 2.0f, width, height, 5, 6, 9, alpha);
+-            DrawRect(x + width / 2.0f, top + 0.0015f * scale, width, 0.0025f * scale,
+-                accentR, accentG, accentB, 245);
+-            DrawRect(x + width / 2.0f, top + headerHeight, width - 0.018f * scale,
+-                0.0010f * scale, 48, 24, 31, 230);
+-
+-            // Winged compass emblem: silver wings, a vertical needle and a red core.
+-            // This replaces the former red square and the temporary three-bar placeholder.
+-            float logoCx = x + 0.020f * scale;
+-            float logoCy = top + 0.040f * scale;
+-            DrawRect(logoCx, logoCy - 0.006f * scale, 0.0022f * scale, 0.040f * scale, 208, 211, 220, 255);
+-            DrawRect(logoCx - 0.009f * scale, logoCy - 0.001f * scale, 0.018f * scale, 0.0032f * scale, 220, 222, 229, 255);
+-            DrawRect(logoCx - 0.007f * scale, logoCy + 0.006f * scale, 0.014f * scale, 0.0022f * scale, accentR, accentG, accentB, 255);
+-            DrawRect(logoCx - 0.006f * scale, logoCy - 0.010f * scale, 0.012f * scale, 0.0020f * scale, 160, 164, 174, 255);
+-            DrawRect(logoCx - 0.006f * scale, logoCy + 0.011f * scale, 0.012f * scale, 0.0020f * scale, 160, 164, 174, 255);
+-            DrawRect(logoCx, logoCy + 0.001f * scale, 0.0060f * scale, 0.0060f * scale, accentR, accentG, accentB, 255);
+-            DrawRect(logoCx, logoCy + 0.001f * scale, 0.0025f * scale, 0.0025f * scale, 245, 245, 249, 255);
+-
+-            float titleX = x + 0.042f * scale;
+-                    DrawMenuText("AvernesSowtware", titleX, top + 0.010f * scale,
+-                0.112f * scale * fontScale, 245, 245, 249, 255);
+-            DrawMenuText("v" + ProductVersion, titleX, top + 0.034f * scale,
+-                0.094f * scale * fontScale, 176, 178, 188, 255);
+-            DrawMenuText(_currentPage.ToUpperInvariant(), titleX, top + 0.060f * scale,
+-                0.155f * scale * fontScale, 255, 245, 247, 255);
++            // Solid, high-contrast surfaces; no decorative rails or floating controls.
++            DrawRect(x + width / 2.0f, top + height / 2.0f, width, height, 7, 8, 12, alpha);
++            DrawRect(x + width / 2.0f, top + headerHeight / 2.0f, width - 0.004f * scale,
++                headerHeight - 0.004f * scale, 18, 20, 27, 255);
++            DrawRect(x + width / 2.0f, top + headerHeight, width - 0.020f * scale,
++                0.0015f * scale, 72, 76, 88, 255);
++            DrawRect(x + width / 2.0f, top + 0.0015f * scale, width, 0.003f * scale,
++                accentR, accentG, accentB, 255);
++
++            // Compact compass mark; the menu title remains the primary header element.
++            float logoCx = x + 0.022f * scale;
++            float logoCy = top + 0.050f * scale;
++            DrawRect(logoCx, logoCy, 0.0030f * scale, 0.058f * scale, 232, 235, 242, 255);
++            DrawRect(logoCx, logoCy, 0.022f * scale, 0.0030f * scale, 232, 235, 242, 255);
++            DrawRect(logoCx, logoCy, 0.0090f * scale, 0.0090f * scale, accentR, accentG, accentB, 255);
++
++            float titleX = x + 0.044f * scale;
++            DrawMenuText("AvernesSowtware", titleX, top + 0.014f * scale,
++                0.190f * scale * fontScale, 250, 251, 255, 255);
++            string headerDetails = "v" + ProductVersion + "   " + _currentPage.ToUpperInvariant();
++            DrawMenuText(FitMenuRowText(String.Empty, headerDetails, String.Empty,
++                width - 0.060f * scale, scale, fontScale), titleX, top + 0.056f * scale,
++                0.108f * scale * fontScale, 205, 211, 222, 255);
+ 
+@@ -62,39 +58,36 @@
+                 bool selected = itemIndex == _selectedIndex;
++                float rowCenter = y + rowHeight / 2.0f;
++
++                DrawRect(x + width / 2.0f, rowCenter, width - 0.014f * scale,
++                    rowHeight - 0.0025f * scale,
++                    selected ? 54 : 23, selected ? 22 : 26, selected ? 29 : 33,
++                    selected ? 255 : 235);
+                 if (selected)
+-                {
+-                    DrawRect(x + width / 2.0f, y + rowHeight / 2.0f,
+-                        width - 0.016f * scale, rowHeight - 0.003f * scale,
+-                        51, 16, 25, 240);
+-                    DrawRect(x + 0.004f * scale, y + rowHeight / 2.0f,
+-                        0.0025f * scale, rowHeight - 0.004f * scale, accentR, accentG, accentB, 255);
+-                }
+-                else
+-                {
+-                    DrawRect(x + width / 2.0f, y + rowHeight / 2.0f,
+-                       width - 0.016f * scale, rowHeight - 0.003f * scale,
+-                        11, 12, 17, 190);
+-                }
++                    DrawRect(x + 0.006f * scale, rowCenter, 0.0030f * scale,
++                        rowHeight - 0.006f * scale, accentR, accentG, accentB, 255);
+ 
+                 string number = (itemIndex + 1).ToString("00", CultureInfo.InvariantCulture);
+-                DrawMenuText(number, x + 0.014f * scale, y + 0.004f * scale,
+-                    0.135f * scale * fontScale, selected ? 255 : accentR,
+-                    selected ? 230 : accentG, selected ? 232 : accentB, 255);
++                DrawMenuText(number, x + 0.017f * scale, y + 0.008f * scale,
++                    0.166f * scale * fontScale,
++                    selected ? 255 : 190, selected ? 238 : 199, selected ? 240 : 211, 255);
++
+                 string suffix = item.Value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + item.Value() + "]";
+                 string rowText = FitMenuRowText(String.Empty, item.Title, suffix,
+-                    width - 0.058f * scale, scale, fontScale);
+-                DrawMenuText(rowText, x + 0.052f * scale, y + 0.005f * scale,
+-                    0.158f * scale * fontScale,
+-                    selected ? 255 : 210, selected ? 244 : 213, selected ? 246 : 221, 255);
++                    width - 0.070f * scale, scale, fontScale);
++                DrawMenuText(rowText, x + 0.064f * scale, y + 0.008f * scale,
++                    0.164f * scale * fontScale,
++                    selected ? 255 : 238, selected ? 246 : 240, selected ? 248 : 246, 255);
+             }
+ 
++            float footerY = top + height - 0.027f * scale;
+             DrawMenuText("UP/DOWN  ENTER  BACKSPACE  F11",
+-                x + 0.012f * scale, top + height - 0.026f * scale,
+-                0.078f * scale * fontScale, 165, 168, 178, 255);
++                x + 0.014f * scale, footerY,
++                0.086f * scale * fontScale, 180, 185, 196, 255);
+             DrawMenuText((_selectedIndex + 1).ToString("00", CultureInfo.InvariantCulture) +
+                 " / " + entries.Count.ToString("00", CultureInfo.InvariantCulture),
+-                x + width - 0.060f * scale, top + height - 0.026f * scale,
+-                0.088f * scale * fontScale, accentR, accentG, accentB, 255);
++                x + width - 0.060f * scale, footerY,
++                0.090f * scale * fontScale, 236, 202, 207, 255);
+         }
+ 
+-private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
++        private string FitMenuRowText(string marker, string title, string suffix, float width, float scale, float fontScale)
+         {
+@@ -102,3 +95,3 @@
+             if (suffix == null) suffix = String.Empty;
+-            int maxChars = Math.Max(22, (int)((width - 0.006f * scale) * 175.0f /
++            int maxChars = Math.Max(18, (int)((width - 0.008f * scale) * 158.0f /
+                 ath.Max(0.70f, scale * fontScale)));
+@@ -115,3 +108,3 @@
+ 
+-private void DrawMenuText(string text, float x, float y, float scale, int r, int g, int b, int a)
++        private void DrawMenuText(string text, float x, float y, float scale, int r, int g, int b, int a)
+         {
+--- a/src/Managers/VehicleSystems.cs
++++ b/src/Managers/VehicleSystems.cs
+@@ -244,42 +244,4 @@
+ 
+-                // Motorcycles use Bike wheels (6); cars retain the original family fallback.
+-                bool isMotorcycle = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle) == 8; // GET_VEHICLE_CLASS
+-                int[] wheelTypes = isMotorcycle ? new int[] { 6 } : new int[] { 7, 5, 0, 4, 1, 3, 2 };
+-                for (int wheelTypeIndex = 0; wheelTypeIndex < wheelTypes.Length; wheelTypeIndex++)
+-                {
+-                    try
+-                    {
+-                        Function.Call((Hash)0x487EB21CC7295BA1UL, handle, wheelTypes[wheelTypeIndex]); // SET_VEHICLE_WHEEL_TYPE
+-                        int frontWheelCount = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, 23);
+-                        int rearWheelCount = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, 24);
+-                        bool frontApplied = false;
+-                        bool rearApplied = false;
+-                        // Bike wheel assets ship custom front and rear tyre textures.
+-                        // Enable the native custom-tyre variation for both bike slots;
+-                        // car wheel families retain the original false flag.
+-                        bool customTyres = isMotorcycle;
+-                        if (frontWheelCount > 0)
+-                        {
+-                            Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, 23, frontWheelCount - 1, customTyres);
+-                            frontApplied = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, 23) == frontWheelCount - 1;
+-                            supportedSlots++; appliedSlots++;
+-                            if (frontApplied) verifiedSlots++; else failedSlots++;
+-                        }
+-                        if (rearWheelCount > 0)
+-                        {
+-                            Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, 24, rearWheelCount - 1, customTyres);
+-                            rearApplied = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, 24) == rearWheelCount - 1;
+-                            supportedSlots++; appliedSlots++;
+-                            if (rearApplied) verifiedSlots++; else failedSlots++;
+-                        }
+-                        wheelsApplied = isMotorcycle
+-                            ? (frontWheelCount > 0 && rearWheelCount > 0 && frontApplied && rearApplied)
+-                            : (frontApplied || rearApplied);
+-                        if (frontWheelCount > 0 || rearWheelCount > 0) break;
+-                    }
+-                    catch (Exception wheelException)
+-    {
+-                        LogException("MaxTuneVehicle wheel type " + wheelTypes[wheelTypeIndex], wheelException);
+-                    }
+-                }
++                int vehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle); // GET_VEHICLE_CLASS
++                bool wheelsApplied = ApplyClassAppropriateWheels(handle, vehicleClass, ref supportedSlots, ref appliedSlots, ref verifiedSlots, ref failedSlots);
+ 
+@@ -328,2 +290,4 @@
+ 
++                ApplyMattePaintPreservingColor(handle);
++
+                 // Apply the darkest factory tint (Limo = 5) where the model supports glass.
+@@ -331,4 +295,6 @@
+                 {
+-                    Function.Call((Hash)0x57C51E6BAD752696UL, handle, 5); // SET_VEHICLE_WINDOW_TINT
+-                    tintApplied = Function.Call<int>((Hash)0x0EE21293DAD47C95UL, handle) == 5; // GET_VEHICLE_WINDOW_TINT
++                    int tintCount = Function.Call<int>((Hash)0x9D1224004B3A6707UL, handle); // GET_NUM_VEHICLE_WINDOW_TINTS
++                    int maximumTint = tintCount > 0 ? tintCount - 1 : 5;
++                    Function.Call((Hash)0x57C51E6BAD752696UL, handle, maximumTint); // SET_VEHICLE_WINDOW_TINT
++                    tintApplied = Function.Call<int>((Hash)0x0EE21293DAD47C95UL, handle) == maximumTint; // GET_VEHICLE_WINDOW_TINT
+                 }
+@@ -351,3 +317,2 @@
+ 
+-                int vehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62UL, handle);
+                 bool rocketModeEnabled = false;
+@@ -391,2 +356,122 @@
+         }
++        private int GetWheelTypeForVehicleClass(int vehicleClass)
++        {
++            // GTA wheel families: Sport=0, Muscle=1, SUV=3, Off-road=4,
++            // Tuner=5, Bike=6, High End=7, Open Wheel=10.
++            switch (vehicleClass)
++            {
++                case 0: case 1: case 3: case 11: return 5;
++                case 12: return 3; // Compacts, sedans, coupes, utility
++                case 2: case 17: case 18: return 3;       // SUVs, service, emergency
++                case 4: return 1;                         // Muscle
++                case 5: return 0;                         // Sports classics
++                case 6: case 7: return 7;                 // Sports and super
++                case 8: return 6;                         // Motorcycles
++                case 9: case 10: case 19: case 20: return 4; // Off-road, industrial, military, commercial
++                case 22: return 10;                       // Open wheel
++                default: return -1;                       // Boats/aircraft/trains/unsupported
++            }
++        }
++
++        private bool ApplyClassAppropriateWheels(int handle, int vehicleClass,
++            ref int supportedSlots, ref int appliedSlots, ref int verifiedSlots, ref int failedSlots)
++        {
++            int wheelType = GetWheelTypeForVehicleClass(vehicleClass);
++            if (wheelType < 0) return false;
++
++            try
++            {
++                Function.Call((Hash)0x487EB21CC7295BA1UL, handle, wheelType); // SET_VEHICLE_WHEEL_TYPE
++                bool motorcycle = vehicleClass == 8;
++                bool anyApplied = false;
++                int[] slots = motorcycle ? new int[] { 23, 24 } : new int[] { 23 };
++                for (int i = 0; i < slots.Length; i++)
++                {
++                    int slot = slots[i];
++                    int count = Function.Call<int>((Hash)0xE38E9162A2500646UL, handle, slot);
++                    if (count <= 0) continue;
++                    supportedSlots++;
++                    int bestIndex = count - 1;
++                    Function.Call((Hash)0x6AF0636DDEDCB6DDUL, handle, slot, bestIndex, motorcycle);
++                    appliedSlots++;
++                    bool verified = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, slot) == bestIndex;
++                    if (verified) verifiedSlots++; else failedSlots++;
++                    anyApplied = anyApplied || verified;
++                }
++                Log("Max tuning wheel selection: class=" + vehicleClass + ", wheelType=" + wheelType + ", applied=" + anyApplied + ".");
++                return anyApplied;
++            }
++            catch (Exception ex)
++            {
++                failedSlots++;
++                LogException("ApplyClassAppropriateWheels class " + vehicleClass, ex);
++                return false;
++            }
++        }
++
++        private void ApplyMattePaintPreservingColor(int handle)
++        {
++            try
++            {
++                int primaryType, primaryColor, pearl;
++                int secondaryType, secondaryColor;
++                using (OutputArgument type = new OutputArgument())
++                using (OutputArgument color = new OutputArgument())
++                using (OutputArgument pearlescent = new OutputArgument())
++                {
++                    Function.Call((Hash)0xE8D65CA700C9A693UL, handle, type, color, pearlescent); // GET_VEHICLE_MOD_COLOR_1
++                    primaryType = type.GetResult<int>();
++                    primaryColor = color.GetResult<int>();
++                    pearl = pearlescent.GetResult<int>();
++                }
++                using (OutputArgument type = new OutputArgument())
++                using (OutputArgument color = new OutputArgument())
++                {
++                    Function.Call((Hash)0x81592BE4E3878728UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2
++                    secondaryType = type.GetResult<int>();
++                    secondaryColor = color.GetResult<int>();
++                }
++
++                bool customPrimary = Function.Call<bool>((Hash)0xF095C0405307B21BUL, handle); // GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM
++                bool customSecondary = Function.Call<bool>((Hash)0x910A32E7AAD2656CUL, handle); // GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM
++                int primaryR = 0, primaryG = 0, primaryB = 0;
++                int secondaryR = 0, secondaryG = 0, secondaryB =0;
++                if (customPrimary)
++                {
++                    using (OutputArgument r = new OutputArgument())
++                    using (OutputArgument g = new OutputArgument())
++                    using (OutputArgument b = new OutputArgument())
++                    {
++                        Function.Call((Hash)0xB64CF2CCA9D95F52UL, handle, r, g, b); // GET_VEHICLE_CUSTOM_PRIMARY_COLOUR
++                        primaryR = r.GetResult<int>(); primaryG = g.GetResult<int>(); primaryB = b.GetResult<int>();
++                    }
++                }
++                if (customSecondary)
++                {
++                    using (OutputArgument r = new OutputArgument())
++                    using (OutputArgument g = new OutputArgument())
++                    using (OutputArgument b = new OutputArgument())
++                    {
++                        Function.Call((Hash)0x8389CD56CA8072DCUL, handle, r, g, b); // GET_VEHICLE_CUSTOM_SECONDARY_COLOUR
++                        secondaryR = r.GetResult<int>(); secondaryG = g.GetResult<int>(); secondaryB = b.GetResult<int>();
++                    }
++                }
++
++                // Paint type 3 is Matte. Keep the current palette indices and pearl.
++                Function.Call((Hash)0x43FEB945EE7F85B8UL, handle, 3, primaryColor, pearl); // SET_VEHICLE_MOD_COLOR_1
++                Function.Call((Hash)0x816562BADFDEC83EUL, handle, 3, secondaryColor); // SET_VEHICLE_MOD_COLOR_2
++                // Reapply exact custom RGB values if the vehicle used custom paint.
++                if (customPrimary)
++                    Function.Call((Hash)0x7141766F91D15BEAUL, handle, primaryR, primaryG, primaryB); // SET_VEHICLE_CUSTOM_PRIMARY_COLOUR
++                if (customSecondary)
++                    Function.Call((Hash)0x36CED73BFED89754UL, handle, secondaryR, secondaryG, secondaryB); // SET_VEHICLE_CUSTOM_SECONDARY_COLOUR
++
++                Log("Max tuning matte paint applied: primaryType=" + primaryType + "->3, secondaryType=" + secondaryType + "->3, customPrimary=" + customPrimary + ", customSecondary=" + customSecondary + ".");
++            }
++            catch (Exception ex)
++            {
++                LogException("ApplyMattePaintPreservingColor", ex);
++            }
++        }
++
+         private void DeleteCurrentVehicle()
