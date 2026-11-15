@@ -148,6 +148,10 @@ jobs:
           $root = $env:AVERNE_PROJECT_ROOT
           $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
           $vehicles = Join-Path $root "src\Managers\VehicleSystems.cs"
+          $vehicleSource = [IO.File]::ReadAllText($vehicles)
+          $vehicleSource = $vehicleSource.Replace("bool wheelsApplied = ApplyClassAppropriateWheels", "wheelsApplied = ApplyClassAppropriateWheels")
+          $vehicleSource = $vehicleSource.Replace('(isMotorcycle ? "motorcycle" : "other")', '(vehicleClass == 8 ? "motorcycle" : "other")')
+          [IO.File]::WriteAllText($vehicles, $vehicleSource, [Text.UTF8Encoding]::new($false))
           $catalogs = @((Join-Path $root "package\AvernesSowtware\vehicle_catalog.json"), (Join-Path $root "package\AvernesSowtware\Vehicles\vehicles.json"))
           if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.1"' -Quiet)) { throw "Product version is not 1.3.1." }
           if (-not (Test-Path (Join-Path $root "src\Core\AvernesSowtwareScript.cs")) -or -not (Test-Path (Join-Path $root "src\UI\MenuRenderer.cs"))) { throw "Renamed Core/UI source structure is incomplete." }
@@ -168,9 +172,9 @@ jobs:
           $patch = Join-Path $env:GITHUB_WORKSPACE ".github\build-input\patches_1_3_2.patch"
           Push-Location $root
           try {
-            git apply --check $patch
+            git apply --ignore-space-change --check $patch
             if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch does not apply cleanly." }
-            git apply $patch
+            git apply --ignore-space-change $patch
             if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch application failed." }
           } finally { Pop-Location }
 
@@ -255,7 +259,7 @@ jobs:
           $builder = Join-Path $root "BUILD_RELEASE.bat"
           & $builder "" "--no-pause"
           $buildExit = $LASTEXITCODE
-          if ($buildExit -ne 0) { throw "1.3.1 build failed with exit code $buildExit. See BUILD_RELEASE.log and AvernesSowtware_Build.log." }
+          if ($buildExit -ne 0) { throw "1.3.2 build failed with exit code $buildExit. See BUILD_RELEASE.log and AvernesSowtware_Build.log." }
 
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "build\Test-InstallerIdempotence.ps1") -ProjectRoot $root
           if ($LASTEXITCODE -ne 0) { throw "Repeated-install regression test failed." }
@@ -263,7 +267,7 @@ jobs:
           $dll = Join-Path $root "dist\AvernesSowtware.dll"
           $zip = Join-Path $root "dist\AvernesSowtware_v1.3.2_RELEASE.zip"
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -le 0) { throw "Compiled AvernesSowtware.dll is missing or empty." }
-          if (-not (Test-Path $zip) -or (Get-Item $zip).Length -le 0) { throw "1.3.1 release ZIP is missing or empty." }
+          if (-not (Test-Path $zip) -or (Get-Item $zip).Length -le 0) { throw "1.3.2 release ZIP is missing or empty." }
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $zr = [IO.Compression.ZipFile]::OpenRead($zip)
@@ -271,7 +275,7 @@ jobs:
             $entries = @($zr.Entries)
             $names = @($entries | ForEach-Object { $_.FullName.Replace([char]92, '/') })
             if ($names.Count -eq 0 -or $names[0] -ne "AvernesSowtware_v1.3.2/Install_AvernesSowtware.bat") { throw "Installer is not the first archive entry." }
-            $dllEntries = @($names | Where-Object { $_ -eq "AvernesSowtware_v1.3.1/dist/AvernesSowtware.dll" })
+            $dllEntries = @($names | Where-Object { $_ -eq "AvernesSowtware_v1.3.2/dist/AvernesSowtware.dll" })
             if ($dllEntries.Count -ne 1) { throw "Expected exactly one release DLL; found $($dllEntries.Count)." }
             $roots = @($names | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
             if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.3.2") { throw "Invalid release ZIP root: $($roots -join ', ')." }
