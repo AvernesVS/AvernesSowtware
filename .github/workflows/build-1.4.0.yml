@@ -29,7 +29,7 @@ jobs:
           import base64,gzip,hashlib,os
           from pathlib import Path
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=[d/f'patches_1_4_0.part{x}.b64' for x in ('1a','1b','2a','2b','3','4')]
+          parts=[d/f'patches_1_4_0.part{x}.b64' for x in ('1a','1b','1c','1d','1e','1f','1g','2a','2b','3','4')]
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
           if hashlib.sha256(packed).hexdigest()!='e375001ce7bd468b64a88bdcfe082a9f3f3bb9433e0acf5644ba64b20437c950': raise SystemExit('Patch archive SHA mismatch')
