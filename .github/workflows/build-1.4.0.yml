@@ -37,9 +37,9 @@ jobs:
           parts=[d/f'patches_1_4_0.parti{x}.b64' for x in ('00','01','02','03')]
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='d2038f3ce1883aab17e565f9449ff2483b7ae21eecde5c5b74eb9fd36800c6c9': raise SystemExit('Compressed patch SHA mismatch')
+          if hashlib.sha256(packed).hexdigest()!='fa39583d8e0ce6d42fe54d3bd7f1905f4a215ae155a768fbf3be6f8982908175': raise SystemExit('Compressed patch SHA mismatch')
           raw=bz2.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='2df1b1e9c16ccbfe49852a7f8363d5752c59825d565febd3d6e98fb4e4eaf675': raise SystemExit('Patch SHA mismatch')
+          if hashlib.sha256(raw).hexdigest()!='46d2624071b9bf8cee3b69c8fbd7220ca741e7b6e68700eebe201ded7cef141e': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'patch.py')
@@ -57,7 +57,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Run 70 source-contract regression tests
+      - name: Run 76 source-contract regression tests
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
