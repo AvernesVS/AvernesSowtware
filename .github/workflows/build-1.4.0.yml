@@ -1,5 +1,10 @@
 name: AvernesSowtware 1.4.0 Windows build
 on:
+  push:
+    branches: [work/1.4.0-build]
+    paths:
+      - '.github/build-input/patches_1_4_0.part*.b64'
+      - '.github/workflows/build-1.4.0.yml'
   workflow_dispatch:
 permissions:
   contents: read
