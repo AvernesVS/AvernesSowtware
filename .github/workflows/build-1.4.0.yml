@@ -31,14 +31,14 @@ jobs:
         run: |
           $env:PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140.patch'
           @'
-          import base64,lzma,hashlib,os
+          import base64,gzip,hashlib,os
           from pathlib import Path
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=[d/f'patches_1_4_0.partx{x}.b64' for x in ('00','01','02','03','04','05','06','07')]
+          parts=[d/f'patches_1_4_0.partg{x}.b64' for x in ('00','01','02','03','04','05','06')]
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='a3da44d1e30dd2f561e8391db6275d47dea51f0ea8084cc6cfaefd8317275c88': raise SystemExit('Compressed patch SHA mismatch')
-          raw=lzma.decompress(packed)
+          if hashlib.sha256(packed).hexdigest()!='e9f8a917d1efcaab1943ab6b4fe2c8f3944fa63e7ae4b6ba30e9dd3d912ba8ac': raise SystemExit('Compressed patch SHA mismatch')
+          raw=gzip.decompress(packed)
           if hashlib.sha256(raw).hexdigest()!='ca1c412e7bdb46b4cff8a988d242ccf50e1d316898284f8a62d5c6e389f32576': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
