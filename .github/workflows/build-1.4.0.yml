@@ -3,7 +3,6 @@ on:
   push:
     branches: [work/1.4.0-build]
     paths:
-      - '.github/build-input/patches_1_4_0.part*.b64'
       - '.github/workflows/build-1.4.0.yml'
   workflow_dispatch:
 permissions:
@@ -18,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download 1.3.9 baseline
+      - name: Download 1.4.0 intermediate baseline
         uses: actions/download-artifact@v4
         with:
           name: AvernesSowtware-v1.4.0-RELEASE
@@ -57,7 +56,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Run 76 source-contract regression tests
+      - name: Run 77 source-contract regression tests
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
