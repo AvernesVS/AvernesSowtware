@@ -9,6 +9,7 @@ on:
     paths:
       - '.github/build-input/patches_1_3_9.ready'
       - '.github/build-input/patches_1_3_9.part*.b64'
+      - '.github/build-input/patches_1_3_9_postfix.patch.gz.b64'
       - '.github/workflows/build-1.3.9.yml'
   workflow_dispatch:
 
@@ -85,6 +86,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '1.3.9 patch does not apply cleanly to verified 1.3.8.' }
           git -C $root apply --whitespace=nowarn $env:RUNNER_TEMP\averne-1.3.9.patch
           if ($LASTEXITCODE -ne 0) { throw 'Applying 1.3.9 patch failed.' }
+          $env:POSTFIX_SOURCE = Join-Path $env:GITHUB_WORKSPACE '.github\build-input\patches_1_3_9_postfix.patch.gz.b64'
+          $env:POSTFIX_OUTPUT = Join-Path $env:RUNNER_TEMP 'averne-1.3.9-cleanup.patch'
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          compressed = base64.b64decode(Path(os.environ["POSTFIX_SOURCE"]).read_text(encoding="ascii").strip(), validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "f624252939a2a29c7fffa34e163b3853af1b12f1724577ad7f0cb242abc8620a":
+              raise SystemExit("Compressed 1.3.9 cleanup patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "48dc956e9984cde34aa8f7d907d8b1312ff2b219bfc562c169e136c09456cea1":
+              raise SystemExit("Expanded 1.3.9 cleanup patch SHA-256 mismatch")
+          Path(os.environ["POSTFIX_OUTPUT"]).write_bytes(patch)
+          print("Verified final 1.3.9 cleanup patch:", len(patch), "bytes")
+          '@ | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'prepare_139_cleanup.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'prepare_139_cleanup.py')
+          if ($LASTEXITCODE -ne 0) { throw '1.3.9 cleanup patch checksum validation failed.' }
+          git -C $root apply --check --whitespace=nowarn $env:POSTFIX_OUTPUT
+          if ($LASTEXITCODE -ne 0) { throw '1.3.9 cleanup patch does not apply cleanly.' }
+          git -C $root apply --whitespace=nowarn $env:POSTFIX_OUTPUT
+          if ($LASTEXITCODE -ne 0) { throw 'Applying 1.3.9 cleanup patch failed.' }
           $main = Join-Path $root 'src\Core\AvernesSowtwareScript.cs'
           if (-not (Select-String -LiteralPath $main -Pattern 'ProductVersion\s*=\s*"1\.3\.9"' -Quiet)) { throw 'Patched source is not version 1.3.9.' }
           if (-not (Test-Path (Join-Path $root 'tests\test_1_3_9_regressions.py'))) { throw '1.3.9 regression tests are missing.' }
@@ -94,6 +115,7 @@ jobs:
       - name: Run all 1.3.9 regression tests
         shell: pwsh
         run: |
+          $env:PYTHONDONTWRITEBYTECODE = '1'
           Push-Location $env:AVERNE_PROJECT_ROOT
           try {
             python -m unittest discover -s tests -p 'test_*.py' -v
@@ -127,6 +149,10 @@ jobs:
               }
               throw "1.3.9 build failed with exit code $buildExit."
             }
+            $compilerLog = Join-Path $env:AVERNE_PROJECT_ROOT 'AvernesSowtware_Build.log'
+            if ((Test-Path -LiteralPath $compilerLog) -and ((Get-Content -LiteralPath $compilerLog -Raw) -match 'warning CS\d+')) {
+              throw "C# compiler warnings remain after release cleanup. See $compilerLog."
+            }
             $dll = Join-Path $env:AVERNE_PROJECT_ROOT 'dist\AvernesSowtware.dll'
             $zip = Join-Path $env:AVERNE_PROJECT_ROOT 'dist\AvernesSowtware_v1.3.9_RELEASE.zip'
             if (-not (Test-Path -LiteralPath $dll) -or (Get-Item -LiteralPath $dll).Length -le 0) { throw 'Compiled 1.3.9 DLL is missing or empty.' }
@@ -154,6 +180,8 @@ jobs:
             if ($names[0] -ne 'AvernesSowtware_v1.3.9/Install_AvernesSowtware.bat') { throw 'Installer is not first in release ZIP.' }
             $dlls = @($names | Where-Object { $_ -match '\.dll$' })
             if ($dlls.Count -ne 1 -or $dlls[0] -ne 'AvernesSowtware_v1.3.9/dist/AvernesSowtware.dll') { throw 'Release ZIP must contain exactly one trainer DLL.' }
+            if (@($names | Where-Object { $_ -match '/(tests|\.github)/' }).Count -gt 0) { throw 'Development tests or GitHub workflow files were included in the installer ZIP.' }
+            if (@($names | Where-Object { $_ -match '(__pycache__/|\.py[co]$)' }).Count -gt 0) { throw 'Python cache files were included in the installer ZIP.' }
             foreach ($required in @('vehicle_catalog.json','Vehicles/vehicles.json','addons.json','hotkeys.json','docs/TEST_REPORT_1_3_9_RU.md')) {
               if (@($names | Where-Object { $_ -like "*/$required" }).Count -eq 0) { throw "Missing release file: $required" }
             }
