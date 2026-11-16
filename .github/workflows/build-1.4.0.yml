@@ -116,3 +116,4 @@ jobs:
           path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.0_RELEASE.zip
           if-no-files-found: error
           retention-days: 14
+# Fresh validation trigger: keep release checks on the dedicated build branch.
