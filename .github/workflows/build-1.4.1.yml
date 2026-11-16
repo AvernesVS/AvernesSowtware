@@ -21,10 +21,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: AvernesSowtware-v1.4.0-RELEASE
-          path: \${{ runner.temp }}/base
-          repository: \${{ github.repository }}
+          path: ${{ runner.temp }}/base
+          repository: ${{ github.repository }}
           run-id: 43905017987
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
       - name: Reconstruct v1.4.0 baseline and catalog patches
         shell: pwsh
         run: |
@@ -143,6 +143,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AvernesSowtware-v1.4.1-RELEASE
-          path: \${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.1_RELEASE.zip
+          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.1_RELEASE.zip
           if-no-files-found: error
           retention-days: 14
+
+# Trigger Windows release validation after adding the patch bundle.
