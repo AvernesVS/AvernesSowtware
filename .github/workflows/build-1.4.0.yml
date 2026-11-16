@@ -57,7 +57,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch does not apply to 1.3.9 baseline.' }
           git -C $root apply --whitespace=nowarn $env:PATCH_OUT
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed.' }
-          if (-not (Select-String (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Run 89 regression tests
         shell: pwsh
