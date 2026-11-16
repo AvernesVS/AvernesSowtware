@@ -33,7 +33,7 @@ jobs:
           import base64,bz2,hashlib,os
           from pathlib import Path
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=[d/f'patches_1_4_0.parti{x}.b64' for x in ('00','01','02','03')]
+          parts=[d/'patches_1_4_0.parti04.b64']
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
           if hashlib.sha256(packed).hexdigest()!='7b27c3f1935a714a0a8585e92422e984d8c7a9f7daa3ebdae8fbea7880b1cc9d': raise SystemExit('Compressed patch SHA mismatch')
@@ -56,7 +56,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed on 1.4.0 intermediate baseline.' }
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Run 77 source-contract regression tests
+      - name: Run 78 source-contract regression tests
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
