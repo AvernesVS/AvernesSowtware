@@ -36,9 +36,9 @@ jobs:
           parts=[d/'patches_1_4_0.parti04.b64']
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='7b27c3f1935a714a0a8585e92422e984d8c7a9f7daa3ebdae8fbea7880b1cc9d': raise SystemExit('Compressed patch SHA mismatch')
+          if hashlib.sha256(packed).hexdigest()!='c525236fe72536a1c59b2d47992d61fe516183546c0b9276854a070ecd94143b': raise SystemExit('Compressed patch SHA mismatch')
           raw=bz2.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='a9b0f74f06bcb3b393525a330d1a9b18017c0522b8dbbe8777768aa6608216fc': raise SystemExit('Patch SHA mismatch')
+          if hashlib.sha256(raw).hexdigest()!='99fc5ad14398e0fb64f962aee9ee35533c6905e0d594559f240863451b3f2cfa': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'patch.py')
