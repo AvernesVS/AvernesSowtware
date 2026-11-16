@@ -61,9 +61,9 @@ jobs:
           from pathlib import Path
           patch_file=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'/'patches_1_4_0_catalogmerge.part01.b64'
           packed=base64.b64decode(patch_file.read_text(encoding='ascii').strip(),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='69ebf2ef22afceb33555e2e1ee3e9fdaa9ada37aed726a5d9393535307f5c469': raise SystemExit('Catalog patch compressed SHA mismatch')
+          if hashlib.sha256(packed).hexdigest()!='a75bc20f651d6c40514f5ae9224b0e16ed9065055cb67dad5d6bbba8d742b639': raise SystemExit('Catalog patch compressed SHA mismatch')
           raw=bz2.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='f0976358d15a6bf7b67397f528c88c5e7a0d3f6247ff5367af50cf2b3d2dad4d': raise SystemExit('Catalog patch SHA mismatch')
+          if hashlib.sha256(raw).hexdigest()!='2db230324fd6b8380e62d06158c849ab60b2daf41ecf5afd4972640f70176cc1': raise SystemExit('Catalog patch SHA mismatch')
           Path(os.environ['CATALOG_PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'catalog-patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'catalog-patch.py')
