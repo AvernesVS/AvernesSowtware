@@ -54,9 +54,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch does not apply to 1.4.0 intermediate baseline.' }
           git -C $root apply --whitespace=nowarn $env:PATCH_OUT
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed on 1.4.0 intermediate baseline.' }
+          # Apply the catalog/add-on merge correction on top of the preserved 1.4.0 baseline.
+          $env:CATALOG_PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140-catalog-merge.patch'
+          @'
+          import base64,bz2,hashlib,os
+          from pathlib import Path
+          patch_file=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'/'patches_1_4_0_catalogmerge.part01.b64'
+          packed=base64.b64decode(patch_file.read_text(encoding='ascii').strip(),validate=True)
+          if hashlib.sha256(packed).hexdigest()!='69ebf2ef22afceb33555e2e1ee3e9fdaa9ada37aed726a5d9393535307f5c469': raise SystemExit('Catalog patch compressed SHA mismatch')
+          raw=bz2.decompress(packed)
+          if hashlib.sha256(raw).hexdigest()!='f0976358d15a6bf7b67397f528c88c5e7a0d3f6247ff5367af50cf2b3d2dad4d': raise SystemExit('Catalog patch SHA mismatch')
+          Path(os.environ['CATALOG_PATCH_OUT']).write_bytes(raw)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'catalog-patch.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'catalog-patch.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch integrity check failed.' }
+          git -C $root apply --check --whitespace=nowarn $env:CATALOG_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch does not apply cleanly to 1.4.0.' }
+          git -C $root apply --whitespace=nowarn $env:CATALOG_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch application failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Run 78 source-contract regression tests
+      - name: Run source-contract and catalog regression tests
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
