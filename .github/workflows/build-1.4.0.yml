@@ -31,15 +31,15 @@ jobs:
         run: |
           $env:PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140.patch'
           @'
-          import base64,gzip,hashlib,os
+          import base64,lzma,hashlib,os
           from pathlib import Path
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=[d/f'patches_1_4_0.partg{x}.b64' for x in ('00','01','02','03','04','05','06')]
+          parts=[d/f'patches_1_4_0.partx{x}.b64' for x in ('00','01','02','03','04','05','06','07')]
           if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='cbaa3e323e89c2460a43e0f26e8621891928b806b904fbe2e695f6dc6e7a2166': raise SystemExit('Compressed patch SHA mismatch')
-          raw=gzip.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='119ad832d581979d33f09f3e5044da0920bdb8872f1dc4b55cd4631b5aa038be': raise SystemExit('Patch SHA mismatch')
+          if hashlib.sha256(packed).hexdigest()!='a3da44d1e30dd2f561e8391db6275d47dea51f0ea8084cc6cfaefd8317275c88': raise SystemExit('Compressed patch SHA mismatch')
+          raw=lzma.decompress(packed)
+          if hashlib.sha256(raw).hexdigest()!='ca1c412e7bdb46b4cff8a988d242ccf50e1d316898284f8a62d5c6e389f32576': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'patch.py')
@@ -57,12 +57,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch does not apply to 1.3.9 baseline.' }
           git -C $root apply --whitespace=nowarn $env:PATCH_OUT
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed.' }
-          # The 1.3.9 release archive intentionally excludes its historical test sources;
-          # 1.4.0 has its own consolidated 70-case regression suite.
-          $validator = Join-Path $root 'build\ReleaseValidator.cs'
-          $validatorText = Get-Content -LiteralPath $validator -Raw
-          $validatorText = $validatorText.Replace('"tests/test_1_3_9_regressions.py",', '')
-          Set-Content -LiteralPath $validator -Value $validatorText -Encoding UTF8
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Run 70 source-contract regression tests
