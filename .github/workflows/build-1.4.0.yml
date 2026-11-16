@@ -1,10 +1,5 @@
 name: AvernesSowtware 1.4.0 Windows build
 on:
-  push:
-    branches: [work/1.4.0-build]
-    paths:
-      - '.github/build-input/patches_1_4_0.part*.b64'
-      - '.github/workflows/build-1.4.0.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,9 +32,9 @@ jobs:
           parts=sorted(d.glob('patches_1_4_0.part*.b64'))
           if len(parts)!=4: raise SystemExit(f'Expected 4 patch parts, found {len(parts)}')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='d85c104aec3ffad8e73e5c40cec7beadf80e096a9d37d39bdeb5566602deb374': raise SystemExit('Patch archive SHA mismatch')
+          if hashlib.sha256(packed).hexdigest()!='2ee7744894a2f7943c99775b4159a6beb5813528113c4f4a392dc50f8068ea48': raise SystemExit('Patch archive SHA mismatch')
           raw=gzip.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='da87c3f58135e197b7795f587f07c41a8a34385e69b16abc6c03500065ec060b': raise SystemExit('Patch SHA mismatch')
+          if hashlib.sha256(raw).hexdigest()!='a42c0f0423f9714639d1397d7028c13489b8e4cfc5b3f2bc3d76326e015ab2c3': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'patch.py')
