@@ -4,6 +4,7 @@ on:
     branches: [work/1.4.0-build]
     paths:
       - '.github/build-input/patches_1_4_0.part*.b64'
+      - '.github/build-input/docs_patch_1_4_0.b64'
       - '.github/workflows/build-1.4.0.yml'
   workflow_dispatch:
 permissions:
@@ -30,6 +31,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140.patch'
+          $env:DOCS_PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140-docs.patch'
           @'
           import base64,gzip,hashlib,os
           from pathlib import Path
@@ -41,6 +43,11 @@ jobs:
           raw=gzip.decompress(packed)
           if hashlib.sha256(raw).hexdigest()!='15418fe37a7f140eb8a4c2d8fee775824156f7bf885067733a80b975a1aa060d': raise SystemExit('Patch SHA mismatch')
           Path(os.environ['PATCH_OUT']).write_bytes(raw)
+          docs_packed=base64.b64decode((d/'docs_patch_1_4_0.b64').read_text(encoding='ascii').strip(),validate=True)
+          if hashlib.sha256(docs_packed).hexdigest()!='4a4fd65cc8ad8a52014e5f6e6fe4dc87a7dcc621495e162d2e45e895eb2205d9': raise SystemExit('Docs patch archive SHA mismatch')
+          docs_raw=gzip.decompress(docs_packed)
+          if hashlib.sha256(docs_raw).hexdigest()!='7f745ff452e90aaca6f9fe0fe7fc489016085615958912a8a7c8ca6a42c68d05': raise SystemExit('Docs patch SHA mismatch')
+          Path(os.environ['DOCS_PATCH_OUT']).write_bytes(docs_raw)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
           python (Join-Path $env:RUNNER_TEMP 'patch.py')
           if ($LASTEXITCODE -ne 0) { throw 'Patch verification failed.' }
@@ -57,6 +64,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Patch does not apply to 1.3.9 baseline.' }
           git -C $root apply --whitespace=nowarn $env:PATCH_OUT
           if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed.' }
+          git -C $root apply --check --whitespace=nowarn $env:DOCS_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Documentation patch does not apply.' }
+          git -C $root apply --whitespace=nowarn $env:DOCS_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Documentation patch apply failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Run 90 regression tests
