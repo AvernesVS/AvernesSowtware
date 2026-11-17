@@ -14,10 +14,6 @@ replacements = (
      b'0xDC0F817884CDD856UL, 14, false'),
     (b'0x9B2BD3773123EA2FUL, 14, insideFortZancudo',
      b'0x9B2BD3773123EA2FUL, 14, true'),
-    (b'0xDC0F817884CDD856UL, 2, !insideFortZancudo',
-     b'0xDC0F817884CDD856UL, 2, false'),
-    (b'0x9B2BD3773123EA2FUL, 2, insideFortZancudo',
-     b'0x9B2BD3773123EA2FUL, 2, true'),
 )
 
 for old, new in replacements:
@@ -27,4 +23,4 @@ for old, new in replacements:
     data = data.replace(old, new, 1)
 
 test_path.write_bytes(data)
-print("Updated five stale 1.4.2 regression assertions; no tests were skipped.")
+print("Updated three stale 1.4.2 regression assertions; no tests were skipped.")
