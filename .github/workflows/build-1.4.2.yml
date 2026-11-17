@@ -4,6 +4,11 @@ on:
     branches: [work/1.4.2-fixes]
     paths:
       - '.github/workflows/build-1.4.2.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-1.4.2.yml'
+      - '.github/build-input/patches_1_4_2.part*.chunk'
   workflow_dispatch:
 permissions:
   contents: read
@@ -76,7 +81,7 @@ jobs:
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
           parts=sorted(d.glob('patches_1_4_1.part*.b64'))
           if len(parts)!=9: raise SystemExit('Expected 9 v1.4.1 patch segments')
-          packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
+          packed=b''.join(p.read_bytes() for p in parts)
           if hashlib.sha256(packed).hexdigest()!='cd5b33306d3e031ba2ba04b64ec2ce5d88b532608ffe4ed352f7bd2972986dc9': raise SystemExit('v1.4.1 compressed patch SHA mismatch')
           raw=bz2.decompress(packed)
           if hashlib.sha256(raw).hexdigest()!='e9f6a632737f150913983ea2c7c9c0e3608470297b765ccf684d8bc5b7975c57': raise SystemExit('v1.4.1 patch SHA mismatch')
@@ -97,8 +102,8 @@ jobs:
           import base64,bz2,hashlib,os
           from pathlib import Path
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=sorted(d.glob('patches_1_4_2.part*.b64'))
-          if len(parts)!=1: raise SystemExit('Expected 1 v1.4.2 patch segment')
+          parts=sorted(d.glob('patches_1_4_2.part*.chunk'))
+          if len(parts)!=9: raise SystemExit('Expected 9 v1.4.2 binary patch segments')
           packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
           if hashlib.sha256(packed).hexdigest()!='7a909625cd9374c65ed9d5ea97b82c7e945e422849c2d400e9fef30b96f3261a': raise SystemExit('v1.4.2 compressed patch SHA mismatch')
           raw=bz2.decompress(packed)
@@ -158,7 +163,7 @@ jobs:
           $refs=@(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
           if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'SHVDN API2 reference invalid.' }
           "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Compile 1.4.1 release
+      - name: Compile 1.4.2 release
         shell: pwsh
         run: |
           Push-Location $env:AVERNE_ROOT
@@ -184,14 +189,14 @@ jobs:
             if (@($n | Where-Object {$_ -match '/(tests|\.github)/|(__pycache__/|\.py[co]$)' }).Count) { throw 'Development files in release ZIP.' }
             foreach($f in @('docs/CHANGELOG_1_4_2_RU.md','docs/TEST_REPORT_1_4_2_RU.md','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) { if (@($n | Where-Object {$_ -like "*/$f"}).Count -eq 0) { throw "Missing $f" } }
           } finally { $z.Dispose() }
-          $verify=Join-Path $env:RUNNER_TEMP 'zipcheck141'; Expand-Archive $path $verify -Force
+          $verify=Join-Path $env:RUNNER_TEMP 'zipcheck142'; Expand-Archive $path $verify -Force
           $r=Join-Path $verify 'AvernesSowtware_v1.4.2'
           $a=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\vehicle_catalog.json') | ConvertFrom-Json
           $b=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\Vehicles\vehicles.json') | ConvertFrom-Json
           $c=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\addons.json') | ConvertFrom-Json
           $u=@($a+$c | ForEach-Object {$_.model.ToLowerInvariant()} | Sort-Object -Unique)
           if (@($a).Count -ne 480 -or @($b).Count -ne 480 -or @($c).Count -ne 85 -or $u.Count -ne 545) { throw 'Bundled catalog counts mismatch.' }
-      - name: Upload v1.4.1 release ZIP
+      - name: Upload v1.4.2 release ZIP
         uses: actions/upload-artifact@v4
         with:
           name: AvernesSowtware-v1.4.2-RELEASE
