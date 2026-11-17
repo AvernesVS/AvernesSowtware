@@ -31,12 +31,8 @@ jobs:
       - name: Reconstruct v1.4.2 source package
         shell: pwsh
         run: |
-          $artifactZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter '*.zip' -Recurse | Select-Object -First 1
-          if (-not $artifactZip) { throw 'v1.4.2 release artifact ZIP missing.' }
-          $outer = Join-Path $env:RUNNER_TEMP 'outer142'
-          Expand-Archive $artifactZip.FullName $outer -Force
-          $releaseZip = Get-ChildItem $outer -Filter 'AvernesSowtware_v1.4.2_RELEASE.zip' -Recurse | Select-Object -First 1
-          if (-not $releaseZip) { throw 'Expected v1.4.2 release package not found in artifact.' }
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter 'AvernesSowtware_v1.4.2_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'v1.4.2 release package missing in downloaded artifact.' }
           $extract = Join-Path $env:RUNNER_TEMP 'src142'
           Expand-Archive $releaseZip.FullName $extract -Force
           $root = Join-Path $extract 'AvernesSowtware_v1.4.2'
