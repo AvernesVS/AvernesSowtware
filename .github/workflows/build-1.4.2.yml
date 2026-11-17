@@ -39,7 +39,7 @@ jobs:
           $root=Join-Path $extract 'AvernesSowtware_v1.4.1'
           if (-not (Test-Path $root)) { throw 'Unexpected v1.4.1 baseline root.' }
           git -C $root init -q
-          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.1"' -Quiet)) { throw 'Source version is not 1.4.1.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.1";' -Quiet)) { throw 'Source version is not 1.4.1.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Apply v1.4.2 fixes
         shell: pwsh
