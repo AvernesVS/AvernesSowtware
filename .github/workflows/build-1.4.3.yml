@@ -1,0 +1,147 @@
+name: AvernesSowtware 1.4.3 Windows build
+
+on:
+  push:
+    branches: [work/1.4.3-fixes]
+    paths:
+      - '.github/workflows/build-1.4.3.yml'
+      - '.github/build-input/patches_1_4_3.part*.lzma.b64'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download verified v1.4.2 release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.2-RELEASE
+          path: ${{ runner.temp }}/base
+          repository: ${{ github.repository }}
+          run-id: 44066458259
+          github-token: ${{ github.token }}
+
+      - name: Reconstruct v1.4.2 source package
+        shell: pwsh
+        run: |
+          $artifactZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter '*.zip' -Recurse | Select-Object -First 1
+          if (-not $artifactZip) { throw 'v1.4.2 release artifact ZIP missing.' }
+          $outer = Join-Path $env:RUNNER_TEMP 'outer142'
+          Expand-Archive $artifactZip.FullName $outer -Force
+          $releaseZip = Get-ChildItem $outer -Filter 'AvernesSowtware_v1.4.2_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Expected v1.4.2 release package not found in artifact.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src142'
+          Expand-Archive $releaseZip.FullName $extract -Force
+          $root = Join-Path $extract 'AvernesSowtware_v1.4.2'
+          if (-not (Test-Path $root)) { throw 'Unexpected v1.4.2 package root.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.2";' -Quiet)) { throw 'Baseline source version is not 1.4.2.' }
+          git -C $root init -q
+          "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Reconstruct and apply v1.4.3 patch
+        shell: pwsh
+        run: |
+          @'
+          import base64, hashlib, lzma, os
+          from pathlib import Path
+          d = Path(os.environ['GITHUB_WORKSPACE']) / '.github' / 'build-input'
+          parts = sorted(d.glob('patches_1_4_3.part*.lzma.b64'))
+          if len(parts) != 4:
+              raise SystemExit('Expected four v1.4.3 patch segments')
+          encoded = b''.join(p.read_bytes().strip() for p in parts)
+          packed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(packed).hexdigest() != 'd10f88a117e99b24ae1e6e1baf88b846d1a2dd29711f4fe8a332241bfa308e89':
+              raise SystemExit('v1.4.3 compressed patch SHA mismatch')
+          patch = lzma.decompress(packed)
+          if hashlib.sha256(patch).hexdigest() != 'db7a12c11066026e2f6814cbff0e7cbe7db5670efe78f682d3b8f9ff432ef6dc':
+              raise SystemExit('v1.4.3 patch SHA mismatch')
+          Path(os.environ['RUNNER_TEMP'], 'v143.patch').write_bytes(patch)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode143.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'decode143.py')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.3 patch reconstruction failed.' }
+          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v143.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.3 patch does not apply to the verified baseline.' }
+          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v143.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.3 patch application failed.' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.3";' -Quiet)) { throw 'Source version is not 1.4.3.' }
+
+      - name: Run v1.4.3 regression tests
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE='1'
+          Push-Location $env:AVERNE_ROOT
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { throw 'v1.4.3 regression tests failed.' }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $zip = Join-Path $env:RUNNER_TEMP 'shvdn.zip'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Copy-Item $pkg $zip -Force
+          Expand-Archive $zip $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'SHVDN API2 reference invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile and package v1.4.3
+        shell: pwsh
+        run: |
+          Push-Location $env:AVERNE_ROOT
+          & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            foreach ($f in @('BUILD_RELEASE.log','AvernesSowtware_Build.log')) {
+              if (Test-Path $f) { Get-Content $f -Raw | Write-Host }
+            }
+            Pop-Location
+            throw 'v1.4.3 Windows release build failed.'
+          }
+          if (!(Test-Path 'dist\AvernesSowtware.dll') -or !(Test-Path 'dist\AvernesSowtware_v1.4.3_RELEASE.zip')) {
+            Pop-Location
+            throw 'v1.4.3 release outputs missing.'
+          }
+          if (Test-Path 'AvernesSowtware_Build.log') {
+            if ((Get-Content 'AvernesSowtware_Build.log' -Raw) -match 'warning CS\d+') {
+              Pop-Location
+              throw 'C# compiler warnings found.'
+            }
+          }
+          Pop-Location
+
+      - name: Validate installer and release ZIP
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:AVERNE_ROOT 'build\Test-InstallerIdempotence.ps1') -ProjectRoot $env:AVERNE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer idempotence test failed.' }
+          $path = Join-Path $env:AVERNE_ROOT 'dist\AvernesSowtware_v1.4.3_RELEASE.zip'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [IO.Compression.ZipFile]::OpenRead($path)
+          try {
+            $n = @($z.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
+            if ($n[0] -ne 'AvernesSowtware_v1.4.3/Install_AvernesSowtware.bat') { throw 'Installer is not first.' }
+            $dll = @($n | Where-Object { $_ -match '\.dll$' })
+            if ($dll.Count -ne 1 -or $dll[0] -ne 'AvernesSowtware_v1.4.3/dist/AvernesSowtware.dll') { throw 'Expected exactly one trainer DLL.' }
+            foreach ($f in @('docs/CHANGELOG_1_4_3_RU.md','docs/TEST_REPORT_1_4_3_RU.md','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) {
+              if (@($n | Where-Object { $_ -like "*/$f" }).Count -eq 0) { throw "Missing $f" }
+            }
+          } finally { $z.Dispose() }
+
+      - name: Upload v1.4.3 release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.3-RELEASE
+          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.3_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 14
