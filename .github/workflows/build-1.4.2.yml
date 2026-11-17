@@ -104,7 +104,7 @@ jobs:
           d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
           parts=sorted(d.glob('patches_1_4_2.part*.chunk'))
           if len(parts)!=9: raise SystemExit('Expected 9 v1.4.2 binary patch segments')
-          packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
+          packed=b''.join(p.read_bytes() for p in parts)
           if hashlib.sha256(packed).hexdigest()!='7a909625cd9374c65ed9d5ea97b82c7e945e422849c2d400e9fef30b96f3261a': raise SystemExit('v1.4.2 compressed patch SHA mismatch')
           raw=bz2.decompress(packed)
           if hashlib.sha256(raw).hexdigest()!='eef89b4082fdf2247e40b8856dbead942abce52610d05258f780f219f953a6b5': raise SystemExit('v1.4.2 patch SHA mismatch')
