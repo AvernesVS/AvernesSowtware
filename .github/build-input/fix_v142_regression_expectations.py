@@ -121,7 +121,7 @@ report = """# AvernesSowtware 1.4.2 — отчёт проверок
 (root / "docs" / "CHANGELOG_1_4_2_RU.md").write_text(changelog, encoding="utf-8")
 (root / "docs" / "TEST_REPORT_1_4_2_RU.md").write_text(report, encoding="utf-8")
 for path, markers in (
-    (root / "docs" / "CHANGELOG_1_4_2_RU.md", ("Nitro X8", "Remove All", "Fort Zancudo", "542", "619")),
+    (root / "docs" / "CHANGELOG_1_4_2_RU.md", ("Nitro X8", "массовое снятие", "Fort Zancudo", "542", "619")),
     (root / "docs" / "TEST_REPORT_1_4_2_RU.md", ("28 регрессионных", "1200 км/ч", "542", "619")),
 ):
     text = path.read_text(encoding="utf-8")
