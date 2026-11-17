@@ -89,7 +89,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch does not apply.' }
           git -C $env:AVERNE_ROOT apply --whitespace=nowarn $env:PATCH_142_FOLLOWUP_OUT
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch application failed.' }
-          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\\Core\\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\\s*=\\s*"1\\.4\\.2"' -Quiet)) { throw 'Source version changed unexpectedly.' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.2";' -Quiet)) { throw 'Source version changed unexpectedly.' }
       - name: Run tests
         shell: pwsh
         run: |
