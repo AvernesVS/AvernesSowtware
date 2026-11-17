@@ -1,0 +1,5 @@
+1.3.3 clean patch verified locally with git apply --check
+base64_total_chars=34368
+compressed_sha256=972a4d43c795475447ec139db0dccc28fe12f6e71363f4ba3313d45d6097d1af
+expanded_sha256=1c32f2eb7bf95e73f6644fe3740510195e93525b04b495abc2e5b0517aff3b52
+build_requested=2026-11-15T11:53:41.216Z

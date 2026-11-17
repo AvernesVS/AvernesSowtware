@@ -1,0 +1,83 @@
+diff --git a/Install_AvernesSowtware.bat b/Install_AvernesSowtware.bat
+index b96a89d..5c70938 100644
+--- a/Install_AvernesSowtware.bat
++++ b/Install_AvernesSowtware.bat
+@@ -1,13 +1,13 @@
+ @echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.3.4 Installer
++title AvernesSowtware 1.3.5 Installer
+ cd /d "%~dp0" || goto :project_dir_fail
+ set "PROJECT_DIR=%CD%"
+ set "INSTALL_LOG=%PROJECT_DIR%\AvernesSowtware_Install.log"
+ if /i "%~2"=="--elevated" (
+   call :log "Installer resumed with elevated permissions."
+ ) else (
+-  >"%INSTALL_LOG%" echo AvernesSowtware 1.3.4 installation log
++  >"%INSTALL_LOG%" echo AvernesSowtware 1.3.5 installation log
+   call :log "Installer started. Project directory: %PROJECT_DIR%"
+ )
+ set "GTAV_DIR=%~1"
+@@ -164,9 +164,9 @@ if not "%SOURCE_SIZE%"=="%FINAL_SIZE%" (
+   goto :fail
+ )
+ call :log "Installation successful. DLL=%CURRENT_DLL%; database=%VEHICLES_DIR%\vehicles.json; bytes=%FINAL_SIZE%."
+->>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.3.4 installation completed. Full log: %INSTALL_LOG%
++>>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.3.5 installation completed. Full log: %INSTALL_LOG%
+ echo.
+-echo [SUCCESS] AvernesSowtware 1.3.4 installed.
++echo [SUCCESS] AvernesSowtware 1.3.5 installed.
+ echo DLL: "%CURRENT_DLL%"
+ echo Vehicle database: "%VEHICLES_DIR%\vehicles.json"
+ echo User files preserved; shipped databases updated in place.
+diff --git a/START_HERE_RU.txt b/START_HERE_RU.txt
+index 3b7a57b..8568762 100644
+--- a/START_HERE_RU.txt
++++ b/START_HERE_RU.txt
+@@ -1,4 +1,4 @@
+-AVERNES SOWTWARE 1.3.4 FLAGSHIP
++AVERNES SOWTWARE 1.3.5 FLAGSHIP
+ 
+ Это обновление поверх AvernesSowtware 1.3.3, не отдельный проект.
+ 
+diff --git a/Uninstall_AvernesSowtware.bat b/Uninstall_AvernesSowtware.bat
+index 6afa6dd..924dd7b 100644
+--- a/Uninstall_AvernesSowtware.bat
++++ b/Uninstall_AvernesSowtware.bat
+@@ -1,8 +1,8 @@
+ @echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.3.4 Uninstaller
++title AvernesSowtware 1.3.5 Uninstaller
+ set "UNINSTALL_LOG=%TEMP%\AvernesSowtware_Uninstall.log"
+->"%UNINSTALL_LOG%" echo AvernesSowtware 1.3.4 uninstall log
++>"%UNINSTALL_LOG%" echo AvernesSowtware 1.3.5 uninstall log
+ set "GTAV_DIR=%~1"
+ if not defined GTAV_DIR set "GTAV_DIR=C:\Program Files (x86)\Grand Theft Auto V"
+ set "GTAV_DIR=%GTAV_DIR:"=%"
+diff --git a/tests/test_1_3_5_regressions.py b/tests/test_1_3_5_regressions.py
+index 8631fd5..70ef0a1 100644
+--- a/tests/test_1_3_5_regressions.py
++++ b/tests/test_1_3_5_regressions.py
+@@ -6,6 +6,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
+ VEHICLES = (ROOT / 'src/Managers/VehicleSystems.cs').read_text(encoding='utf-8-sig')
+ CORE = (ROOT / 'src/Core/AvernesSowtwareScript.cs').read_text(encoding='utf-8-sig')
+ PERSISTENCE = (ROOT / 'src/Core/SettingsPersistence.cs').read_text(encoding='utf-8-sig')
++INSTALLER = (ROOT / 'Install_AvernesSowtware.bat').read_text(encoding='utf-8-sig')
++UNINSTALLER = (ROOT / 'Uninstall_AvernesSowtware.bat').read_text(encoding='utf-8-sig')
++START_HERE = (ROOT / 'START_HERE_RU.txt').read_text(encoding='utf-8-sig')
+ 
+ 
+ def method_body(source, signature, next_signature=None):
+@@ -75,6 +78,11 @@ class Release135RegressionTests(unittest.TestCase):
+         self.assertIn('не реализован в тренере', docs)
+         self.assertIn('Never Wanted/Cops Ignore', docs)
+ 
++    def test_installer_uninstaller_and_start_page_report_135(self):
++        for content in (INSTALLER, UNINSTALLER, START_HERE):
++            self.assertIn('1.3.5', content)
++            self.assertNotIn('1.3.4', content)
++
+ 
+ if __name__ == '__main__':
+     unittest.main(verbosity=2)

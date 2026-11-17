@@ -1,0 +1,133 @@
+name: AvernesSowtware 1.4.0 Windows build
+on:
+  push:
+    branches: [work/1.4.0-build]
+    paths:
+      - '.github/workflows/build-1.4.0.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download 1.4.0 intermediate baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.0-RELEASE
+          path: ${{ runner.temp }}/base
+          repository: ${{ github.repository }}
+          run-id: 43905017987
+          github-token: ${{ github.token }}
+      - name: Reconstruct and apply verified patch
+        shell: pwsh
+        run: |
+          $env:PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140.patch'
+          @'
+          import base64,bz2,hashlib,os
+          from pathlib import Path
+          d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
+          parts=[d/'patches_1_4_0.parti04.b64']
+          if any(not p.exists() for p in parts): raise SystemExit('A required patch part is missing.')
+          packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
+          if hashlib.sha256(packed).hexdigest()!='c525236fe72536a1c59b2d47992d61fe516183546c0b9276854a070ecd94143b': raise SystemExit('Compressed patch SHA mismatch')
+          raw=bz2.decompress(packed)
+          if hashlib.sha256(raw).hexdigest()!='99fc5ad14398e0fb64f962aee9ee35533c6905e0d594559f240863451b3f2cfa': raise SystemExit('Patch SHA mismatch')
+          Path(os.environ['PATCH_OUT']).write_bytes(raw)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'patch.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Patch verification failed.' }
+          $zip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter 'AvernesSowtware_v1.4.0_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $zip) { throw '1.4.0 intermediate baseline ZIP missing.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src140'
+          Expand-Archive $zip.FullName $extract -Force
+          $root = Join-Path $extract 'AvernesSowtware_v1.4.0'
+          if (-not (Test-Path $root)) { throw 'Unexpected 1.4.0 baseline ZIP root.' }
+          git -C $root init -q
+          git -C $root apply --check --whitespace=nowarn $env:PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Patch does not apply to 1.4.0 intermediate baseline.' }
+          git -C $root apply --whitespace=nowarn $env:PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Patch apply failed on 1.4.0 intermediate baseline.' }
+          # Apply the catalog/add-on merge correction on top of the preserved 1.4.0 baseline.
+          $env:CATALOG_PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140-catalog-merge.patch'
+          @'
+          import base64,bz2,hashlib,os
+          from pathlib import Path
+          patch_file=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'/'patches_1_4_0_catalogmerge.part01.b64'
+          packed=base64.b64decode(patch_file.read_text(encoding='ascii').strip(),validate=True)
+          raw=bz2.decompress(packed)
+          print('Catalog patch SHA256:',hashlib.sha256(raw).hexdigest())
+          Path(os.environ['CATALOG_PATCH_OUT']).write_bytes(raw)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'catalog-patch.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'catalog-patch.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch integrity check failed.' }
+          git -C $root apply --check --whitespace=nowarn $env:CATALOG_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch does not apply cleanly to 1.4.0.' }
+          git -C $root apply --whitespace=nowarn $env:CATALOG_PATCH_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch application failed.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Source version mismatch.' }
+          "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Run source-contract and catalog regression tests
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE='1'
+          Push-Location $env:AVERNE_ROOT
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          $code=$LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { throw 'Regression suite failed.' }
+      - name: Restore ScriptHookVDotNet2 2.10.13 reference
+        shell: pwsh
+        run: |
+          $pkg=Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'; $zip=Join-Path $env:RUNNER_TEMP 'shvdn.zip'; $out=Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Copy-Item $pkg $zip -Force; Expand-Archive $zip $out -Force
+          $refs=@(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'SHVDN API2 reference invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Compile release
+        shell: pwsh
+        run: |
+          Push-Location $env:AVERNE_ROOT
+          & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+          $code=$LASTEXITCODE
+          if (Test-Path 'AvernesSowtware_Build.log') { if ((Get-Content 'AvernesSowtware_Build.log' -Raw) -match 'warning CS\d+') { throw 'C# compiler warnings found.' } }
+          if ($code -ne 0) { foreach($f in @('BUILD_RELEASE.log','AvernesSowtware_Build.log')) { if (Test-Path $f) { Write-Host "===== $f ====="; Get-Content $f -Raw | Write-Host } }; throw 'Release compilation/package failed.' }; if (!(Test-Path 'dist\AvernesSowtware.dll') -or !(Test-Path 'dist\AvernesSowtware_v1.4.0_RELEASE.zip')) { throw 'Release outputs missing.' }
+          Pop-Location
+      - name: Test installer and validate archive
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:AVERNE_ROOT 'build\Test-InstallerIdempotence.ps1') -ProjectRoot $env:AVERNE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence test failed.' }
+          $path=Join-Path $env:AVERNE_ROOT 'dist\AvernesSowtware_v1.4.0_RELEASE.zip'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z=[IO.Compression.ZipFile]::OpenRead($path)
+          try {
+            $n=@($z.Entries | ForEach-Object {$_.FullName.Replace([char]92,'/')})
+            if ($n[0] -ne 'AvernesSowtware_v1.4.0/Install_AvernesSowtware.bat') { throw 'Installer is not first.' }
+            $dll=@($n | Where-Object {$_ -match '\.dll$'})
+            if ($dll.Count -ne 1 -or $dll[0] -ne 'AvernesSowtware_v1.4.0/dist/AvernesSowtware.dll') { throw 'Expected exactly one trainer DLL.' }
+            if (@($n | Where-Object {$_ -match '/(tests|\.github)/|(__pycache__/|\.py[co]$)' }).Count) { throw 'Development files leaked into installer.' }
+            foreach($f in @('docs/CHANGELOG_1_4_0_RU.md','docs/TEST_REPORT_1_4_0_RU.md','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) { if (@($n | Where-Object {$_ -like "*/$f"}).Count -eq 0) { throw "Missing $f" } }
+          } finally { $z.Dispose() }
+          $verify=Join-Path $env:RUNNER_TEMP 'zipcheck'; Expand-Archive $path $verify -Force
+          $r=Join-Path $verify 'AvernesSowtware_v1.4.0'
+          $a=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\vehicle_catalog.json') | ConvertFrom-Json
+          $b=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\Vehicles\vehicles.json') | ConvertFrom-Json
+          $c=Get-Content -Raw (Join-Path $r 'package\AvernesSowtware\addons.json') | ConvertFrom-Json
+          $u=@($a+$c | ForEach-Object {$_.model.ToLowerInvariant()} | Sort-Object -Unique)
+          if (@($a).Count -ne 480 -or @($b).Count -ne 480 -or @($c).Count -ne 85 -or $u.Count -ne 545) { throw 'Vehicle catalog counts mismatch.' }
+      - name: Upload 1.4.0 release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.0-RELEASE
+          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.0_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 14
+# Fresh validation trigger: keep release checks on the dedicated build branch.

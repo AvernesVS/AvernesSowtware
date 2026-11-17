@@ -1,0 +1,644 @@
+name: AvernesSowtware 1.3.8 Nitro Scaling Update release build
+
+on:
+  push:
+    branches: [work/1.3.3-development]
+    paths:
+      - ".github/build-input/patches_1_3_5.ready"
+      - ".github/build-input/patches_1_3_6.ready"
+      - ".github/build-input/patches_1_3_7.ready"
+      - ".github/build-input/patches_1_3_8.ready"
+      - ".github/workflows/build-1.3.5.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble verified 1.2.8 source archive
+        shell: pwsh
+        run: |
+          $chunks = Get-ChildItem ".github/build-input/YnixTrainer_1.2.8_BUILD_INPUT_*.b64" | Sort-Object Name
+          if ($chunks.Count -ne 10) { throw "Expected 10 source chunks; found $($chunks.Count)." }
+          $encoded = ($chunks | ForEach-Object { (Get-Content -Raw $_.FullName).Trim() }) -join ""
+          $archive = Join-Path $env:RUNNER_TEMP "averne-source.tar.gz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($encoded))
+          $extract = Join-Path $env:RUNNER_TEMP "averne-source"
+          New-Item -ItemType Directory -Path $extract -Force | Out-Null
+          tar -xzf $archive -C $extract
+          $root = Join-Path $extract "AvernesSowtware_v1.2.8"
+          if (-not (Test-Path (Join-Path $root "BUILD_RELEASE.bat"))) { throw "Reassembled source archive is incomplete." }
+          "AVERNE_PROJECT_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Apply 1.2.8 compatibility and 1.2.9 baseline patches
+        shell: pwsh
+        run: |
+          & ".github/build-input/apply-1.2.8-build-fixes.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
+          if (-not $?) { throw "1.2.8 compatibility patch failed." }
+          & ".github/build-input/apply-1.2.9-patches.ps1" -ProjectRoot $env:AVERNE_PROJECT_ROOT
+          if (-not $?) { throw "1.2.9 baseline patch failed." }
+
+      - name: Prepare Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply verified 1.3.0 baseline
+        shell: pwsh
+        run: |
+          $env:PATCH_ARCHIVE = Join-Path $env:RUNNER_TEMP "patches_1_3_0.tar.gz"
+          $env:PATCH_EXTRACT = Join-Path $env:RUNNER_TEMP "patchset130"
+          @'
+          import base64, gzip, hashlib, os, pathlib, tarfile
+          encoded = pathlib.Path(".github/build-input/patches_1_3_0.tar.gz.b64").read_text(encoding="ascii").strip()
+          expected = "974e2f69fc2995e4ccb8b2a31fb235a06c45857f35fb012eea79fbd3542f2d0c"
+          raw = None
+          try:
+              candidate = base64.b64decode(encoded, validate=True)
+              if hashlib.sha256(candidate).hexdigest() == expected:
+                  raw = candidate
+          except Exception:
+              pass
+          if raw is None:
+              alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+              for position in range(len(encoded) + 1):
+                  for char in alphabet:
+                      try:
+                          candidate = base64.b64decode(encoded[:position] + char + encoded[position:], validate=True)
+                      except Exception:
+                          continue
+                      if hashlib.sha256(candidate).hexdigest() == expected:
+                          raw = candidate
+                          break
+                  if raw is not None:
+                      break
+          if raw is None:
+              raise SystemExit("1.3.0 patch archive SHA-256 could not be verified/repaired.")
+          gzip.decompress(raw)
+          archive_path = pathlib.Path(os.environ["PATCH_ARCHIVE"])
+          archive_path.write_bytes(raw)
+          extract_dir = pathlib.Path(os.environ["PATCH_EXTRACT"])
+          extract_dir.mkdir(parents=True, exist_ok=True)
+          with tarfile.open(archive_path, "r:gz") as archive:
+              archive.extractall(extract_dir)
+          patch_root = extract_dir / "patchset"
+          scripts = [patch_root / name for name in ("apply_130_source.py", "apply_130_teleport.py", "apply_130_design.py", "apply_130_metadata.py")]
+          for script in scripts:
+              if not script.is_file():
+                  raise SystemExit("Missing 1.3.0 patch script: " + str(script))
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_130.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_130.py")
+          if ($LASTEXITCODE -ne 0) { throw "Could not recover the 1.3.0 patch payload." }
+          $patchRoot = Join-Path $env:RUNNER_TEMP "patchset130\patchset"
+          python -m py_compile (Join-Path $patchRoot "apply_130_source.py") (Join-Path $patchRoot "apply_130_teleport.py") (Join-Path $patchRoot "apply_130_design.py") (Join-Path $patchRoot "apply_130_metadata.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 patch syntax check failed." }
+          python (Join-Path $patchRoot "apply_130_source.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 source patch failed." }
+          python (Join-Path $patchRoot "apply_130_teleport.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 teleport patch failed." }
+          python (Join-Path $patchRoot "apply_130_design.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 UI patch failed." }
+          python (Join-Path $patchRoot "apply_130_metadata.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.0 metadata patch failed." }
+
+      - name: Apply 1.3.1 changes and run source checks
+        shell: pwsh
+        run: |
+          $env:PATCH_ARCHIVE = Join-Path $env:RUNNER_TEMP "patches_1_3_1.tar.gz"
+          $env:PATCH_EXTRACT = Join-Path $env:RUNNER_TEMP "patchset131"
+          @'
+          import base64, hashlib, os, pathlib, tarfile
+          payload_paths = sorted(pathlib.Path(".github/build-input").glob("patches_1_3_1.part*.b64"))
+          if not payload_paths:
+              raise SystemExit("Missing 1.3.1 patch payload chunks.")
+          payload = "".join(path.read_text(encoding="ascii").strip() for path in payload_paths)
+          raw = base64.b64decode(payload, validate=True)
+          expected = "45a752294e66a8fed7a77eb1a40a4dab0d5cc1ecd516413f9d124fba1e388f96"
+          actual = hashlib.sha256(raw).hexdigest()
+          if actual != expected:
+              raise SystemExit("1.3.1 patch payload SHA-256 mismatch: " + actual)
+          archive_path = pathlib.Path(os.environ["PATCH_ARCHIVE"])
+          archive_path.write_bytes(raw)
+          extract_dir = pathlib.Path(os.environ["PATCH_EXTRACT"])
+          extract_dir.mkdir(parents=True, exist_ok=True)
+          with tarfile.open(archive_path, "r:gz") as archive:
+              archive.extractall(extract_dir)
+          patch_root = extract_dir / "patch131"
+          for name in ("apply_131.py", "finalize_131.py", "assets/AvernesSowtware.png", "assets/AvernesSowtware.ico"):
+              if not (patch_root / name).is_file():
+                  raise SystemExit("Missing 1.3.1 payload item: " + name)
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_131.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_131.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 patch archive verification failed." }
+          $patchRoot = Join-Path $env:RUNNER_TEMP "patchset131\patch131"
+          python -m py_compile (Join-Path $patchRoot "apply_131.py") (Join-Path $patchRoot "finalize_131.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 patch syntax validation failed." }
+          python (Join-Path $patchRoot "apply_131.py") $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 source transformation failed." }
+          python (Join-Path $patchRoot "finalize_131.py") $env:AVERNE_PROJECT_ROOT (Join-Path $patchRoot "assets")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 asset/UI/installer test finalization failed." }
+          python -m py_compile .github/build-input/fixups_131.py
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 fixup script syntax validation failed." }
+          python .github/build-input/fixups_131.py $env:AVERNE_PROJECT_ROOT
+          if ($LASTEXITCODE -ne 0) { throw "1.3.1 post-finalization safeguards failed." }
+
+          $root = $env:AVERNE_PROJECT_ROOT
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          $vehicles = Join-Path $root "src\Managers\VehicleSystems.cs"
+          $vehicleSource = [IO.File]::ReadAllText($vehicles)
+          $vehicleSource = $vehicleSource.Replace("bool wheelsApplied = ApplyClassAppropriateWheels", "wheelsApplied = ApplyClassAppropriateWheels")
+          $vehicleSource = $vehicleSource.Replace('(isMotorcycle ? "motorcycle" : "other")', '(vehicleClass == 8 ? "motorcycle" : "other")')
+          [IO.File]::WriteAllText($vehicles, $vehicleSource, [Text.UTF8Encoding]::new($false))
+          $catalogs = @((Join-Path $root "package\AvernesSowtware\vehicle_catalog.json"), (Join-Path $root "package\AvernesSowtware\Vehicles\vehicles.json"))
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.1"' -Quiet)) { throw "Product version is not 1.3.1." }
+          if (-not (Test-Path (Join-Path $root "src\Core\AvernesSowtwareScript.cs")) -or -not (Test-Path (Join-Path $root "src\UI\MenuRenderer.cs"))) { throw "Renamed Core/UI source structure is incomplete." }
+          if (-not (Select-String -Path $main -Pattern '0xDC0F817884CDD856UL, 14, false' -Quiet)) { throw "Army dispatch service ignore is missing." }
+          if (-not (Select-String -Path $vehicles -Pattern 'IsAutopilotVehicleClassSupported' -Quiet)) { throw "Road vehicle-only autopilot check is missing." }
+          if (Select-String -Path $vehicles -Pattern 'aircraftTransfer' -Quiet) { throw "Unreliable in-air vehicle transfer remains." }
+          if (-not (Select-String -Path $root\build\ReleasePackager.cs -Pattern 'Install_AvernesSowtware.bat' -Quiet)) { throw "Release packager does not order the installer first." }
+          foreach ($path in $catalogs) {
+            $rows = Get-Content -Raw $path | ConvertFrom-Json
+            if (@($rows | Where-Object { $_.model -in @("arwing", "tornadob", "proto", "prototipo") }).Count -ne 0) { throw "Unavailable model remains in $path." }
+          }
+          Write-Host "1.3.1 source verification passed."
+
+      - name: Apply 1.3.2 bug fixes
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $patch = Join-Path $env:GITHUB_WORKSPACE ".github\build-input\patches_1_3_2.patch"
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --check $patch
+            if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch does not apply cleanly." }
+            git apply --ignore-whitespace $patch
+            if ($LASTEXITCODE -ne 0) { throw "1.3.2 source patch application failed." }
+          } finally { Pop-Location }
+
+          $versionFiles = @(
+            "BUILD_RELEASE.bat", "build\Build.bat", "Install_AvernesSowtware.bat",
+            "Uninstall_AvernesSowtware.bat", "README_RU.md", "START_HERE_RU.txt",
+            "dist\README_RU.txt", "BUILD_RELEASE_REPORT_RU.txt"
+          )
+          foreach ($relative in $versionFiles) {
+            $path = Join-Path $root $relative
+            if (Test-Path $path) {
+              $content = [IO.File]::ReadAllText($path)
+              $content = $content.Replace("1.3.1", "1.3.2")
+              [IO.File]::WriteAllText($path, $content, [Text.UTF8Encoding]::new($false))
+            }
+          }
+
+          $readmePath = Join-Path $root "README_RU.md"
+          $readme = [IO.File]::ReadAllText($readmePath)
+          $section = @'
+          ## 1.3.2
+
+          - Полностью переработано меню: контрастные панели, увеличенные номера и подписи, единая вертикальная привязка строк и читаемая шапка.
+          - Для Heavy Sniper Mk II тепловизорный прицел устанавливается отдельно после удаления конфликтующих прицелов и проверяется.
+          - Max Tuning выбирает семейство дисков по классу транспорта.
+          - Max Tuning сохраняет исходные цветовые индексы, перламутр и пользовательские RGB-цвета, переводя окраску в матовый тип.
+
+          '@
+          $readme = $readme.Replace("## 1.3.1", $section + "## 1.3.1")
+          [IO.File]::WriteAllText($readmePath, $readme, [Text.UTF8Encoding]::new($false))
+
+          @'
+          # AvernesSowtware 1.3.2 — исправление ошибок
+
+          1. Полностью переработана отрисовка меню: контрастные панели, увеличенные номера и подписи, единая вертикальная привязка строк, читаемая шапка.
+          2. Исправлена адресная установка тепловизорного прицела Heavy Sniper Mk II: конфликтующие прицелы снимаются, тепловизорный устанавливается последним и проверяется.
+          3. Max Tuning выбирает семейство дисков по классу транспорта, а не по первому случайно доступному семейству.
+          4. Max Tuning сохраняет палитровые индексы, перламутр и пользовательские RGB-цвета, переводя первичную и вторичную окраску в матовый тип.
+          5. Максимальная доступная тонировка определяется для каждой модели и проверяется после установки.
+
+          Статус сборки и автоматических проверок определяется Windows CI. Проверка внутри GTA V Legacy требует запуска Story Mode.
+          '@ | Set-Content -LiteralPath (Join-Path $root "docs\CHANGELOG_1_3_2_RU.md") -Encoding UTF8
+
+          @'
+          # Проверка AvernesSowtware 1.3.2
+
+          - База: AvernesSowtware 1.3.1 release archive.
+          - Проверяемые изменения: UI, Heavy Sniper Mk II thermal optic, class-based wheel families, maximum tint, matte paint preservation.
+          - Компиляция и статические проверки: выполняются текущим Windows CI.
+          - GTA V Legacy runtime: не автоматизирован; требуется ручная проверка в Story Mode.
+          '@ | Set-Content -LiteralPath (Join-Path $root "docs\TEST_REPORT_1_3_2_RU.md") -Encoding UTF8
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          $vehicles = Join-Path $root "src\Managers\VehicleSystems.cs"
+          $ui = Join-Path $root "src\UI\MenuRenderer.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.2"' -Quiet)) { throw "Product version is not 1.3.2." }
+          if (-not (Select-String -Path $main -Pattern 'EnsureHeavySniperMkIIThermalScope' -Quiet)) { throw "Heavy Sniper Mk II thermal scope fix is missing." }
+          if (-not (Select-String -Path $vehicles -Pattern 'GetWheelTypeForVehicleClass' -Quiet)) { throw "Class-based wheel selection is missing." }
+          if (-not (Select-String -Path $vehicles -Pattern 'GET_NUM_VEHICLE_WINDOW_TINTS' -Quiet)) { throw "Maximum window tint detection is missing." }
+          if (-not (Select-String -Path $vehicles -Pattern 'ApplyMattePaintPreservingColor' -Quiet)) { throw "Matte paint preservation is missing." }
+          if (-not (Select-String -Path $ui -Pattern 'float rowHeight = 0.038f' -Quiet)) { throw "Readable menu row layout is missing." }
+          Write-Host "1.3.2 bug-fix source verification passed."
+
+
+      - name: Apply focused 1.3.3 fixes
+        shell: pwsh
+        run: |
+          $env:PATCH_B64 = Join-Path $env:RUNNER_TEMP "patches_1_3_3.patch.gz.b64"
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_3.patch"
+          @'
+          import base64, gzip, hashlib, os, pathlib
+          parts = sorted(pathlib.Path(".github/build-input").glob("patches_1_3_3.part*.b64"))
+          if len(parts) != 7:
+              raise SystemExit("Expected 7 compressed patch parts; found " + str(len(parts)))
+          encoded = "".join(p.read_text(encoding="ascii").strip() for p in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          compressed_hash = hashlib.sha256(compressed).hexdigest()
+          patch = gzip.decompress(compressed)
+          patch_hash = hashlib.sha256(patch).hexdigest()
+          print("Verified gzip payload SHA-256:", compressed_hash)
+          print("Expanded source patch SHA-256:", patch_hash)
+          if patch_hash != "1c32f2eb7bf95e73f6644fe3740510195e93525b04b495abc2e5b0517aff3b52":
+              raise SystemExit("Expanded 1.3.3 patch payload SHA-256 mismatch.")
+          pathlib.Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_133.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_133.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.3 patch payload verification failed." }
+          $root = $env:AVERNE_PROJECT_ROOT
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 patch does not apply cleanly to the 1.3.2 source." }
+            git apply --ignore-whitespace $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 patch application failed." }
+            $hotfix = Join-Path $env:GITHUB_WORKSPACE ".github\build-input\hotfix_1_3_3.patch"
+            if (-not (Test-Path $hotfix)) { throw "1.3.3 compile hotfix is missing." }
+            git apply --ignore-whitespace --check $hotfix
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 compile hotfix does not apply cleanly." }
+            git apply --ignore-whitespace $hotfix
+            if ($LASTEXITCODE -ne 0) { throw "1.3.3 compile hotfix application failed." }
+          } finally { Pop-Location }
+
+          # .NET Framework File.Replace requires a real backup path; null breaks
+          # the second installer run when the checksum sidecars already exist.
+          $storageScript = Join-Path $root "build\Finalize-InstallStorage.ps1"
+          if (-not (Test-Path -LiteralPath $storageScript -PathType Leaf)) { throw "Storage finalization script is missing." }
+          $storageSource = [IO.File]::ReadAllText($storageScript)
+          $oldSidecarReplace = 'if (Test-Path -LiteralPath $sidecar) { [IO.File]::Replace($temporary, $sidecar, $null) }'
+          $newSidecarReplace = 'if (Test-Path -LiteralPath $sidecar) { $replaceBackup = $sidecar + "." + [Guid]::NewGuid().ToString("N") + ".replace.bak"; try { [IO.File]::Replace($temporary, $sidecar, $replaceBackup) } finally { if (Test-Path -LiteralPath $replaceBackup) { Remove-Item -LiteralPath $replaceBackup -Force } } }'
+          $oldBackupReplace = 'if (Test-Path -LiteralPath $backup) { [IO.File]::Replace($temporary, $backup, $null) }'
+          $newBackupReplace = 'if (Test-Path -LiteralPath $backup) { $replaceBackup = $backup + "." + [Guid]::NewGuid().ToString("N") + ".replace.bak"; try { [IO.File]::Replace($temporary, $backup, $replaceBackup) } finally { if (Test-Path -LiteralPath $replaceBackup) { Remove-Item -LiteralPath $replaceBackup -Force } } }'
+          if (([regex]::Matches($storageSource, [regex]::Escape($oldSidecarReplace))).Count -ne 1) { throw "Expected exactly one sidecar replacement call using null backup." }
+          if (([regex]::Matches($storageSource, [regex]::Escape($oldBackupReplace))).Count -ne 1) { throw "Expected exactly one backup replacement call using null backup." }
+          $storageSource = $storageSource.Replace($oldSidecarReplace, $newSidecarReplace).Replace($oldBackupReplace, $newBackupReplace)
+          if ($storageSource.Contains($oldSidecarReplace) -or $storageSource.Contains($oldBackupReplace)) { throw "Storage replacement fix did not apply." }
+          [IO.File]::WriteAllText($storageScript, $storageSource, [Text.UTF8Encoding]::new($false))
+          Write-Host "Storage finalization replacement now uses unique same-directory backup paths."
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          $settings = Join-Path $root "src\Core\SettingsPersistence.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.3"' -Quiet)) { throw "Product version is not 1.3.3." }
+          if (-not (Select-String -Path $settings -Pattern 'QueueSettingsSnapshot' -Quiet)) { throw "Asynchronous settings persistence is missing." }
+          if (-not (Select-String -Path $settings -Pattern 'TryAtomicWriteFile' -Quiet)) { throw "Atomic SHA-256 save is missing." }
+          $installerPath = Join-Path $root "Install_AvernesSowtware.bat"
+          $installerSource = [IO.File]::ReadAllText($installerPath)
+          $brokenPermissionToken = "[Environment]::GetFolderPath('ProgramFilesX86));"
+          $fixedPermissionToken = "[Environment]::GetFolderPath('ProgramFilesX86'));"
+          $permissionTokenCount = ([regex]::Matches($installerSource, [regex]::Escape($brokenPermissionToken))).Count
+          if ($permissionTokenCount -ne 1) { throw "Expected exactly one malformed ProgramFilesX86 permission token; found $permissionTokenCount." }
+          $installerSource = $installerSource.Replace($brokenPermissionToken, $fixedPermissionToken)
+          [IO.File]::WriteAllText($installerPath, $installerSource, [Text.UTF8Encoding]::new($false))
+          if ($installerSource.Contains($brokenPermissionToken) -or -not $installerSource.Contains($fixedPermissionToken)) { throw "Installer ProgramFilesX86 permission check repair did not verify." }
+          Write-Host "Installer ProgramFilesX86 permission check syntax corrected and verified."
+          Write-Host "1.3.3 focused patch applied and key safeguards verified."
+
+      - name: Apply incremental 1.3.4 Flagship update and regression tests
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_4.patch"
+          $prepareScript = @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          files = sorted(Path(".github/build-input").glob("patches_1_3_4.part*.b64"))
+          if len(files) != 10:
+              raise SystemExit(f"Expected 10 incremental patch chunks, got {len(files)}")
+          encoded = "".join(p.read_text(encoding="ascii").strip() for p in files)
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "ba508f2e27647a3e8db09e6c15605fad3cfd6b605c12b4a5b3e4214d36ecfac7":
+              raise SystemExit("Compressed 1.3.4 patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "e09590fa7fe54c1553f6285a3b46ffa83c8529f5d108a0085d4ad507f019baff":
+              raise SystemExit("Expanded 1.3.4 patch SHA-256 mismatch")
+          Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          print(f"Verified 1.3.4 incremental patch: {len(patch)} bytes")
+          '@
+          $preparePath = Join-Path $env:RUNNER_TEMP "prepare_1_3_4.py"
+          [IO.File]::WriteAllText($preparePath, $prepareScript, [Text.UTF8Encoding]::new($false))
+          python $preparePath
+          if ($LASTEXITCODE -ne 0) { throw "1.3.4 patch reconstruction or checksum validation failed." }
+
+          Push-Location $root
+          try {
+            # The report is build-generated; the layered 1.3.3 source pipeline leaves
+            # the pre-build 1.3.2 report here. The release builder regenerates it as 1.3.4.
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.4 patch does not apply cleanly to the 1.3.3 source." }
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.4 patch failed." }
+          } finally { Pop-Location }
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          $systems = Join-Path $root "src\Managers\VehicleSystems.cs"
+          $catalog = Join-Path $root "src\Managers\VehicleCatalog.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.4"' -Quiet)) { throw "Product version is not 1.3.4." }
+          $activeSource = [IO.File]::ReadAllText($main) + [IO.File]::ReadAllText($systems)
+          if ($activeSource -match 'StartAutopilot|StopAutopilot|TeleportToWaypoint|BuildAtlasMenus|BuildWardrobeMenus') { throw "Removed Autopilot/Atlas/Wardrobe code remains in active source." }
+          if (Test-Path (Join-Path $root "src\Managers\Atlas.cs")) { throw "Retired Atlas module remains." }
+          if (Test-Path (Join-Path $root "src\Managers\Wardrobe.cs")) { throw "Retired Wardrobe module remains." }
+          if (-not (Select-String -Path $catalog -Pattern 'superDiamondAlias' -Quiet)) { throw "Super Diamond search aliases are missing." }
+          python "$env:GITHUB_WORKSPACE/.github/build-input/test_1_3_4.py"
+          if ($LASTEXITCODE -ne 0) { throw "1.3.4 focused regression tests failed." }
+          Write-Host "Incremental 1.3.4 patch and 9 regression tests passed."
+
+      - name: Apply incremental 1.3.5 bug fixes and regression tests
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_5.patch"
+          $prepareScript = @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          files = sorted(Path(".github/build-input").glob("patches_1_3_5.part*.b64"))
+          if len(files) != 1:
+              raise SystemExit(f"Expected 1 incremental patch chunk, got {len(files)}")
+          encoded = "".join(p.read_text(encoding="ascii").strip() for p in files)
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "a02876c3d07f3879303a3fbb8e7e94153034e446d52041b4dfc668eca13480af":
+              raise SystemExit("Compressed 1.3.5 patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "cef3c6473b14c96b1fa6ee6a53f35b46cfd00c76197afc2ccf6abcac9379202d":
+              raise SystemExit("Expanded 1.3.5 patch SHA-256 mismatch")
+          Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          print(f"Verified 1.3.5 incremental patch: {len(patch)} bytes")
+          '@
+          $preparePath = Join-Path $env:RUNNER_TEMP "prepare_1_3_5.py"
+          [IO.File]::WriteAllText($preparePath, $prepareScript, [Text.UTF8Encoding]::new($false))
+          python $preparePath
+          if ($LASTEXITCODE -ne 0) { throw "1.3.5 patch reconstruction or checksum validation failed." }
+
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.5 patch does not apply cleanly to the 1.3.4 source." }
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.5 patch failed." }
+            $postPatch = Join-Path $env:GITHUB_WORKSPACE ".github/build-input/patches_1_3_5_post.patch"
+            git apply --ignore-whitespace --check $postPatch
+            if ($LASTEXITCODE -ne 0) { throw "1.3.5 installer version patch does not apply cleanly." }
+            git apply --ignore-whitespace $postPatch
+            if ($LASTEXITCODE -ne 0) { throw "Applying 1.3.5 installer version patch failed." }
+            python -m unittest tests/test_1_3_5_regressions.py -v
+            if ($LASTEXITCODE -ne 0) { throw "1.3.5 regression tests failed." }
+          } finally { Pop-Location }
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          $systems = Join-Path $root "src\Managers\VehicleSystems.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.5"' -Quiet)) { throw "Product version is not 1.3.5." }
+          if (-not (Select-String -Path $main -Pattern 'TeleportToWaypoint' -Quiet)) { throw "Independent waypoint teleport is missing." }
+          $activeSource = [IO.File]::ReadAllText($main) + [IO.File]::ReadAllText($systems)
+          if ($activeSource -match 'StartAutopilot|StopAutopilot|BuildAtlasMenus|BuildWardrobeMenus') { throw "Removed Autopilot/Atlas/Wardrobe code has reappeared." }
+          if (-not (Select-String -Path $systems -Pattern 'maximumPureBlackTint = 1' -Quiet)) { throw "Pure Black max tint is missing." }
+          Write-Host "Incremental 1.3.5 patch and 8 regression tests passed."
+
+      - name: Apply incremental 1.3.6 bug fixes and regression tests
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_6.patch"
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          parts = sorted(Path(".github/build-input").glob("patches_1_3_6.part*.b64"))
+          if len(parts) != 2:
+              raise SystemExit(f"Expected 2 incremental 1.3.6 patch parts, got {len(parts)}")
+          encoded = "".join(p.read_text(encoding="ascii").strip() for p in parts)
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "36328e016977fc91300cbcb7197a276e0f2f9e7aa8f3ec666a62c55cdeeb8083":
+              raise SystemExit("Compressed 1.3.6 patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "785533f928f74f34faaae747d2d2f21eff1a3339c02fd402766140ab3ec69ca9":
+              raise SystemExit("Expanded 1.3.6 patch SHA-256 mismatch")
+          Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          print("Verified incremental 1.3.6 patch:", len(patch), "bytes")
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_1_3_6.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_1_3_6.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.6 patch reconstruction or checksum validation failed." }
+
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.6 patch does not apply cleanly to the 1.3.5 source." }
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.6 patch failed." }
+            $env:HOTFIX_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_6_hotfix.patch"
+            $hotfixPrepare = @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          encoded = (Path(os.environ["GITHUB_WORKSPACE"]) / ".github/build-input/patches_1_3_6_hotfix.patch.gz.b64").read_text(encoding="ascii").strip()
+          compressed = base64.b64decode(encoded, validate=True)
+          print("Compressed 1.3.6 hotfix bytes:", len(compressed))
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "11c1eec1c1c9dc4c816bfa45e0f50662231cda83613998ca878f15a0acab79d0":
+              raise SystemExit("Expanded 1.3.6 hotfix SHA-256 mismatch")
+          Path(os.environ["HOTFIX_PATH"]).write_bytes(patch)
+          '@
+            $hotfixPreparePath = Join-Path $env:RUNNER_TEMP "prepare_1_3_6_hotfix.py"
+            [IO.File]::WriteAllText($hotfixPreparePath, $hotfixPrepare, [Text.UTF8Encoding]::new($false))
+            python $hotfixPreparePath
+            if ($LASTEXITCODE -ne 0) { throw "1.3.6 hotfix checksum validation failed." }
+            git apply --ignore-whitespace --check $env:HOTFIX_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.6 hotfix does not apply cleanly." }
+            git apply --ignore-whitespace $env:HOTFIX_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying 1.3.6 hotfix failed." }
+            python -m unittest tests/test_1_3_6_regressions.py -v
+            if ($LASTEXITCODE -ne 0) { throw "1.3.6 regression tests failed." }
+          } finally { Pop-Location }
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.6"' -Quiet)) { throw "Product version is not 1.3.6." }
+          Write-Host "Incremental 1.3.6 patch and 8 regression tests passed."
+
+      - name: Apply incremental 1.3.7 fixes and regression tests
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_7.patch"
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          encoded = Path(".github/build-input/patches_1_3_7.patch.gz.b64").read_text(encoding="ascii").strip()
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "51a48f43ab621c4836d6224790ca3ea0ba39e20654a0de134f3dae18c66d7ee5":
+              raise SystemExit("Compressed 1.3.7 patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "6bf55608bbb16d1462e4e10245c40b08b7cede017254de16181719a5e47a2aa5":
+              raise SystemExit("Expanded 1.3.7 patch SHA-256 mismatch")
+          Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          print("Verified incremental 1.3.7 patch:", len(patch), "bytes")
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_1_3_7.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_1_3_7.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.7 patch reconstruction or checksum validation failed." }
+
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.7 patch does not apply cleanly to the 1.3.6 source." }
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.7 patch failed." }
+            python -m unittest tests/test_1_3_7_regressions.py -v
+            if ($LASTEXITCODE -ne 0) { throw "1.3.7 regression tests failed." }
+          } finally { Pop-Location }
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.7"' -Quiet)) { throw "Product version is not 1.3.7." }
+          Write-Host "Incremental 1.3.7 patch and 6 regression tests passed."
+
+      - name: Get ScriptHookVDotNet2 reference assembly
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "shvdn2.nupkg"
+          $zip = Join-Path $env:RUNNER_TEMP "shvdn2.zip"
+          $dest = Join-Path $env:RUNNER_TEMP "shvdn2"
+          Invoke-WebRequest "https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13" -OutFile $pkg
+          Copy-Item $pkg $zip -Force
+          Expand-Archive $zip $dest -Force
+          $dll = Get-ChildItem $dest -Recurse -Filter "ScriptHookVDotNet2.dll" | Select-Object -First 1
+          if (-not $dll) { throw "ScriptHookVDotNet2.dll was not found in the reference package." }
+          "YNIX_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AVERNE_SHVDN_DLL=$($dll.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+
+      - name: Apply incremental 1.3.8 Nitro scaling patch and run current regression suites
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:PATCH_PATH = Join-Path $env:RUNNER_TEMP "patches_1_3_8.patch"
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          encoded = Path(".github/build-input/patches_1_3_8.patch.gz.b64").read_text(encoding="ascii").strip()
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "f232fc904cb84aacbefbee1b9999ea0c33fb8520be10647e20fcda193fd37587":
+              raise SystemExit("Compressed 1.3.8 patch SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "a739aa71729a7a456d087226381b4dddc8fdb2784c94801c6eefc1b8d2e25a53":
+              raise SystemExit("Expanded 1.3.8 patch SHA-256 mismatch")
+          Path(os.environ["PATCH_PATH"]).write_bytes(patch)
+          print("Verified incremental 1.3.8 patch:", len(patch), "bytes")
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_1_3_8.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_1_3_8.py")
+          if ($LASTEXITCODE -ne 0) { throw "1.3.8 patch reconstruction or checksum validation failed." }
+
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt --check $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "1.3.8 patch does not apply cleanly to the 1.3.7 source." }
+            git apply --ignore-whitespace --exclude=BUILD_RELEASE_REPORT_RU.txt $env:PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying incremental 1.3.8 patch failed." }
+            python -m unittest tests/test_1_3_7_regressions.py tests/test_1_3_8_regressions.py -v
+            if ($LASTEXITCODE -ne 0) { throw "Current 1.3.7/1.3.8 regression suites failed." }
+          } finally { Pop-Location }
+
+          $main = Join-Path $root "src\Core\AvernesSowtwareScript.cs"
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.3.8"' -Quiet)) { throw "Product version is not 1.3.8." }
+          Write-Host "Incremental 1.3.8 patch applied; current 1.3.7/1.3.8 regression suites passed."
+
+      - name: Apply 1.3.8 README version correction
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $env:README_PATCH_PATH = Join-Path $env:RUNNER_TEMP "readme_1_3_8.patch"
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          encoded = Path(".github/build-input/patches_1_3_8_readme.patch.gz.b64").read_text(encoding="ascii").strip()
+          compressed = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(compressed).hexdigest() != "13432ca17d12223e946fbc273a12699bb827d49075d5fa32da96a45a31db5b0c":
+              raise SystemExit("README patch compressed SHA-256 mismatch")
+          patch = gzip.decompress(compressed)
+          if hashlib.sha256(patch).hexdigest() != "e4a59c4df7c045b8234a5f2b9f02dfadce9123e05e412f0f0a517269bce95523":
+              raise SystemExit("README patch expanded SHA-256 mismatch")
+          Path(os.environ["README_PATCH_PATH"]).write_bytes(patch)
+          '@ | Set-Content -Path (Join-Path $env:RUNNER_TEMP "prepare_readme_1_3_8.py") -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP "prepare_readme_1_3_8.py")
+          if ($LASTEXITCODE -ne 0) { throw "README patch reconstruction failed." }
+          Push-Location $root
+          try {
+            git apply --ignore-whitespace --check $env:README_PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "README patch does not apply cleanly." }
+            git apply --ignore-whitespace $env:README_PATCH_PATH
+            if ($LASTEXITCODE -ne 0) { throw "Applying README patch failed." }
+          } finally { Pop-Location }
+      - name: Compile 1.3.8, run validators, package and test installer
+        shell: pwsh
+        run: |
+          $root = $env:AVERNE_PROJECT_ROOT
+          $builder = Join-Path $root "BUILD_RELEASE.bat"
+          & $builder "" "--no-pause"
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) {
+            $compilerLog = Join-Path $root "AvernesSowtware_Build.log"
+            $releaseLog = Join-Path $root "BUILD_RELEASE.log"
+            if (Test-Path $compilerLog) { Write-Host "===== C# COMPILER DIAGNOSTICS ====="; Get-Content $compilerLog -Raw | Write-Host }
+            if (Test-Path $releaseLog) { Write-Host "===== RELEASE BUILD DIAGNOSTICS ====="; Get-Content $releaseLog -Raw | Write-Host }
+            throw "1.3.8 build failed with exit code $buildExit. See diagnostics above."
+          }
+
+          $installerTest = Join-Path $root "build\Test-InstallerIdempotence.ps1"
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerTest -ProjectRoot $root
+          $installerTestExit = $LASTEXITCODE
+          if ($installerTestExit -ne 0) {
+            Write-Host "===== INSTALLER LOG AFTER REGRESSION FAILURE ====="
+            $installLog = Join-Path $root "AvernesSowtware_Install.log"
+            if (Test-Path $installLog) { Get-Content $installLog -Raw | Write-Host }
+            Write-Host "===== STORAGE FINALIZATION SCRIPT ====="
+            $storageScript = Join-Path $root "build\Finalize-InstallStorage.ps1"
+            if (Test-Path $storageScript) { Get-Content $storageScript -Raw | Write-Host }
+            Write-Host "===== MIGRATION SCRIPT ====="
+            $migrationScript = Join-Path $root "build\Migrate-LegacyData.ps1"
+            if (Test-Path $migrationScript) { Get-Content $migrationScript -Raw | Write-Host }
+            throw "Repeated-install regression test failed with exit code $installerTestExit."
+          }
+
+          $dll = Join-Path $root "dist\AvernesSowtware.dll"
+          $zip = Join-Path $root "dist\AvernesSowtware_v1.3.8_RELEASE.zip"
+          if (-not (Test-Path $dll) -or (Get-Item $dll).Length -le 0) { throw "Compiled AvernesSowtware.dll is missing or empty." }
+          if (-not (Test-Path $zip) -or (Get-Item $zip).Length -le 0) { throw "1.3.8 release ZIP is missing or empty." }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zr = [IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            $entries = @($zr.Entries)
+            $names = @($entries | ForEach-Object { $_.FullName.Replace([char]92, '/') })
+            if ($names.Count -eq 0 -or $names[0] -ne "AvernesSowtware_v1.3.8/Install_AvernesSowtware.bat") { throw "Installer is not the first archive entry." }
+            $dllEntries = @($names | Where-Object { $_ -eq "AvernesSowtware_v1.3.8/dist/AvernesSowtware.dll" })
+            if ($dllEntries.Count -ne 1) { throw "Expected exactly one release DLL; found $($dllEntries.Count)." }
+            $roots = @($names | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
+            if ($roots.Count -ne 1 -or $roots[0] -ne "AvernesSowtware_v1.3.8") { throw "Invalid release ZIP root: $($roots -join ', ')." }
+            $mustHave = @("AvernesSowtware_v1.3.8/src/Core/AvernesSowtwareScript.cs", "AvernesSowtware_v1.3.8/src/Managers/VehicleSystems.cs", "AvernesSowtware_v1.3.8/src/UI/MenuRenderer.cs", "AvernesSowtware_v1.3.8/assets/AvernesSowtware.ico", "AvernesSowtware_v1.3.8/build/Test-InstallerIdempotence.ps1", "AvernesSowtware_v1.3.8/build/Migrate-LegacyData.ps1", "AvernesSowtware_v1.3.8/build/Finalize-InstallStorage.ps1", "AvernesSowtware_v1.3.8/docs/CHANGELOG_1_3_3_RU.md", "AvernesSowtware_v1.3.8/docs/TEST_REPORT_1_3_3_RU.md", "AvernesSowtware_v1.3.8/docs/CHANGELOG_1_3_5_RU.md", "AvernesSowtware_v1.3.8/docs/TEST_REPORT_1_3_5_RU.md", "AvernesSowtware_v1.3.8/docs/CHANGELOG_1_3_6_RU.md", "AvernesSowtware_v1.3.8/docs/TEST_REPORT_1_3_6_RU.md", "AvernesSowtware_v1.3.8/docs/CHANGELOG_1_3_7_RU.md", "AvernesSowtware_v1.3.8/docs/TEST_REPORT_1_3_7_RU.md", "AvernesSowtware_v1.3.8/docs/CHANGELOG_1_3_8_RU.md", "AvernesSowtware_v1.3.8/docs/TEST_REPORT_1_3_8_RU.md")
+            foreach ($item in $mustHave) { if ($names -notcontains $item) { throw "Release ZIP is missing required file: $item" } }
+            Write-Host "RELEASE ZIP VALID: entries=$($names.Count); installer-first; one DLL; new module paths and icon included."
+          } finally { $zr.Dispose() }
+
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "release-artifact"
+          New-Item $artifactDir -ItemType Directory -Force | Out-Null
+          Copy-Item $zip (Join-Path $artifactDir "AvernesSowtware_v1.3.8_RELEASE.zip") -Force
+
+      - name: Upload AvernesSowtware 1.3.8 release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.3.8-RELEASE
+          path: release-artifact/AvernesSowtware_v1.3.8_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 14

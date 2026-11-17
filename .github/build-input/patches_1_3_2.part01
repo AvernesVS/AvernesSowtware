@@ -1,0 +1,59 @@
+--- a/src/Core/AvernesSowtwareScript.cs
++++ b/src/Core/AvernesSowtwareScript.cs
+@@ -16,3 +16,3 @@
+         private const string ProductName = "AvernesSowtware";
+-        private const string ProductVersion = "1.3.1";
++        private const string ProductVersion = "1.3.2";
+         private const int AmmoPerWeapon = 9999;
+@@ -1676,3 +1676,3 @@
+             float scale = ClampFloat(_settings.MenuScale, 0.75f, 1.30f);
+-            float estimatedHeight = (0.015f + 0.080f + GetVisibleMenuRows() * 0.029f + 0.045f) * scale;
++            float estimatedHeight = (0.008f + 0.105f + GetVisibleMenuRows() * 0.038f + 0.038f) * scale;
+             return Math.Max(0.005f, 0.995f - estimatedHeight);
+@@ -1759,3 +1759,3 @@
+             _settings.MenuY = 0.006f;
+-            _settings.MenuWidth = 0.340f;
++            _settings.MenuWidth = 0.380f;
+             _settings.MenuScale = 1.0f;
+@@ -2747,2 +2747,7 @@
+             }
++
++            // Heavy Sniper Mk II has mutually exclusive scope components. Apply the
++            // thermal optic last so an earlier maximum/NV scope cannot remain selected.
++            if (weaponHash == GetHash("WEAPON_HEAVYSNIPER_MK2"))
++                premiumApplied = EnsureHeavySniperMkIIThermalScope(ped, weaponHash) || premiumApplied;
+             return premiumApplied;
+@@ -2750,2 +2755,31 @@
+ 
++
++        private bool EnsureHeavySniperMkIIThermalScope(Ped ped, uint weaponHash)
++        {
++            uint thermalScope = GetHash("COMPONENT_AT_SCOPE_THERMAL");
++            if (thermalScope == 0 || !Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, thermalScope))
++            {
++                Log("Heavy Sniper Mk II thermal scope is not supported by this game build.");
++                return false;
++            }
++
++            string[] alternativeScopes = new string[]
++            {
++                "COMPONENT_AT_SCOPE_MACRO", "COMPONENT_AT_SCOPE_SMALL", "COMPONENT_AT_SCOPE_MEDIUM",
++                "COMPONENT_AT_SCOPE_LARGE", "COMPONENT_AT_SCOPE_MAX", "COMPONENT_AT_SCOPE_NV"
++            };
++            for (int i = 0; i < alternativeScopes.Length; i++)
++            {
++                uint alternative = GetHash(alternativeScopes[i]);
++                if (alternative == 0 || alternative == thermalScope) continue;
++                if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, alternative))
++                    Function.Call((Hash)0x1E8BE90C74FB4C09UL, ped.Handle, weaponHash, alternative); // REMOVE_WEAPON_COMPONENT_FROM_PED
++            }
++
++            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED, ped.Handle, weaponHash, thermalScope);
++            bool installed = Function.Call<bool>((Hash)0x76A18844E743BF91UL, ped.Handle, weaponHash, thermalScope); // HAS_PED_GOT_WEAPON_COMPONENT
++            Log("Heavy Sniper Mk II thermal scope install: " + installed + ".");
++            return installed;
++        }
++
+         private uint GetHash(string name)
+@@ -3083,3 +3117,3 @@
+             
