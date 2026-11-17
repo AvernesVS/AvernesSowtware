@@ -72,6 +72,6 @@ for label, old, new in (
     if count != 1:
         raise SystemExit("Expected exactly one obsolete %s rule; found %d" % (label, count))
     validator = validator.replace(old, new, 1)
-validator_path.write_text(validator, encoding="utf-8", newline="\\r\\n")
+validator_path.write_text(validator, encoding="utf-8")
 
 print("Updated four stale test assertions and two strict build-validator contracts; no tests were skipped.")
