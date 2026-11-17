@@ -22,78 +22,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download v1.4.0 baseline
+      - name: Download v1.4.1 baseline
         uses: actions/download-artifact@v4
         with:
-          name: AvernesSowtware-v1.4.0-RELEASE
+          name: AvernesSowtware-v1.4.1-RELEASE
           path: ${{ runner.temp }}/base
           repository: ${{ github.repository }}
-          run-id: 43905017987
+          run-id: 43942923492
           github-token: ${{ github.token }}
-      - name: Reconstruct v1.4.0 baseline and catalog patches
+      - name: Reconstruct verified v1.4.1 baseline
         shell: pwsh
         run: |
-          $env:PATCH_OUT = Join-Path $env:RUNNER_TEMP 'v140.patch'
-          @'
-          import base64,bz2,hashlib,os
-          from pathlib import Path
-          d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          p=d/'patches_1_4_0.parti04.b64'
-          packed=base64.b64decode(p.read_text(encoding='ascii').strip(),validate=True)
-          assert hashlib.sha256(packed).hexdigest()=='c525236fe72536a1c59b2d47992d61fe516183546c0b9276854a070ecd94143b'
-          raw=bz2.decompress(packed)
-          assert hashlib.sha256(raw).hexdigest()=='99fc5ad14398e0fb64f962aee9ee35533c6905e0d594559f240863451b3f2cfa'
-          Path(os.environ['PATCH_OUT']).write_bytes(raw)
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch140.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'patch140.py')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.0 patch integrity check failed.' }
-          $zip=Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter 'AvernesSowtware_v1.4.0_RELEASE.zip' -Recurse | Select-Object -First 1
-          if (-not $zip) { throw 'v1.4.0 baseline ZIP missing.' }
-          $extract=Join-Path $env:RUNNER_TEMP 'src140'; Expand-Archive $zip.FullName $extract -Force
-          $root=Join-Path $extract 'AvernesSowtware_v1.4.0'
+          $zip=Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter 'AvernesSowtware_v1.4.1_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $zip) { throw 'v1.4.1 baseline ZIP missing.' }
+          $extract=Join-Path $env:RUNNER_TEMP 'src141'; Expand-Archive $zip.FullName $extract -Force
+          $root=Join-Path $extract 'AvernesSowtware_v1.4.1'
+          if (-not (Test-Path $root)) { throw 'Unexpected v1.4.1 baseline root.' }
           git -C $root init -q
-          git -C $root apply --check --whitespace=nowarn $env:PATCH_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.0 patch does not apply.' }
-          git -C $root apply --whitespace=nowarn $env:PATCH_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.0 patch application failed.' }
-          $env:CATALOG_PATCH_OUT=Join-Path $env:RUNNER_TEMP 'catalog140.patch'
-          @'
-          import base64,bz2,os
-          from pathlib import Path
-          p=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'/'patches_1_4_0_catalogmerge.part01.b64'
-          Path(os.environ['CATALOG_PATCH_OUT']).write_bytes(bz2.decompress(base64.b64decode(p.read_text(encoding='ascii').strip(),validate=True)))
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'catalog140.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'catalog140.py')
-          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch reconstruction failed.' }
-          git -C $root apply --check --whitespace=nowarn $env:CATALOG_PATCH_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch does not apply.' }
-          git -C $root apply --whitespace=nowarn $env:CATALOG_PATCH_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'Catalog patch application failed.' }
-          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.0"' -Quiet)) { throw 'Unexpected 1.4.0 baseline.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\\Core\\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\\s*=\\s*"1\\.4\\.1"' -Quiet)) { throw 'Source version is not 1.4.1.' }
           "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Reconstruct and apply v1.4.1 fixes
-        shell: pwsh
-        run: |
-          $env:PATCH_141_OUT=Join-Path $env:RUNNER_TEMP 'v141.patch'
-          @'
-          import base64,bz2,hashlib,os
-          from pathlib import Path
-          d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
-          parts=sorted(d.glob('patches_1_4_1.part*.b64'))
-          if len(parts)!=9: raise SystemExit('Expected 9 v1.4.1 patch segments')
-          packed=base64.b64decode(''.join(p.read_text(encoding='ascii').strip() for p in parts),validate=True)
-          if hashlib.sha256(packed).hexdigest()!='cd5b33306d3e031ba2ba04b64ec2ce5d88b532608ffe4ed352f7bd2972986dc9': raise SystemExit('v1.4.1 compressed patch SHA mismatch')
-          raw=bz2.decompress(packed)
-          if hashlib.sha256(raw).hexdigest()!='e9f6a632737f150913983ea2c7c9c0e3608470297b765ccf684d8bc5b7975c57': raise SystemExit('v1.4.1 patch SHA mismatch')
-          Path(os.environ['PATCH_141_OUT']).write_bytes(raw)
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'patch141.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'patch141.py')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.1 patch integrity check failed.' }
-          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn $env:PATCH_141_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.1 patch does not apply.' }
-          git -C $env:AVERNE_ROOT apply --whitespace=nowarn $env:PATCH_141_OUT
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.1 patch application failed.' }
-          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.1"' -Quiet)) { throw 'Source version is not 1.4.1.' }
       - name: Apply v1.4.2 fixes
         shell: pwsh
         run: |
