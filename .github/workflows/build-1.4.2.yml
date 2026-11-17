@@ -4,11 +4,13 @@ on:
     branches: [work/1.4.2-fixes]
     paths:
       - '.github/workflows/build-1.4.2.yml'
+      - '.github/build-input/followup_1_4_2.part*.chunk'
   pull_request:
     branches: [main]
     paths:
       - '.github/workflows/build-1.4.2.yml'
       - '.github/build-input/patches_1_4_2.part*.chunk'
+      - '.github/build-input/followup_1_4_2.part*.chunk'
   workflow_dispatch:
 permissions:
   contents: read
@@ -64,6 +66,30 @@ jobs:
           git -C $env:AVERNE_ROOT apply --whitespace=nowarn $env:PATCH_142_OUT
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 patch application failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\s*=\s*"1\.4\.2"' -Quiet)) { throw 'Source version is not 1.4.2.' }
+      - name: Apply v1.4.2 follow-up fixes
+        shell: pwsh
+        run: |
+          $env:PATCH_142_FOLLOWUP_OUT=Join-Path $env:RUNNER_TEMP 'followup142.patch'
+          @'
+          import base64,bz2,hashlib,os
+          from pathlib import Path
+          d=Path(os.environ['GITHUB_WORKSPACE'])/'.github'/'build-input'
+          parts=sorted(d.glob('followup_1_4_2.part*.chunk'))
+          if len(parts)!=4: raise SystemExit('Expected four v1.4.2 follow-up patch segments')
+          encoded=b''.join(p.read_bytes() for p in parts)
+          packed=base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(packed).hexdigest()!='d534e3a801242dc571277b6219fe8a1a6c5e63d09f608a576b624d3f3a466dfc': raise SystemExit('v1.4.2 follow-up compressed patch SHA mismatch')
+          raw=bz2.decompress(packed)
+          if hashlib.sha256(raw).hexdigest()!='155127923588fe9ebf2eebfefd80b402ebcc2c67d25182265805225991cd0279': raise SystemExit('v1.4.2 follow-up patch SHA mismatch')
+          Path(os.environ['PATCH_142_FOLLOWUP_OUT']).write_bytes(raw)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'followup142.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'followup142.py')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch integrity check failed.' }
+          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn $env:PATCH_142_FOLLOWUP_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch does not apply.' }
+          git -C $env:AVERNE_ROOT apply --whitespace=nowarn $env:PATCH_142_FOLLOWUP_OUT
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch application failed.' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\\Core\\AvernesSowtwareScript.cs') -Pattern 'ProductVersion\\s*=\\s*"1\\.4\\.2"' -Quiet)) { throw 'Source version changed unexpectedly.' }
       - name: Run tests
         shell: pwsh
         run: |
