@@ -62,7 +62,7 @@ new_fort = '''        int fortDispatchStart = mainSource.IndexOf("private void U
             fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2, false", StringComparison.Ordinal) < 0 ||
             fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2, true", StringComparison.Ordinal) < 0 ||
             fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0)
-            Error("1.4.2 Fort Zancudo Army and helicopter dispatch must be periodically disabled and blocked while inside the base.");
+            Error("1.4.2 Fort Zancudo Army dispatch suppression and helicopter dispatch must be periodically disabled and blocked while inside the base.");
 '''
 for label, old, new in (
     ("vehicle God Mode validator", old_vehicle, new_vehicle),
