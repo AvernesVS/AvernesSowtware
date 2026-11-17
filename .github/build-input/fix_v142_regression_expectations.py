@@ -8,14 +8,16 @@ if not test_path.is_file():
 
 data = test_path.read_bytes()
 replacements = (
-    (
-        b'self.assertIn("IS_PED_IN_COMBAT", MAIN)',
-        b'self.assertIn("0x4859F1FC66A6278EUL", MAIN)',
-    ),
-    (
-        b'self.assertIn("0xDC0F817884CDD856UL, 14, !insideFortZancudo", body)',
-        b'self.assertIn("0xDC0F817884CDD856UL, 14, false", body)',
-    ),
+    (b'self.assertIn("IS_PED_IN_COMBAT", MAIN)',
+     b'self.assertIn("0x4859F1FC66A6278EUL", MAIN)'),
+    (b'0xDC0F817884CDD856UL, 14, !insideFortZancudo',
+     b'0xDC0F817884CDD856UL, 14, false'),
+    (b'0x9B2BD3773123EA2FUL, 14, insideFortZancudo',
+     b'0x9B2BD3773123EA2FUL, 14, true'),
+    (b'0xDC0F817884CDD856UL, 2, !insideFortZancudo',
+     b'0xDC0F817884CDD856UL, 2, false'),
+    (b'0x9B2BD3773123EA2FUL, 2, insideFortZancudo',
+     b'0x9B2BD3773123EA2FUL, 2, true'),
 )
 
 for old, new in replacements:
@@ -25,4 +27,4 @@ for old, new in replacements:
     data = data.replace(old, new, 1)
 
 test_path.write_bytes(data)
-print("Updated two stale 1.4.2 regression assertions; no tests were skipped.")
+print("Updated five stale 1.4.2 regression assertions; no tests were skipped.")
