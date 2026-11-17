@@ -14,6 +14,8 @@ replacements = (
      b'0xDC0F817884CDD856UL, 14, false'),
     (b'0x9B2BD3773123EA2FUL, 14, insideFortZancudo',
      b'0x9B2BD3773123EA2FUL, 14, true'),
+    (b'0xDC0F817884CDD856UL, 2, !insideFortZancudo',
+     b'0xDC0F817884CDD856UL, 2, false'),
 )
 
 for old, new in replacements:
