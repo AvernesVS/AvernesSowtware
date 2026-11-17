@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/build-1.4.2.yml'
       - '.github/build-input/followup_1_4_2.part*.chunk'
+      - '.github/build-input/fix_v142_regression_expectations.py'
+      - '.github/build-input/fix_v142_regression_expectations.py'
   pull_request:
     branches: [main]
     paths:
@@ -90,6 +92,11 @@ jobs:
           git -C $env:AVERNE_ROOT apply --whitespace=nowarn $env:PATCH_142_FOLLOWUP_OUT
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.2 follow-up patch application failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.2";' -Quiet)) { throw 'Source version changed unexpectedly.' }
+      - name: Refresh v1.4.2 regression expectations
+        shell: pwsh
+        run: |
+          python (Join-Path $env:GITHUB_WORKSPACE '.github\\build-input\\fix_v142_regression_expectations.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Stale v1.4.2 regression assertions could not be refreshed.' }
       - name: Run tests
         shell: pwsh
         run: |
