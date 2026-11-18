@@ -65,7 +65,7 @@ jobs:
           python -m pip install --disable-pip-version-check pytest
           if ($LASTEXITCODE -ne 0) { throw 'Could not install pytest.' }
           Push-Location $env:SOURCE_ROOT
-          python -m pytest -q tests/test_1_4_7_regressions.py
+          python -m pytest -q tests
           $code = $LASTEXITCODE
           Pop-Location
           if ($code -ne 0) { throw 'v1.4.7 regression tests failed.' }
