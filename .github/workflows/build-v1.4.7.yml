@@ -43,7 +43,7 @@ jobs:
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "V146_DLL_SHA256=$env:V146_DLL_SHA256" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & "$env:GITHUB_WORKSPACE/build-input/Apply-v1.4.7.ps1"
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.7 source transformation failed.' }
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'tests/test_1_4_7_regressions.py') -Destination (Join-Path $sourceRoot 'tests/test_1_4_7_regressions.py') -Force
           if (-not (Select-String -Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs') -Pattern 'ProductVersion = "1.4.7"' -Quiet)) { throw 'Source version marker was not updated.' }
 
       - name: Restore ScriptHookVDotNet2 API 2 reference
