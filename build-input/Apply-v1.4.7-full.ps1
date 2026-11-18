@@ -202,7 +202,18 @@ $newDismissal = @'
 '@
 $core = Replace-Exact $core $oldDismissal $newDismissal 'three-stage bodyguard dismissal'
 $core = $core.Replace('DateTime.UtcNow.AddMilliseconds(200)', 'DateTime.UtcNow.AddMilliseconds(650)')
-$core = Replace-Exact $core '                    _bodyguardDismissalDetachedHandles.Remove(handle);' ('                    _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '                    _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'bodyguard dismissal exception cleanup'
+$oldDismissCatchCleanup = @'
+                    _bodyguardDismissalDetachedHandles.Remove(handle);
+                    _queuedBodyguardDismissalHandles.Remove(handle);
+                    LogException("Process bodyguard dismissal " + handle, ex);
+'@
+$newDismissCatchCleanup = @'
+                    _bodyguardDismissalDetachedHandles.Remove(handle);
+                    _bodyguardDismissalGroupRemovedHandles.Remove(handle);
+                    _queuedBodyguardDismissalHandles.Remove(handle);
+                    LogException("Process bodyguard dismissal " + handle, ex);
+'@
+$core = Replace-Exact $core $oldDismissCatchCleanup $newDismissCatchCleanup 'bodyguard dismissal exception cleanup'
 $core = Replace-Exact $core '            _bodyguardDismissalDetachedHandles.Clear();' ('            _bodyguardDismissalDetachedHandles.Clear();' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Clear();') 'bodyguard abort cleanup'
 
 $oldParachute = '                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED'
