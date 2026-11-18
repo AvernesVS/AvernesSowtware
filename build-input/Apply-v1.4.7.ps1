@@ -169,7 +169,7 @@ foreach ($relative in @('BUILD_RELEASE.bat','build/Build.bat')) {
 
 $validatorPath = 'build/ReleaseValidator.cs'
 $validator = Read-Text $validatorPath
-$validator = Replace-Exact $validator 'ProductVersion = "1.4.6"' 'ProductVersion = "1.4.7"' 'validator version'
+$validator = Replace-Exact $validator 'ProductVersion = \"1.4.6\"' 'ProductVersion = \"1.4.7\"' 'validator version'
 $oldChecks = @'
         if (mainSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
             vehicleSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
