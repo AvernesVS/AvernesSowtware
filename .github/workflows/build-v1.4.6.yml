@@ -39,8 +39,8 @@ jobs:
           Push-Location $sourceRoot
           try {
             git init -q
-            git apply --check v1.4.6.patch
-            git apply v1.4.6.patch
+            git apply --recount --check v1.4.6.patch
+            git apply --recount v1.4.6.patch
           } finally { Pop-Location }
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Prepared source root: $sourceRoot"
