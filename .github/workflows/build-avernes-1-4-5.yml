@@ -5,7 +5,6 @@ on:
     branches: [work/1.4.5-hardening]
     paths:
       - '.github/workflows/build-avernes-1-4-5.yml'
-      - 'tests/test_1_4_5_hardening.py'
   workflow_dispatch:
 
 permissions:
@@ -50,13 +49,13 @@ jobs:
           @'
           import base64, gzip, hashlib, os
           from pathlib import Path
-          parts = [Path('.github/build-input/patches_1_4_5_hardening.part%02d' % i).read_text(encoding='ascii').strip() for i in range(1, 6)]
+          parts = [Path('.github/build-input/patches_1_4_5_final.part%02d' % i).read_text(encoding='ascii').strip() for i in range(1, 11)]
           encoded = ''.join(parts)
           packed = base64.b64decode(encoded, validate=True)
-          if hashlib.sha256(packed).hexdigest() != '6e908d66a07d9caf023745eed4da522c8547995a3b5733c01961618294b2ade1':
+          if hashlib.sha256(packed).hexdigest() != '0abd82304591b21543db9ad293a0d97e8642f10b88ace00bb130f21fc26950b8':
               raise SystemExit('1.4.5 hardening patch archive SHA-256 mismatch')
           patch = gzip.decompress(packed)
-          if hashlib.sha256(patch).hexdigest() != '45136f5d3c61fd1b600aa6e121fcab057fee7ae6a582342055a561c54c1dd1ad':
+          if hashlib.sha256(patch).hexdigest() != 'bb5285809b61f3cedc78cb7e0ff848a35db609e7036354f2af638b95ce8d9df6':
               raise SystemExit('1.4.5 hardening patch SHA-256 mismatch')
           Path(os.environ['RUNNER_TEMP'], 'v145-hardening.patch').write_bytes(patch)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode145.py') -Encoding UTF8
