@@ -86,6 +86,11 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply the reviewed v1.4.8 patch.' }
           } finally { Pop-Location }
 
+          # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
+          $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
+          Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
+          "V148_SOURCE_SNAPSHOT=$sourceSnapshot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
           $main = Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'
           if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.4.8"' -Quiet)) { throw 'Source version marker was not updated.' }
           if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/RuntimeDiagnostics.cs'))) { throw 'Runtime diagnostics source file is missing.' }
@@ -146,5 +151,6 @@ jobs:
             ${{ env.SOURCE_ROOT }}/BUILD_RELEASE_REPORT_RU.txt
             ${{ env.SOURCE_ROOT }}/BUILD_RELEASE.log
             ${{ env.SOURCE_ROOT }}/AvernesSowtware_Build.log
+            ${{ runner.temp }}/AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip
           if-no-files-found: warn
           retention-days: 30
