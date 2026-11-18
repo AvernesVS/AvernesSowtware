@@ -38,11 +38,27 @@ jobs:
           $sourceRoot = Join-Path $extract 'AvernesSowtware_v1.4.5'
           if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Verified baseline source tree is incomplete.' }
           git -C $sourceRoot init -q
-          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'build-input/AvernesSowtware_v1.4.6_working.patch') (Join-Path $sourceRoot 'v1.4.6.patch')
-          git -C $sourceRoot apply --recount --check --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.6 patch does not apply to the verified v1.4.5 source baseline.' }
-          git -C $sourceRoot apply --recount --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'Failed to apply v1.4.6 patch.' }
+          $patchRepo = Join-Path $env:RUNNER_TEMP 'v146patch'
+          git clone --depth 1 --branch work/1.4.6-runtime-fixes https://github.com/AvernesVS/AvernesSowtware.git $patchRepo
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'], 'v146patch', '.github', 'build-input')
+          parts = [(root / ('patches_1_4_6.part%02d' % i)).read_text(encoding='ascii').strip() for i in range(1, 7)]
+          packed = base64.b64decode(''.join(parts), validate=True)
+          patch = gzip.decompress(packed)
+          out = Path(os.environ['RUNNER_TEMP'], 'v1.4.6-source.patch')
+          out.write_bytes(patch)
+          print('v1.4.6 patch archive SHA256:', hashlib.sha256(packed).hexdigest())
+          print('v1.4.6 patch SHA256:', hashlib.sha256(patch).hexdigest())
+          print('Patch header:', patch[:1200].decode('utf-8', errors='replace'))
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode146.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'decode146.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not reconstruct v1.4.6 patch segments.' }
+          git -C $sourceRoot apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v1.4.6-source.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Verified v1.4.6 patch does not apply to the v1.4.5 baseline.' }
+          git -C $sourceRoot apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v1.4.6-source.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to apply reconstructed v1.4.6 patch.' }
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Prepared source root: $sourceRoot"
 
