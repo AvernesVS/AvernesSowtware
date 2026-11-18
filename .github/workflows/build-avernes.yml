@@ -7,6 +7,7 @@ on:
       - '.github/workflows/build-avernes.yml'
       - '.github/build-input/patches_1_4_4.patch.gz.b64'
       - '.github/build-input/patches_1_4_5_hotfix.patch.gz.b64'
+      - '.github/build-input/patches_1_4_5_fort_dispatch.patch.gz.b64'
       - 'tests/test_1_4_3_regressions.py'
       - 'tests/test_1_4_5_regressions.py'
   workflow_dispatch:
@@ -82,6 +83,25 @@ jobs:
           git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145.patch')
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.5 hotfix patch application failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.5";' -Quiet)) { throw 'Source version is not 1.4.5.' }
+
+      - name: Apply Fort Zancudo Army dispatch ID correction
+        shell: pwsh
+        run: |
+          @'
+          import gzip, hashlib, base64, os
+          from pathlib import Path
+          encoded = Path('.github/build-input/patches_1_4_5_fort_dispatch.patch.gz.b64').read_bytes()
+          patch = gzip.decompress(base64.b64decode(encoded))
+          if hashlib.sha256(patch).hexdigest() != '2a402761931f9082614648abfe6a6fae4e4b0f0eaee38a6b2f0b2f3aeeaaa7a7':
+              raise SystemExit('Fort dispatch patch SHA-256 mismatch')
+          Path(os.environ['RUNNER_TEMP'], 'fort145.patch').write_bytes(patch)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decodefort145.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'decodefort145.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch decode failed.' }
+          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'fort145.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch does not apply to v1.4.5 entry-animation source.' }
+          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'fort145.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch application failed.' }
 
       - name: Run v1.4.5 regression tests
         shell: pwsh
