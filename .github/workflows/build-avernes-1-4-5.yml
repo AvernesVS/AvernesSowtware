@@ -69,12 +69,12 @@ jobs:
           @'
           import base64, gzip, hashlib, os
           from pathlib import Path
-          parts = [Path('.github/build-input/followup_1_4_5_dispatch.part%02d' % i).read_text(encoding='ascii').strip() for i in range(1, 4)]
+          parts = [Path('.github/build-input/followup_1_4_5_dispatch.part01').read_text(encoding='ascii').strip(), Path('.github/build-input/followup_1_4_5_dispatch.part02').read_text(encoding='ascii').strip(), Path('.github/build-input/followup_1_4_5_dispatch.tail01').read_text(encoding='ascii').strip(), Path('.github/build-input/followup_1_4_5_dispatch.tail02').read_text(encoding='ascii').strip()]
           packed = base64.b64decode(''.join(parts), validate=True)
-          if hashlib.sha256(packed).hexdigest() != '375cbaa7f6ed95b32b05dcc5ed5634eff1c90294425f91adee1d99005a12c0f4':
+          if hashlib.sha256(packed).hexdigest() != 'b024dff3f1d5c8b9ae6a0de7fc4010e0e4c1722739aeffbc279467e5724a8b18':
               raise SystemExit('1.4.5 dispatch follow-up archive SHA-256 mismatch')
           patch = gzip.decompress(packed)
-          if hashlib.sha256(patch).hexdigest() != '933b33e7d40286e87c7d167e078a4a6d92dcfb6653fc724e2583f00c01ca7c7f':
+          if hashlib.sha256(patch).hexdigest() != '7daaea7a6b3fb1ea7494348c8b3830eaa8d1a0232912b1a3f6b0580dae6fb69d':
               raise SystemExit('1.4.5 dispatch follow-up patch SHA-256 mismatch')
           Path(os.environ['RUNNER_TEMP'], 'v145-dispatch-followup.patch').write_bytes(patch)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode145followup.py') -Encoding UTF8
