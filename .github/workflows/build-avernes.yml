@@ -1,4 +1,4 @@
-name: AvernesSowtware 1.4.5 Windows release
+name: AvernesSowtware 1.4.4 Windows release
 
 on:
   push:
@@ -6,10 +6,8 @@ on:
     paths:
       - '.github/workflows/build-avernes.yml'
       - '.github/build-input/patches_1_4_4.patch.gz.b64'
-      - '.github/build-input/patches_1_4_5_hotfix.patch.gz.b64'
-      - '.github/build-input/patches_1_4_5_fort_dispatch.patch.gz.b64'
+      - 'tests/patch_1_4_4_color_restore.py'
       - 'tests/test_1_4_3_regressions.py'
-      - 'tests/test_1_4_5_regressions.py'
   workflow_dispatch:
 
 permissions:
@@ -64,58 +62,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'v1.4.4 patch application failed.' }
           if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.4";' -Quiet)) { throw 'Source version is not 1.4.4.' }
 
-      - name: Decode and apply v1.4.5 hotfix patch
+      - name: Apply isolated vehicle paint restoration fix
         shell: pwsh
         run: |
-          @'
-          import gzip, hashlib, os, base64
-          from pathlib import Path
-          encoded = Path('.github/build-input/patches_1_4_5_hotfix.patch.gz.b64').read_bytes()
-          patch = gzip.decompress(base64.b64decode(encoded))
-          if hashlib.sha256(patch).hexdigest() != '4092032647c8c6ac22506ab0692fe788b27d6b20123221fa4c4f046204c35d4e':
-              raise SystemExit('v1.4.5 hotfix patch SHA-256 mismatch')
-          Path(os.environ['RUNNER_TEMP'], 'v145.patch').write_bytes(patch)
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode145.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'decode145.py')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.5 hotfix patch decode failed.' }
-          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.5 hotfix patch does not apply to v1.4.4 source.' }
-          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'v1.4.5 hotfix patch application failed.' }
-          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.5";' -Quiet)) { throw 'Source version is not 1.4.5.' }
+          python tests/patch_1_4_4_color_restore.py (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs')
+          if ($LASTEXITCODE -ne 0) { throw 'Vehicle paint restoration patch failed.' }
 
-      - name: Apply Fort Zancudo Army dispatch ID correction
-        shell: pwsh
-        run: |
-          @'
-          import gzip, hashlib, base64, os
-          from pathlib import Path
-          encoded = Path('.github/build-input/patches_1_4_5_fort_dispatch.patch.gz.b64').read_bytes()
-          patch = gzip.decompress(base64.b64decode(encoded))
-          if hashlib.sha256(patch).hexdigest() != '2a402761931f9082614648abfe6a6fae4e4b0f0eaee38a6b2f0b2f3aeeaaa7a7':
-              raise SystemExit('Fort dispatch patch SHA-256 mismatch')
-          Path(os.environ['RUNNER_TEMP'], 'fort145.patch').write_bytes(patch)
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decodefort145.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'decodefort145.py')
-          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch decode failed.' }
-          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'fort145.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch does not apply to v1.4.5 entry-animation source.' }
-          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'fort145.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'Fort dispatch patch application failed.' }
-
-      - name: Run v1.4.5 regression tests
+      - name: Run v1.4.4 regression tests
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
           $testDir = Join-Path $env:AVERNE_ROOT 'tests'
           New-Item -ItemType Directory -Path $testDir -Force | Out-Null
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tests\test_1_4_3_regressions.py') (Join-Path $testDir 'test_1_4_3_regressions.py') -Force
-          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tests\test_1_4_5_regressions.py') (Join-Path $testDir 'test_1_4_5_regressions.py') -Force
           Push-Location $env:AVERNE_ROOT
           python -m unittest discover -s tests -p 'test_*.py' -v
           $code = $LASTEXITCODE
           Pop-Location
-          if ($code -ne 0) { throw 'v1.4.5 regression tests failed.' }
+          if ($code -ne 0) { throw 'v1.4.4 regression tests failed.' }
 
       - name: Restore ScriptHookVDotNet2 API 2 reference
         shell: pwsh
@@ -130,7 +94,7 @@ jobs:
           if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'SHVDN API2 reference invalid.' }
           "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Compile and package v1.4.5
+      - name: Compile and package v1.4.4
         shell: pwsh
         run: |
           Push-Location $env:AVERNE_ROOT
@@ -141,11 +105,11 @@ jobs:
               if (Test-Path $f) { Get-Content $f -Raw | Write-Host }
             }
             Pop-Location
-            throw 'v1.4.5 Windows release build failed.'
+            throw 'v1.4.4 Windows release build failed.'
           }
-          if (!(Test-Path 'dist\AvernesSowtware.dll') -or !(Test-Path 'dist\AvernesSowtware_v1.4.5_RELEASE.zip')) {
+          if (!(Test-Path 'dist\AvernesSowtware.dll') -or !(Test-Path 'dist\AvernesSowtware_v1.4.4_RELEASE.zip')) {
             Pop-Location
-            throw 'v1.4.5 release outputs missing.'
+            throw 'v1.4.4 release outputs missing.'
           }
           if (Test-Path 'AvernesSowtware_Build.log') {
             if ((Get-Content 'AvernesSowtware_Build.log' -Raw) -match 'warning CS\d+') {
@@ -155,26 +119,26 @@ jobs:
           }
           Pop-Location
 
-      - name: Validate v1.4.5 release ZIP
+      - name: Validate v1.4.4 release ZIP
         shell: pwsh
         run: |
-          $path = Join-Path $env:AVERNE_ROOT 'dist\AvernesSowtware_v1.4.5_RELEASE.zip'
+          $path = Join-Path $env:AVERNE_ROOT 'dist\AvernesSowtware_v1.4.4_RELEASE.zip'
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $z = [IO.Compression.ZipFile]::OpenRead($path)
           try {
             $n = @($z.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
-            if ($n[0] -ne 'AvernesSowtware_v1.4.5/Install_AvernesSowtware.bat') { throw 'Installer is not first.' }
+            if ($n[0] -ne 'AvernesSowtware_v1.4.4/Install_AvernesSowtware.bat') { throw 'Installer is not first.' }
             $dll = @($n | Where-Object { $_ -match '\.dll$' })
-            if ($dll.Count -ne 1 -or $dll[0] -ne 'AvernesSowtware_v1.4.5/dist/AvernesSowtware.dll') { throw 'Expected exactly one trainer DLL.' }
-            foreach ($f in @('docs/CHANGELOG_1_4_5_RU.md','docs/TEST_REPORT_1_4_5_RU.md','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) {
+            if ($dll.Count -ne 1 -or $dll[0] -ne 'AvernesSowtware_v1.4.4/dist/AvernesSowtware.dll') { throw 'Expected exactly one trainer DLL.' }
+            foreach ($f in @('docs/CHANGELOG_1_4_4_RU.md','docs/TEST_REPORT_1_4_4_RU.md','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) {
               if (@($n | Where-Object { $_ -like "*/$f" }).Count -eq 0) { throw "Missing $f" }
             }
           } finally { $z.Dispose() }
 
-      - name: Upload v1.4.5 release ZIP
+      - name: Upload v1.4.4 release ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: AvernesSowtware-v1.4.5-RELEASE
-          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.5_RELEASE.zip
+          name: AvernesSowtware-v1.4.4-RELEASE
+          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.4_RELEASE.zip
           if-no-files-found: error
           retention-days: 30
