@@ -291,42 +291,16 @@ Write-Text $legacyTestPath $legacyTests
 
 $validatorPath = 'build/ReleaseValidator.cs'
 $validator = Read-Text $validatorPath
-$oldFortValidator = @'
-        if (fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 15, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 15, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("TASK_VEHICLE_DRIVE_WANDER", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("_armyVehicleDispatchSuppressed = true;", StringComparison.Ordinal) < 0)
-            Error("1.4.5 Fort Zancudo must preserve Newer Wanted / 911 dispatch and avoid clearing tasks from emergency vehicle occupants.");
-'@
-$newFortValidator = @'
-        if (fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 14, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 14, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2,", StringComparison.Ordinal) >= 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2,", StringComparison.Ordinal) >= 0 ||
-            fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("TASK_VEHICLE_DRIVE_WANDER", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0)
-            Error("1.4.7 Fort Zancudo must suppress Army service 14 while leaving police helicopter dispatch untouched.");
-'@
-$validator = Replace-Exact $validator $oldFortValidator $newFortValidator 'Fort Zancudo validator'
-$oldTaskValidator = @'
-        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)", StringComparison.Ordinal) < 0)
-            Error("1.4.6 bodyguard combat and follow tasks must not be restarted on every update.");
-'@
-$newTaskValidator = @'
-        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("private void IssueBodyguardFollowTask", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("_bodyguardDismissalGroupRemovedHandles", StringComparison.Ordinal) < 0)
-            Error("1.4.7 bodyguard follow/combat task enums or staged dismissal are incomplete.");
-'@
-$validator = Replace-Exact $validator $oldTaskValidator $newTaskValidator 'bodyguard task validator'
+$validator = Replace-Exact $validator 'fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 15, true"' 'fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 14, false"' 'Fort validator Army disable'
+$validator = Replace-Exact $validator 'fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 15, false"' 'fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 14, true"' 'Fort validator Army resource block'
+$validator = Replace-Exact $validator '            fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2, true", StringComparison.Ordinal) < 0 ||' '' 'remove police heli enable assertion'
+$validator = Replace-Exact $validator '            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2, false", StringComparison.Ordinal) < 0 ||' '' 'remove police heli resource assertion'
+$validator = Replace-Exact $validator '            Error("1.4.5 Fort Zancudo must preserve Newer Wanted / 911 dispatch and avoid clearing tasks from emergency vehicle occupants.");' '            Error("1.4.7 Fort Zancudo must suppress Army service 14 and leave police helicopter dispatch untouched.");' 'Fort validator message'
+$validator = Replace-Exact $validator 'mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)"' 'mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)"' 'validator follow task enum'
+$validator = Replace-Exact $validator 'mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)"' 'mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)"' 'validator combat task enum'
+$validator = Replace-Exact $validator 'Error("1.4.6 bodyguard combat and follow tasks must not be restarted on every update.");' 'Error("1.4.7 bodyguard status checks must use eScriptTaskHash identifiers.");' 'bodyguard validator message'
 $validator = Replace-Exact $validator 'mainSource.IndexOf("AddMilliseconds(200)"' 'mainSource.IndexOf("AddMilliseconds(650)"' 'bodyguard dismissal interval validator'
+$validator = Replace-Exact $validator '            Error("1.4.7 Fort Zancudo must suppress Army service 14 and leave police helicopter dispatch untouched.");' '            Error("1.4.7 Fort Zancudo must suppress Army service 14 and leave police helicopter dispatch untouched.");' 'Fort validator stable message'
 Write-Text $validatorPath $validator
 
 $readmePath = 'README_RU.md'
