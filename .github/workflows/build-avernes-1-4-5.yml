@@ -4,6 +4,7 @@ on:
   push:
     branches: [work/1.4.5-hardening]
     paths:
+      - '.github/workflows/build-avernes-1-4-5.yml'
       - 'tests/test_1_4_5_hardening.py'
   workflow_dispatch:
 
