@@ -59,6 +59,8 @@ class Release147Tests(unittest.TestCase):
         self.assertIn('GetHash("toreador")', effects)
         assist = body(VEHICLE, "private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)")
         self.assertIn("if (airborne) return", assist)
+        self.assertNotIn("0xBAA045B4E42F3C06UL, handle, maximumNitroSpeed", effects)
+        self.assertIn("MODIFY_VEHICLE_TOP_SPEED", effects)
 
     def test_wash_and_stability_controls(self):
         self.assertIn("WashCurrentVehicle", CORE)
@@ -74,20 +76,23 @@ class Release147Tests(unittest.TestCase):
         self.assertIn("formationIndex / 2", follow)
         self.assertIn("offsetX, offsetY", follow)
         self.assertEqual(CORE.count("Function.Call((Hash)0x304AE42E357B8C7EUL"), 1)
+        self.assertIn("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)", CORE)
+        self.assertIn("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)", CORE)
 
     def test_bodyguard_dismissal_is_serialized(self):
         dismiss = body(CORE, "private void ProcessPendingBodyguardDismissals")
         self.assertIn("AddMilliseconds(650)", dismiss)
+        self.assertIn("_bodyguardDismissalGroupRemovedHandles", dismiss)
         self.assertNotIn("DeleteEntity", dismiss)
 
     def test_fort_zancudo_suppresses_army_without_disabling_police_heli(self):
         dispatch = body(CORE, "private void UpdateFortZancudoArmyDispatch")
         restore = body(CORE, "private void RestoreFortZancudoArmyDispatch")
-        self.assertIn("0xDC0F817884CDD856UL, 15, false", dispatch)
-        self.assertIn("0x9B2BD3773123EA2FUL, 15, true", dispatch)
+        self.assertIn("0xDC0F817884CDD856UL, 14, false", dispatch)
+        self.assertIn("0x9B2BD3773123EA2FUL, 14, true", dispatch)
         self.assertNotIn(", 2,", dispatch)
-        self.assertIn("0xDC0F817884CDD856UL, 15, true", restore)
-        self.assertIn("0x9B2BD3773123EA2FUL, 15, false", restore)
+        self.assertIn("0xDC0F817884CDD856UL, 14, true", restore)
+        self.assertIn("0x9B2BD3773123EA2FUL, 14, false", restore)
         self.assertNotIn(", 2,", restore)
 
     def test_auto_parachute_uses_gadget_item(self):
@@ -103,6 +108,8 @@ class Release147Tests(unittest.TestCase):
             self.assertIn("SET_VEHICLE_DIRT_LEVEL", source)
             self.assertIn("0xE91F1B65F2B48D57UL", source)
             self.assertIn("SET_VEHICLE_DEFORMATION_FIXED", source)
+        self.assertIn("IS_VEHICLE_DAMAGED", refresh)
+        self.assertIn("SET_VEHICLE_FIXED", refresh)
 
 if __name__ == "__main__":
     unittest.main()
