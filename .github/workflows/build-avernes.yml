@@ -25,7 +25,7 @@ jobs:
         run: |
           $parts = @(Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Filter 'AvernesSowtware_v1.4.4_SOURCE.part-*' -File | Sort-Object Name)
           if ($parts.Count -lt 2) { throw "Source archive chunks are missing. Found: $($parts.Count)" }
-          $archivePath = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.4_SOURCE.zip'
+          $archivePath = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.4_SOURCE.tar.gz'
           $output = [System.IO.File]::Open($archivePath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
           try {
             foreach ($part in $parts) {
@@ -34,7 +34,9 @@ jobs:
             }
           } finally { $output.Dispose() }
           $projectRoot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_1_4_4_extract'
-          Expand-Archive -LiteralPath $archivePath -DestinationPath $projectRoot -Force
+          New-Item -ItemType Directory -Path $projectRoot -Force | Out-Null
+          tar.exe -xzf $archivePath -C $projectRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive extraction failed.' }
           $project = Join-Path $projectRoot 'AvernesSowtware_v1.4.4'
           if (!(Test-Path (Join-Path $project 'BUILD_RELEASE.bat'))) { throw 'Extracted AvernesSowtware source tree is incomplete.' }
           "AVERNE_PROJECT_DIR=$project" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
