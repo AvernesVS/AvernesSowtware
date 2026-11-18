@@ -510,6 +510,15 @@ index 9a417b5..21617bd 100644
          private const int AmmoPerWeapon = 9999;
          private const int PremiumWeaponTint = 7;
  
+@@ -28,7 +28,8 @@ namespace AvernesSowtware
+         private readonly string _legacyDataDirectory;
+         private readonly string _vehiclesDirectory;
+         private readonly string _logDirectory;
++        private string _activeLogDirectory;
+         private readonly string _errorLogPath;
+         private readonly string _crashReportPath;
+         private readonly object _logSync = new object();
+
 @@ -377,6 +377,7 @@ namespace AvernesSowtware
              _savedVehiclesSlotsDirectory = Path.Combine(_vehiclesDirectory, "SavedVehicles");
              _savedVehiclesManifestPath = Path.Combine(_savedVehiclesSlotsDirectory, "index.json");
@@ -701,7 +710,7 @@ index 9a417b5..21617bd 100644
 +                // an assigned task. Treating only status 1 as active caused
 +                // follow/aim tasks to be reissued every 500 ms, producing the
 +                // visible stop-dodge-stop / "dance in place" behaviour.
-+                int status = Function.Call<int>((Hash)0x77F1BEB8863288D5UL, pedHandle, taskHash);
++                int status = Function.Call<int>((Hash)0x77F1BEB8863288D5UL, pedHandle, (int)taskHash);
 +                return status >= 0 && status <= 2;
 +            }
 +            catch (Exception ex) { LogException("Read bodyguard task status", ex); return false; }
