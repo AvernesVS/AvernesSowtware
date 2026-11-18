@@ -49,7 +49,7 @@ jobs:
           import gzip, hashlib, os
           from pathlib import Path
           patch = gzip.decompress(Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_bytes())
-          if hashlib.sha256(patch).hexdigest() != 'fb07ad42c9e580fa809cb6f3a6ae409eb33437a7b8c8227c0b69cf4fee3a2f51':
+          if hashlib.sha256(patch).hexdigest() != 'bae0298ca0e47fed45fe3cb0b9a1c894e43eabcdfb46e099d6c78ff1427ff80c':
               raise SystemExit('v1.4.4 patch SHA-256 mismatch')
           Path(os.environ['RUNNER_TEMP'], 'v144.patch').write_bytes(patch)
           '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode144.py') -Encoding UTF8

@@ -14,5 +14,15 @@ class Release143BaselineTests(unittest.TestCase):
         self.assertIn('SET_ENTITY_PROOFS', vehicle)
         self.assertIn('TASK_OPEN_VEHICLE_DOOR', SOURCE)
 
+    def test_bodyguards_are_configured_for_offensive_combat(self):
+        self.assertIn('ApplyBodyguardCombatTactics', SOURCE)
+        self.assertIn('0x6B7A646C242A7059UL', SOURCE)
+        self.assertIn('0x4D9CA1009AFBD057UL', SOURCE)
+        self.assertIn('0x9F7794730795E019UL', SOURCE)
+
+    def test_diagnostics_are_written_to_scripts_directory(self):
+        self.assertIn('_logDirectory = _scriptsDirectory;', SOURCE)
+        self.assertIn('Logs: " + _logPath', SOURCE)
+
 if __name__ == '__main__':
     unittest.main()
