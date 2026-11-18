@@ -232,6 +232,31 @@ $vehicle = Replace-Exact $vehicle 'secondaryType = type.GetResult<int>();' 'seco
 Write-Text $vehiclePath $vehicle
 
 
+$legacyTestPath = 'tests/test_1_4_6_regressions.py'
+$legacyTests = Read-Text $legacyTestPath
+$legacyTests = Replace-Exact $legacyTests 'test_bulk_dismissal_remains_serialized_and_shorter' 'test_bulk_dismissal_remains_serialized_and_rate_limited' 'legacy dismissal test name'
+$legacyTests = Replace-Exact $legacyTests 'self.assertIn("AddMilliseconds(200)", body)' 'self.assertIn("AddMilliseconds(650)", body)' 'legacy dismissal interval'
+$legacyTests = Replace-Exact $legacyTests '        self.assertIn("0x81592BE4E4746D88UL", VEHICLE)
+        self.assertNotIn("0x81592BE4E3878728UL", VEHICLE)
+        matte = method_body(VEHICLE, "private void ApplyMattePaintPreservingColor")
+        self.assertIn("0x81592BE4E4746D88UL", matte)' '        self.assertNotIn("0x81592BE4E4746D88UL", VEHICLE)
+        self.assertIn("GET_VEHICLE_COLOURS", VEHICLE)
+        self.assertNotIn("0x81592BE4E3878728UL", VEHICLE)
+        matte = method_body(VEHICLE, "private void ApplyMattePaintPreservingColor")
+        self.assertIn("GET_VEHICLE_COLOURS", matte)
+        self.assertNotIn("0x81592BE4E4746D88UL", matte)' 'legacy paint native expectations'
+$legacyTests = Replace-Exact $legacyTests '        self.assertIn('"AvernesSowtware_errors.log"', CORE)
+        self.assertIn('"AvernesSowtware_crashes.log"', CORE)' '        self.assertIn('"error.log"', CORE)
+        self.assertIn('"crash.log"', CORE)
+        self.assertIn('"session.log"', CORE)' 'legacy diagnostic filenames'
+$legacyTests = Replace-Exact $legacyTests '        self.assertIn("_activeLogDirectory = fallbackDir", append)
+        self.assertIn("GetEffectiveLogPath(path)", append)' '        self.assertNotIn("fallbackDir", append)
+        self.assertIn("attempt < 3", append)
+        self.assertIn("GetEffectiveLogPath(path)", append)' 'legacy log fallback expectation'
+$legacyTests = Replace-Exact $legacyTests 'r'ProductVersion\s*=\s*"1\.4\.6"' 'r'ProductVersion\s*=\s*"1\.4\.7"' 'legacy source version expectation'
+Write-Text $legacyTestPath $legacyTests
+
+
 $vehicle = Replace-Exact $vehicle '            Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
             for (int windowIndex = 0; windowIndex < 8; windowIndex++)
                 Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
