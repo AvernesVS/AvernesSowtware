@@ -649,6 +649,7 @@ $newTaskValidator = @'
             Error("1.4.7 bodyguard follow/combat task enums or staged dismissal are incomplete.");
 '@
 $validator = Replace-Exact $validator $oldTaskValidator $newTaskValidator 'bodyguard task validator'
+$validator = Replace-Exact $validator 'mainSource.IndexOf("AddMilliseconds(200)"' 'mainSource.IndexOf("AddMilliseconds(650)"' 'bodyguard dismissal interval validator'
 Write-Text $validatorPath $validator
 
 $readmePath = 'README_RU.md'
