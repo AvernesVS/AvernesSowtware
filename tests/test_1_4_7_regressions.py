@@ -73,7 +73,7 @@ class Release147Tests(unittest.TestCase):
         self.assertIn("formationIndex % 2", follow)
         self.assertIn("formationIndex / 2", follow)
         self.assertIn("offsetX, offsetY", follow)
-        self.assertEqual(CORE.count("0x304AE42E357B8C7EUL"), 1)
+        self.assertEqual(CORE.count("Function.Call((Hash)0x304AE42E357B8C7EUL"), 1)
 
     def test_bodyguard_dismissal_is_serialized(self):
         dismiss = body(CORE, "private void ProcessPendingBodyguardDismissals")
