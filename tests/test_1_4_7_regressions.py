@@ -66,5 +66,43 @@ class Release147Tests(unittest.TestCase):
         self.assertIn("ApplyVehicleStabilityAssist", VEHICLE)
         self.assertIn("VehicleStability", PERSISTENCE)
 
+
+    def test_bodyguards_use_distinct_follow_formation(self):
+        follow = body(CORE, "private void IssueBodyguardFollowTask")
+        self.assertIn("_bodyguards.IndexOf(pedHandle)", follow)
+        self.assertIn("formationIndex % 2", follow)
+        self.assertIn("formationIndex / 2", follow)
+        self.assertIn("offsetX, offsetY", follow)
+        self.assertEqual(CORE.count("0x304AE42E357B8C7EUL"), 1)
+
+    def test_bodyguard_dismissal_is_serialized(self):
+        dismiss = body(CORE, "private void ProcessPendingBodyguardDismissals")
+        self.assertIn("AddMilliseconds(650)", dismiss)
+        self.assertNotIn("DeleteEntity", dismiss)
+
+    def test_fort_zancudo_suppresses_army_without_disabling_police_heli(self):
+        dispatch = body(CORE, "private void UpdateFortZancudoArmyDispatch")
+        restore = body(CORE, "private void RestoreFortZancudoArmyDispatch")
+        self.assertIn("0xDC0F817884CDD856UL, 15, false", dispatch)
+        self.assertIn("0x9B2BD3773123EA2FUL, 15, true", dispatch)
+        self.assertNotIn(", 2,", dispatch)
+        self.assertIn("0xDC0F817884CDD856UL, 15, true", restore)
+        self.assertIn("0x9B2BD3773123EA2FUL, 15, false", restore)
+        self.assertNotIn(", 2,", restore)
+
+    def test_auto_parachute_uses_gadget_item(self):
+        parachute = body(CORE, "private void ProcessAutomaticParachuteDeployment")
+        self.assertIn('GetHash("GADGET_PARACHUTE")', parachute)
+        self.assertIn("0x8DECB02F88F428BCUL", parachute)
+        self.assertNotIn('GetHash("WEAPON_PARACHUTE")', parachute)
+
+    def test_vehicle_god_mode_cleans_dirt_and_decals(self):
+        initial = body(VEHICLE, "private void RepairVehicleForGodMode")
+        refresh = body(VEHICLE, "private void RefreshVehicleGodModeDamage")
+        for source in (initial, refresh):
+            self.assertIn("SET_VEHICLE_DIRT_LEVEL", source)
+            self.assertIn("0xE91F1B65F2B48D57UL", source)
+            self.assertIn("SET_VEHICLE_DEFORMATION_FIXED", source)
+
 if __name__ == "__main__":
     unittest.main()
