@@ -63,6 +63,8 @@ jobs:
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
+          python -m pip install --disable-pip-version-check pytest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install pytest for the regression suite.' }
           Push-Location $env:SOURCE_ROOT
           python -m pytest -q
           $code = $LASTEXITCODE
@@ -73,7 +75,7 @@ jobs:
         shell: cmd
         run: |
           cd /d "%SOURCE_ROOT%"
-          call BUILD_RELEASE.bat
+          call BUILD_RELEASE.bat "" --no-pause
           if errorlevel 1 exit /b 1
           if not exist "dist\AvernesSowtware_v1.4.6_RELEASE.zip" exit /b 1
 
