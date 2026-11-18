@@ -480,19 +480,13 @@ $oldFarFollow = @'
                                 Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
                                     -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
 '@
-$core = Replace-Exact $core $oldFarFollow @'
+$newFarFollow = @'
                             if (!IsScriptTaskActive(handle, (Hash)0x3EF867F4UL))
                                 IssueBodyguardFollowTask(handle, player.Handle);
-'@ 'distant bodyguard follow'
-$oldNoSeatFollow = @'
-                            if (!IsScriptTaskActive(handle, (Hash)0x3EF867F4UL))
-                                Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
-                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
 '@
-$core = Replace-Exact $core $oldNoSeatFollow @'
-                            if (!IsScriptTaskActive(handle, (Hash)0x3EF867F4UL))
-                                IssueBodyguardFollowTask(handle, player.Handle);
-'@ 'no-seat bodyguard follow'
+$farFollowCount = ([regex]::Matches($core, [regex]::Escape($oldFarFollow))).Count
+if ($farFollowCount -ne 2) { throw "Expected 2 identical follow blocks, found $farFollowCount" }
+$core = $core.Replace($oldFarFollow, $newFarFollow)
 $oldNormalFollow = @'
                         Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
                             -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
