@@ -23,40 +23,11 @@ $corePath = 'src/Core/AvernesSowtwareScript.cs'
 $core = Read-Text $corePath
 $core = Replace-Exact $core '        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' ('        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' + $nl + '        private readonly HashSet<int> _bodyguardDismissalGroupRemovedHandles = new HashSet<int>();') 'bodyguard dismissal phase state'
 
-$oldFort = @'
-                // Keep Army vehicle and police helicopter dispatch enabled. Newer Wanted / 911
-                // owns these response services; disabling or blocking them can leave spawned
-                // emergency transports without a valid mission/driver task.
-                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);   // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                _armyVehicleDispatchSuppressed = false;
-                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
-                Log("Fort Zancudo Army and helicopter dispatch kept enabled for Newer Wanted / 911 traffic.");
-'@
-$newFort = @'
-                // Suppress only the Army vehicle dispatch while the player is inside Fort Zancudo.
-                // Legacy eDispatchType: DT_ArmyVehicle=14; service 15 is BikerBackup.
-                // Police helicopter service 2 remains untouched for Newer Wanted / 911 traffic.
-                Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                _armyVehicleDispatchSuppressed = true;
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
-                Log("Fort Zancudo Army dispatch suppressed; police helicopter dispatch left unchanged.");
-'@
-$core = Replace-Exact $core $oldFort $newFort 'Fort Zancudo dispatch service'
-$oldRestore = @'
-                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);  // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-'@
-$newRestore = @'
-                Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-'@
-$core = Replace-Exact $core $oldRestore $newRestore 'Fort Zancudo dispatch restore'
+# Patch the four dispatch calls individually; preserve police helicopter service 2.
+$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch disable'
+$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource block'
+$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch restore'
+$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource restore'
 $core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft reassert interval'
 
 $followStatusOld = 'IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)'
