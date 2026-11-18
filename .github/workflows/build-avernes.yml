@@ -1,106 +1,134 @@
-name: Build AvernesSowtware 1.4.4
+name: AvernesSowtware 1.4.4 Windows release
 
 on:
   push:
-    branches:
-      - work/1.4.4-build
+    branches: [work/1.4.4-build]
     paths:
-      - 'AvernesSowtware_v1.4.4_SOURCE.part-*'
       - '.github/workflows/build-avernes.yml'
+      - '.github/build-input/patches_1_4_4.patch.gz.b64'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  windows-release:
-    runs-on: windows-latest
-    timeout-minutes: 20
+  build-release:
+    runs-on: windows-2022
+    timeout-minutes: 40
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Reassemble and extract source archive
+      - name: Download verified v1.4.3 release source and package
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.3-RELEASE
+          path: ${{ runner.temp }}/base
+          repository: ${{ github.repository }}
+          run-id: 44100884419
+          github-token: ${{ github.token }}
+
+      - name: Reconstruct v1.4.3 baseline
         shell: pwsh
         run: |
-          $parts = @(Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Filter 'AvernesSowtware_v1.4.4_SOURCE.part-*' -File | Sort-Object Name)
-          if ($parts.Count -lt 2) { throw "Source archive chunks are missing. Found: $($parts.Count)" }
-          $archivePath = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.4_SOURCE.tar.gz'
-          $output = [System.IO.File]::Open($archivePath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
-          try {
-            foreach ($part in $parts) {
-              $bytes = [System.IO.File]::ReadAllBytes($part.FullName)
-              $output.Write($bytes, 0, $bytes.Length)
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base') -Filter 'AvernesSowtware_v1.4.3_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Verified v1.4.3 release ZIP missing.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src143'
+          Expand-Archive $releaseZip.FullName $extract -Force
+          $root = Join-Path $extract 'AvernesSowtware_v1.4.3'
+          if (-not (Test-Path (Join-Path $root 'src\Core\AvernesSowtwareScript.cs'))) { throw 'Unexpected v1.4.3 package root.' }
+          if (-not (Select-String -LiteralPath (Join-Path $root 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.3";' -Quiet)) { throw 'Baseline source is not 1.4.3.' }
+          git -C $root init -q
+          "AVERNE_ROOT=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Decode and apply v1.4.4 patch
+        shell: pwsh
+        run: |
+          @'
+          import base64, gzip, hashlib, os
+          from pathlib import Path
+          packed = base64.b64decode(Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_text(encoding='ascii').strip(), validate=True)
+          patch = gzip.decompress(packed)
+          if hashlib.sha256(patch).hexdigest() != '3944ad96fe43cba4c180fcaeb4823784b0fe948d0e72b76c8f3f2c064bd79643':
+              raise SystemExit('v1.4.4 patch SHA-256 mismatch')
+          Path(os.environ['RUNNER_TEMP'], 'v144.patch').write_bytes(patch)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode144.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'decode144.py')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.4 patch decode failed.' }
+          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v144.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.4 patch does not apply to verified v1.4.3 baseline.' }
+          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v144.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.4 patch application failed.' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'src\Core\AvernesSowtwareScript.cs') -SimpleMatch -Pattern 'private const string ProductVersion = "1.4.4";' -Quiet)) { throw 'Source version is not 1.4.4.' }
+
+      - name: Run v1.4.4 regression tests
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE='1'
+          Push-Location $env:AVERNE_ROOT
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { throw 'v1.4.4 regression tests failed.' }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $zip = Join-Path $env:RUNNER_TEMP 'shvdn.zip'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Copy-Item $pkg $zip -Force
+          Expand-Archive $zip $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'SHVDN API2 reference invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile and package v1.4.4
+        shell: pwsh
+        run: |
+          Push-Location $env:AVERNE_ROOT
+          & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            foreach ($f in @('BUILD_RELEASE.log','AvernesSowtware_Build.log')) {
+              if (Test-Path $f) { Get-Content $f -Raw | Write-Host }
             }
-          } finally { $output.Dispose() }
-          $projectRoot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_1_4_4_extract'
-          New-Item -ItemType Directory -Path $projectRoot -Force | Out-Null
-          tar.exe -xzf $archivePath -C $projectRoot
-          if ($LASTEXITCODE -ne 0) { throw 'Source archive extraction failed.' }
-          $project = Join-Path $projectRoot 'AvernesSowtware_v1.4.4'
-          if (!(Test-Path (Join-Path $project 'BUILD_RELEASE.bat'))) { throw 'Extracted AvernesSowtware source tree is incomplete.' }
-          "AVERNE_PROJECT_DIR=$project" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Pop-Location
+            throw 'v1.4.4 Windows release build failed.'
+          }
+          if (!(Test-Path 'dist\AvernesSowtware.dll') -or !(Test-Path 'dist\AvernesSowtware_v1.4.4_RELEASE.zip')) {
+            Pop-Location
+            throw 'v1.4.4 release outputs missing.'
+          }
+          if (Test-Path 'AvernesSowtware_Build.log') {
+            if ((Get-Content 'AvernesSowtware_Build.log' -Raw) -match 'warning CS\d+') {
+              Pop-Location
+              throw 'C# compiler warnings found.'
+            }
+          }
+          Pop-Location
 
-      - name: Run v1.4.4 source regression tests
+      - name: Validate release ZIP
         shell: pwsh
         run: |
-          Set-Location $env:AVERNE_PROJECT_DIR
-          python -m unittest discover -s tests -v
-
-      - name: Acquire official ScriptHookVDotNet2 API reference
-        shell: pwsh
-        run: |
-          $headers = @{ 'User-Agent' = 'AvernesSowtware-CI'; 'Accept' = 'application/vnd.github+json' }
-          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/scripthookvdotnet/scripthookvdotnet/releases/tags/v3.0.4' -Headers $headers
-          $asset = $release.assets | Where-Object { $_.name -eq 'ScriptHookVDotNet.zip' } | Select-Object -First 1
-          if ($null -eq $asset) { throw 'Official ScriptHookVDotNet release asset was not found.' }
-          $download = Join-Path $env:RUNNER_TEMP 'ScriptHookVDotNet.zip'
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $download -Headers @{ 'User-Agent' = 'AvernesSowtware-CI' }
-          $extract = Join-Path $env:RUNNER_TEMP 'ScriptHookVDotNet_api'
-          Expand-Archive -LiteralPath $download -DestinationPath $extract -Force
-          $reference = Get-ChildItem -LiteralPath $extract -Filter 'ScriptHookVDotNet2.dll' -File -Recurse | Select-Object -First 1
-          if ($null -eq $reference) { throw 'ScriptHookVDotNet2.dll was not present in the official archive.' }
-          "AVERNE_SHVDN_DLL=$($reference.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Compile, validate and package release
-        shell: pwsh
-        run: |
-          Push-Location $env:AVERNE_PROJECT_DIR
+          $path = Join-Path $env:AVERNE_ROOT 'dist\AvernesSowtware_v1.4.4_RELEASE.zip'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [IO.Compression.ZipFile]::OpenRead($path)
           try {
-            cmd.exe /d /c 'BUILD_RELEASE.bat . --no-pause'
-            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed with exit code $LASTEXITCODE" }
-            $dll = Join-Path $env:AVERNE_PROJECT_DIR 'dist\AvernesSowtware.dll'
-            $zip = Join-Path $env:AVERNE_PROJECT_DIR 'dist\AvernesSowtware_v1.4.4_RELEASE.zip'
-            if (!(Test-Path $dll) -or !(Test-Path $zip)) { throw 'Fresh DLL or release ZIP is missing.' }
-            $assembly = [System.Reflection.AssemblyName]::GetAssemblyName($dll)
-            if ($assembly.Name -ne 'AvernesSowtware') { throw "Unexpected assembly name: $($assembly.Name)" }
-            $dllHash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
-            $zipHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-            "DLL SHA256: $dllHash" | Add-Content (Join-Path $env:AVERNE_PROJECT_DIR 'BUILD_RELEASE_REPORT_RU.txt')
-            "ZIP SHA256: $zipHash" | Add-Content (Join-Path $env:AVERNE_PROJECT_DIR 'BUILD_RELEASE_REPORT_RU.txt')
-            "DLL bytes: $((Get-Item $dll).Length)" | Add-Content (Join-Path $env:AVERNE_PROJECT_DIR 'BUILD_RELEASE_REPORT_RU.txt')
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-            $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
-            try {
-              $entry = $archive.GetEntry('AvernesSowtware_v1.4.4/dist/AvernesSowtware.dll')
-              if ($null -eq $entry -or $entry.Length -le 0) { throw 'Release ZIP does not contain the newly compiled DLL.' }
-              $installer = $archive.GetEntry('AvernesSowtware_v1.4.4/Install_AvernesSowtware.bat')
-              if ($null -eq $installer) { throw 'Release ZIP is missing the installer.' }
-              if ($archive.Entries[0].FullName -ne 'AvernesSowtware_v1.4.4/Install_AvernesSowtware.bat') { throw 'Installer is not the first ZIP entry.' }
-            } finally { $archive.Dispose() }
-            Write-Host "Verified assembly: $($assembly.FullName)"
-            Write-Host "DLL SHA256: $dllHash"
-            Write-Host "ZIP SHA256: $zipHash"
-          } finally { Pop-Location }
+            $n = @($z.Entries | ForEach-Object { $_.FullName.Replace([char]92,'/') })
+            if ($n[0] -ne 'AvernesSowtware_v1.4.4/Install_AvernesSowtware.bat') { throw 'Installer is not first.' }
+            $dll = @($n | Where-Object { $_ -match '\.dll$' })
+            if ($dll.Count -ne 1 -or $dll[0] -ne 'AvernesSowtware_v1.4.4/dist/AvernesSowtware.dll') { throw 'Expected exactly one trainer DLL.' }
+            foreach ($f in @('docs/CHANGELOG_1_4_4_RU.md','tests/test_1_4_4_regressions.py','vehicle_catalog.json','Vehicles/vehicles.json','addons.json')) {
+              if (@($n | Where-Object { $_ -like "*/$f" }).Count -eq 0) { throw "Missing $f" }
+            }
+          } finally { $z.Dispose() }
 
-      - name: Upload release ZIP and build evidence
+      - name: Upload v1.4.4 release ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: AvernesSowtware_v1.4.4_RELEASE
+          name: AvernesSowtware-v1.4.4-RELEASE
+          path: ${{ env.AVERNE_ROOT }}/dist/AvernesSowtware_v1.4.4_RELEASE.zip
           if-no-files-found: error
-          retention-days: 14
-          path: |
-            ${{ runner.temp }}/AvernesSowtware_1_4_4_extract/AvernesSowtware_v1.4.4/dist/AvernesSowtware_v1.4.4_RELEASE.zip
-            ${{ runner.temp }}/AvernesSowtware_1_4_4_extract/AvernesSowtware_v1.4.4/BUILD_RELEASE_REPORT_RU.txt
-            ${{ runner.temp }}/AvernesSowtware_1_4_4_extract/AvernesSowtware_v1.4.4/BUILD_RELEASE.log
-            ${{ runner.temp }}/AvernesSowtware_1_4_4_extract/AvernesSowtware_v1.4.4/AvernesSowtware_Build.log
+          retention-days: 30
