@@ -43,6 +43,17 @@ class Hardening145Tests(unittest.TestCase):
         self.assertIn("ApplyNitroVelocityAssist(handle, maximumNitroSpeed);", VEHICLE)
         self.assertIn("_nitroBurstApplied = false;", VEHICLE)
 
+    def test_weapon_catalog_includes_recent_story_mode_dlc_and_uses_premium_finish(self):
+        catalog = method_body(CORE, "private static string[] BuildWeaponCatalog()")
+        for weapon in ("WEAPON_PISTOLXM3", "WEAPON_BATTLERIFLE", "WEAPON_SERVICECARBINE", "WEAPON_EMPLAUNCHER", "WEAPON_STUNGUN_MP"):
+            self.assertIn(weapon, catalog)
+        components = method_body(CORE, "private static string[] BuildWeaponComponentCatalog()")
+        self.assertIn("COMPONENT_BATTLERIFLE_CLIP_02", components)
+        self.assertIn("COMPONENT_SERVICECARBINE_CLIP_02", components)
+        self.assertIn("PremiumWeaponTint = 7", CORE)
+        finish = method_body(CORE, "private void ApplyWeaponFinishToCurrentLoadout()")
+        self.assertEqual(finish.count("0x8DECB02F88F428BCUL"), 1)
+
     def test_bodyguards_have_evasive_dive_cower_cover_and_bullet_reactions_disabled(self):
         body = method_body(CORE, "private void ApplyBodyguardCombatTactics(int handle)")
         self.assertIn("SET_PED_CAN_EVASIVE_DIVE", body)
@@ -104,10 +115,10 @@ class Hardening145Tests(unittest.TestCase):
         body = method_body(CORE, "private void SuppressActiveMilitaryCombat(Ped player)")
         self.assertIn("if (pilotInAircraft)", body)
         self.assertIn("if (!attackingPlayer) continue;", body)
-        self.assertIn("TASK_PLANE_MISSION", body)
-        self.assertIn("TASK_HELI_MISSION", body)
         self.assertIn("AddSeconds(5)", body)
         self.assertIn("AddSeconds(30)", body)
+        self.assertIn("TASK_PLANE_MISSION", body)
+        self.assertIn("TASK_HELI_MISSION", body)
         self.assertNotIn("if (!attackingPlayer && !pilotInAircraft) continue;", body)
 
     def test_franklin_ability_is_reenabled_while_driving(self):
@@ -126,7 +137,10 @@ class Hardening145Tests(unittest.TestCase):
     def test_non_hostile_ground_traffic_is_not_blanket_cleared(self):
         body = method_body(CORE, "private void SuppressActiveMilitaryCombat(Ped player)")
         self.assertIn("Non-hostile ground/911 dispatch vehicles keep their tasks", body)
+        self.assertIn("if (pilotInAircraft)", body)
         self.assertIn("if (!attackingPlayer) continue;", body)
+        self.assertIn("AddSeconds(5)", body)
+        self.assertIn("AddSeconds(30)", body)
 
 
 if __name__ == "__main__":
