@@ -119,7 +119,18 @@ class Hardening145Tests(unittest.TestCase):
         self.assertIn("AddSeconds(30)", body)
         self.assertIn("TASK_PLANE_MISSION", body)
         self.assertIn("TASK_HELI_MISSION", body)
+        self.assertIn("TASK_VEHICLE_DRIVE_WANDER", body)
+        self.assertIn("if (pedInVehicle)", body)
         self.assertNotIn("if (!attackingPlayer && !pilotInAircraft) continue;", body)
+
+    def test_fort_zancudo_keeps_newer_wanted_and_911_dispatch_enabled(self):
+        body = method_body(CORE, "private void UpdateFortZancudoArmyDispatch(Ped player, bool ignoreLawAndMilitary)")
+        self.assertIn("0xDC0F817884CDD856UL, 15, true", body)
+        self.assertIn("0x9B2BD3773123EA2FUL, 15, false", body)
+        self.assertIn("0xDC0F817884CDD856UL, 2, true", body)
+        self.assertIn("0x9B2BD3773123EA2FUL, 2, false", body)
+        self.assertNotIn("0xDC0F817884CDD856UL, 15, false", body)
+        self.assertNotIn("0x9B2BD3773123EA2FUL, 15, true", body)
 
     def test_franklin_ability_is_reenabled_while_driving(self):
         body = method_body(CORE, "private void ApplyPlayerSettings(Ped ped)")
@@ -136,7 +147,7 @@ class Hardening145Tests(unittest.TestCase):
 
     def test_non_hostile_ground_traffic_is_not_blanket_cleared(self):
         body = method_body(CORE, "private void SuppressActiveMilitaryCombat(Ped player)")
-        self.assertIn("Non-hostile ground/911 dispatch vehicles keep their tasks", body)
+        self.assertIn("passengers and non-hostile Newer Wanted / 911 traffic keep their tasks", body)
         self.assertIn("if (pilotInAircraft)", body)
         self.assertIn("if (!attackingPlayer) continue;", body)
         self.assertIn("AddSeconds(5)", body)
