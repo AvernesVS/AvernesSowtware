@@ -581,21 +581,10 @@ Write-Text $corePath $core
 
 $vehiclePath = 'src/Managers/VehicleSystems.cs'
 $vehicle = Read-Text $vehiclePath
-$oldInitialRepair = @'
-            Function.Call(Hash.SET_VEHICLE_FIXED, vehicleHandle);
-            Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
-            for (int windowIndex = 0; windowIndex < 8; windowIndex++)
-'@
-$newInitialRepair = @'
-            Function.Call(Hash.SET_VEHICLE_FIXED, vehicleHandle);
-            Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
-            Function.Call(Hash.SET_VEHICLE_DIRT_LEVEL, vehicleHandle, 0.0f);
-            Function.Call((Hash)0xE91F1B65F2B48D57UL, vehicleHandle); // REMOVE_DECALS_FROM_VEHICLE
-            for (int windowIndex = 0; windowIndex < 8; windowIndex++)
-'@
-$vehicle = Replace-Exact $vehicle $oldInitialRepair $newInitialRepair 'initial God Mode cosmetic repair'
 $oldRefresh = @'
                 Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+                Function.Call(Hash.SET_VEHICLE_DIRT_LEVEL, vehicleHandle, 0.0f);
+                Function.Call((Hash)0xE91F1B65F2B48D57UL, vehicleHandle); // REMOVE_DECALS_FROM_VEHICLE
                 for (int windowIndex = 0; windowIndex < 8; windowIndex++)
 '@
 $newRefresh = @'
