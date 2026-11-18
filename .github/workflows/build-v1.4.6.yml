@@ -72,14 +72,28 @@ jobs:
           if ($code -ne 0) { throw 'v1.4.6 regression tests failed.' }
 
       - name: Build and package v1.4.6
-        shell: cmd
+        shell: pwsh
         run: |
-          cd /d "%SOURCE_ROOT%"
-          call BUILD_RELEASE.bat "" --no-pause
-          if errorlevel 1 exit /b 1
-          if not exist "dist\AvernesSowtware_v1.4.6_RELEASE.zip" exit /b 1
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              foreach ($f in @('AvernesSowtware_Build.log','BUILD_RELEASE.log','BUILD_RELEASE_REPORT_RU.txt')) {
+                if (Test-Path $f) { Write-Host "===== $f ====="; Get-Content $f -Raw | Write-Host }
+              }
+              throw "Windows C# build failed with exit code $code."
+            }
+            if (-not (Test-Path 'dist\AvernesSowtware_v1.4.6_RELEASE.zip')) {
+              foreach ($f in @('AvernesSowtware_Build.log','BUILD_RELEASE.log','BUILD_RELEASE_REPORT_RU.txt')) {
+                if (Test-Path $f) { Write-Host "===== $f ====="; Get-Content $f -Raw | Write-Host }
+              }
+              throw 'Expected v1.4.6 release ZIP was not produced.'
+            }
+          } finally { Pop-Location }
 
       - name: Upload release ZIP and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: AvernesSowtware-v1.4.6-Windows-Release
@@ -88,5 +102,5 @@ jobs:
             ${{ env.SOURCE_ROOT }}/BUILD_RELEASE_REPORT_RU.txt
             ${{ env.SOURCE_ROOT }}/BUILD_RELEASE.log
             ${{ env.SOURCE_ROOT }}/AvernesSowtware_Build.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
