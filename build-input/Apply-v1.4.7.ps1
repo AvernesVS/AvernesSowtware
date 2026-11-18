@@ -152,8 +152,8 @@ $core = Replace-Exact $core '                // Keep Army vehicle and police hel
                 // Block only Army vehicle response while the player is inside Fort Zancudo.
                 // Police helicopter dispatch (service 2) remains untouched for Newer Wanted / 911.
                 Function.Call((Hash)0xDC0F817884CDD856UL, 15, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, true);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
                 _armyVehicleDispatchSuppressed = true;
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, true);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
                 _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
                 Log("Fort Zancudo Army dispatch suppressed; police helicopter dispatch left unchanged.");
 '@ 'Fort Zancudo Army dispatch suppression'
@@ -322,15 +322,24 @@ Write-Text $startPath ($start.Replace('1.4.6','1.4.7'))
 $changelog = @'
 # AvernesSowtware 1.4.7
 
-## Изменения
-- Логи закреплены в scripts/AvernesSowtware_Logs: session.log, error.log, crash.log; install.log остаётся рядом.
-- Запись логов повторяется при временной блокировке файла; перенаправление в AppData/Documents отключено.
-- Убран вызов GET_VEHICLE_MOD_COLOR_2 из Max Tuning; вторичный цвет читается через GET_VEHICLE_COLOURS.
-- Max Tuning отклоняется в воздухе.
-- Nitro отключён для Toreador; импульс наземного нитро не применяется в воздухе.
+## Доработки
+- Runtime-логи закреплены в scripts/AvernesSowtware_Logs: session.log, error.log и crash.log; install.log остаётся в той же папке.
+- Запись логов выполняет повторные попытки; автоматическое перенаправление логов в AppData/Documents отключено.
+- Max Tuning не вызывает неподдерживаемый native вторичного цвета и отклоняет применение в воздухе.
+- Для телохранителей добавлено разнесённое двухколонное построение, чтобы они не преследовали одну и ту же точку.
+- Массовое увольнение телохранителей выполняется последовательно с увеличенным интервалом между нативными операциями.
+- Автораскрытие парашюта выдаёт корректный предмет GADGET_PARACHUTE перед вызовом раскрытия.
+- Внутри Fort Zancudo блокируется создание армейских машин реагирования; диспетчеризация полицейских вертолётов для Newer Wanted / 911 не меняется.
+- Задание ухода для уже находящихся рядом армейских самолётов/вертолётов повторно подтверждается чаще.
+- Vehicle God Mode повторно устраняет деформацию, грязь и decals автомобиля.
 - Добавлены отдельная мойка автомобиля и переключатель High-Speed Stability.
+- Nitro отключён для Toreador; импульс нитро в воздухе не применяется.
 
-Игровые тесты GTA V для этой сборки не выполнялись.
+## Ограничения проверки
+- Максимальная скорость Nitro выше примерно 335 км/ч требует отдельного игрового измерения; по коду достижение 1200 км/ч не подтверждено.
+- Окно GTA V запускается в режиме, заданном самой игрой/её настройками; trainer не меняет разрешение и оконный режим.
+- Franklin Ability в Toreador требует игрового теста.
+- Игровые тесты GTA V для этой сборки не выполнялись.
 '@
 Write-Text 'docs/CHANGELOG_1_4_7_RU.md' $changelog
 Write-Host 'Applied v1.4.7 source changes.'
