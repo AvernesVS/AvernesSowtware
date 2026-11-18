@@ -52,9 +52,19 @@ jobs:
             [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
           }
 
-          $payload = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-final.patch.gz.b64'
-          if (-not (Test-Path -LiteralPath $payload)) { throw 'v1.4.8 correction patch payload is missing.' }
-          $compressed = [Convert]::FromBase64String([IO.File]::ReadAllText($payload).Trim())
+          $partPaths = @(
+            'build-input/v148-final.patch.gz.b64.001',
+            'build-input/v148-final.patch.gz.b64.002',
+            'build-input/v148-final.patch.gz.b64.003',
+            'build-input/v148-final.patch.gz.b64.004'
+          )
+          $base64Builder = New-Object System.Text.StringBuilder
+          foreach ($relative in $partPaths) {
+            $partPath = Join-Path $env:GITHUB_WORKSPACE $relative
+            if (-not (Test-Path -LiteralPath $partPath)) { throw "v1.4.8 patch part is missing: $relative" }
+            [void]$base64Builder.Append(([IO.File]::ReadAllText($partPath).Trim()))
+          }
+          $compressed = [Convert]::FromBase64String($base64Builder.ToString())
           $inputStream = New-Object IO.MemoryStream(,$compressed)
           $gzip = New-Object IO.Compression.GzipStream($inputStream,[IO.Compression.CompressionMode]::Decompress)
           $outputStream = New-Object IO.MemoryStream
@@ -64,7 +74,7 @@ jobs:
           $outputStream.Dispose()
           [IO.File]::WriteAllBytes($patchPath,$patchBytes)
           $patchHash = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($patchHash -ne 'f6b81f9a0295304156cc2dff96d912eb846bd4b54dcac9dbaf07121bd63ae7f0') {
+          if ($patchHash -ne '5a1eecf9d3e5c8d054a60d9455ec7d5f0b969bca41fdf26c2309e9af2a4998bf') {
             throw "Patch checksum mismatch: $patchHash"
           }
 
