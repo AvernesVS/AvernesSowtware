@@ -181,7 +181,6 @@ $newLogValidator = @'
             Error("1.4.7 fixed scripts log directory and session/error/crash logs are missing.");
 '@
 $validator = $validator.Substring(0,$oldLogStart) + $newLogValidator + $validator.Substring($oldLogEnd)
-$validator = Replace-Exact $validator $oldLogValidator $newLogValidator 'legacy log validator assertion'
 $oldStart = $validator.IndexOf('        if (mainSource.IndexOf("0x81592BE4E4746D88UL"')
 $oldEnd = $validator.IndexOf('        if (persistenceSource.IndexOf("TryAtomicWriteFile"', $oldStart)
 if ($oldStart -lt 0 -or $oldEnd -lt 0) { throw 'Could not locate old validator assertions.' }
