@@ -131,8 +131,18 @@ $oldNormalFollow = @'
 '@
 $core = Replace-Exact $core $oldNormalFollow '                        IssueBodyguardFollowTask(handle, player.Handle);' 'normal bodyguard follow'
 
-$core = Replace-Exact $core '            _bodyguardDismissalDetachedHandles.Remove(handle);' ('            _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'dead bodyguard phase cleanup'
-$core = Replace-Exact $core '                        _bodyguardDismissalDetachedHandles.Remove(handle);' ('                        _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '                        _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'queued dead bodyguard phase cleanup'
+$retireStart = $core.IndexOf('private void RetireDeadBodyguardHandle')
+$queueStart = $core.IndexOf('private void QueueBodyguardDismissal', $retireStart)
+if ($retireStart -lt 0 -or $queueStart -lt 0) { throw 'Could not locate RetireDeadBodyguardHandle.' }
+$retireBlock = $core.Substring($retireStart, $queueStart - $retireStart)
+$retireBlock = Replace-Exact $retireBlock '            _bodyguardDismissalDetachedHandles.Remove(handle);' ('            _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'dead bodyguard phase cleanup'
+$core = $core.Substring(0,$retireStart) + $retireBlock + $core.Substring($queueStart)
+
+$pendingStart = $core.IndexOf('private void ProcessPendingBodyguardDismissals')
+$releaseStart = $core.IndexOf('private void ReleaseBodyguardsOnScriptAbort', $pendingStart)
+if ($pendingStart -lt 0 -or $releaseStart -lt 0) { throw 'Could not locate ProcessPendingBodyguardDismissals.' }
+$pendingBlock = $core.Substring($pendingStart, $releaseStart - $pendingStart)
+$pendingBlock = Replace-Exact $pendingBlock '                        _bodyguardDismissalDetachedHandles.Remove(handle);' ('                        _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '                        _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'queued dead bodyguard phase cleanup'
 $oldDismissal = @'
                     if (!_bodyguardDismissalDetachedHandles.Contains(handle))
                     {
@@ -204,8 +214,8 @@ $newDismissal = @'
                     _bodyguardDismissalGroupRemovedHandles.Remove(handle);
                     _queuedBodyguardDismissalHandles.Remove(handle);
 '@
-$core = Replace-Exact $core $oldDismissal $newDismissal 'three-stage bodyguard dismissal'
-$core = $core.Replace('DateTime.UtcNow.AddMilliseconds(200)', 'DateTime.UtcNow.AddMilliseconds(650)')
+$pendingBlock = Replace-Exact $pendingBlock $oldDismissal $newDismissal 'three-stage bodyguard dismissal'
+$pendingBlock = $pendingBlock.Replace('DateTime.UtcNow.AddMilliseconds(200)', 'DateTime.UtcNow.AddMilliseconds(650)')
 $oldDismissCatchCleanup = @'
                     _bodyguardDismissalDetachedHandles.Remove(handle);
                     _queuedBodyguardDismissalHandles.Remove(handle);
@@ -217,9 +227,14 @@ $newDismissCatchCleanup = @'
                     _queuedBodyguardDismissalHandles.Remove(handle);
                     LogException("Process bodyguard dismissal " + handle, ex);
 '@
-$core = Replace-Exact $core $oldDismissCatchCleanup $newDismissCatchCleanup 'bodyguard dismissal exception cleanup'
-$core = Replace-Exact $core '            _bodyguardDismissalDetachedHandles.Clear();' ('            _bodyguardDismissalDetachedHandles.Clear();' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Clear();') 'bodyguard abort cleanup'
+$pendingBlock = Replace-Exact $pendingBlock $oldDismissCatchCleanup $newDismissCatchCleanup 'bodyguard dismissal exception cleanup'
+$core = $core.Substring(0,$pendingStart) + $pendingBlock + $core.Substring($releaseStart)
 
+$releaseStart = $core.IndexOf('private void ReleaseBodyguardsOnScriptAbort')
+$parachuteStart = $core.IndexOf('private void ProcessAutomaticParachuteDeployment', $releaseStart)
+$releaseBlock = $core.Substring($releaseStart, $parachuteStart - $releaseStart)
+$releaseBlock = Replace-Exact $releaseBlock '            _bodyguardDismissalDetachedHandles.Clear();' ('            _bodyguardDismissalDetachedHandles.Clear();' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Clear();') 'bodyguard abort cleanup'
+$core = $core.Substring(0,$releaseStart) + $releaseBlock + $core.Substring($parachuteStart)
 $oldParachute = '                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED'
 $newParachute = @'
                     uint parachuteGadget = GetHash("GADGET_PARACHUTE");
