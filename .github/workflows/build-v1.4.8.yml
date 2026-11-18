@@ -86,6 +86,45 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply the reviewed v1.4.8 patch.' }
           } finally { Pop-Location }
 
+          # Normalize all files touched by the final hotfix to UTF-8/LF before applying it.
+          $hotfixFiles = @(
+            'build/ReleasePackager.cs',
+            'build/ReleaseValidator.cs',
+            'docs/CHANGELOG_1_4_8_RU.md',
+            'docs/TEST_REPORT_1_4_8_RU.md',
+            'src/Core/AvernesSowtwareScript.cs',
+            'tests/test_1_4_8_regressions.py'
+          )
+          foreach ($relative in $hotfixFiles) {
+            $path = Join-Path $sourceRoot $relative
+            $text = [IO.File]::ReadAllText($path)
+            $text = $text.Replace("`r`n","`n").Replace("`r","`n")
+            [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
+          }
+
+          $hotfixPath = Join-Path $env:RUNNER_TEMP 'v148-hotfix.patch'
+          $hotfixEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-hotfix.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $hotfixEncodedPath)) { throw 'v1.4.8 final hotfix patch is missing.' }
+          $hotfixCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($hotfixEncodedPath).Trim()))
+          $hotfixInput = New-Object IO.MemoryStream(,$hotfixCompressed)
+          $hotfixGzip = New-Object IO.Compression.GzipStream($hotfixInput,[IO.Compression.CompressionMode]::Decompress)
+          $hotfixOutput = New-Object IO.MemoryStream
+          try { $hotfixGzip.CopyTo($hotfixOutput) } finally { $hotfixGzip.Dispose(); $hotfixInput.Dispose() }
+          $hotfixBytes = $hotfixOutput.ToArray()
+          $hotfixOutput.Dispose()
+          [IO.File]::WriteAllBytes($hotfixPath,$hotfixBytes)
+          $hotfixHash = (Get-FileHash -LiteralPath $hotfixPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hotfixHash -ne '97f3c0e7006aa82a9b52efd3ba9d973333be4e3da62ccd9085952661b73a1c8e') {
+            throw "v1.4.8 hotfix checksum mismatch: $hotfixHash"
+          }
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $hotfixPath
+            if ($LASTEXITCODE -ne 0) { throw 'Final v1.4.8 hotfix does not match the reviewed source snapshot.' }
+            & git apply --ignore-space-change --whitespace=nowarn $hotfixPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply the final v1.4.8 hotfix.' }
+          } finally { Pop-Location }
+
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
