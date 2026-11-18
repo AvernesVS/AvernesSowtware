@@ -245,15 +245,27 @@ $legacyTests = Replace-Exact $legacyTests '        self.assertIn("0x81592BE4E474
         matte = method_body(VEHICLE, "private void ApplyMattePaintPreservingColor")
         self.assertIn("GET_VEHICLE_COLOURS", matte)
         self.assertNotIn("0x81592BE4E4746D88UL", matte)' 'legacy paint native expectations'
-$legacyTests = Replace-Exact $legacyTests '        self.assertIn('"AvernesSowtware_errors.log"', CORE)
-        self.assertIn('"AvernesSowtware_crashes.log"', CORE)' '        self.assertIn('"error.log"', CORE)
+$oldDiagnosticAssertions = @'
+        self.assertIn('"AvernesSowtware_errors.log"', CORE)
+        self.assertIn('"AvernesSowtware_crashes.log"', CORE)
+'@
+$newDiagnosticAssertions = @'
+        self.assertIn('"error.log"', CORE)
         self.assertIn('"crash.log"', CORE)
-        self.assertIn('"session.log"', CORE)' 'legacy diagnostic filenames'
+        self.assertIn('"session.log"', CORE)
+'@
+$legacyTests = Replace-Exact $legacyTests $oldDiagnosticAssertions $newDiagnosticAssertions 'legacy diagnostic filenames'
 $legacyTests = Replace-Exact $legacyTests '        self.assertIn("_activeLogDirectory = fallbackDir", append)
         self.assertIn("GetEffectiveLogPath(path)", append)' '        self.assertNotIn("fallbackDir", append)
         self.assertIn("attempt < 3", append)
         self.assertIn("GetEffectiveLogPath(path)", append)' 'legacy log fallback expectation'
-$legacyTests = Replace-Exact $legacyTests 'r'ProductVersion\s*=\s*"1\.4\.6"' 'r'ProductVersion\s*=\s*"1\.4\.7"' 'legacy source version expectation'
+$oldVersionAssertion = @'
+self.assertRegex(CORE, r'ProductVersion\s*=\s*"1\.4\.6"')
+'@
+$newVersionAssertion = @'
+self.assertRegex(CORE, r'ProductVersion\s*=\s*"1\.4\.7"')
+'@
+$legacyTests = Replace-Exact $legacyTests $oldVersionAssertion $newVersionAssertion 'legacy source version expectation'
 Write-Text $legacyTestPath $legacyTests
 
 
