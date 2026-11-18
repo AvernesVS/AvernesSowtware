@@ -64,7 +64,7 @@ jobs:
           $outputStream.Dispose()
           [IO.File]::WriteAllBytes($patchPath,$patchBytes)
           $patchHash = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($patchHash -ne '5a1eecf9d3e5c8d054a60d9455ec7d5f0b969bca41fdf26c2309e9af2a4998bf') {
+          if ($patchHash -ne 'f6b81f9a0295304156cc2dff96d912eb846bd4b54dcac9dbaf07121bd63ae7f0') {
             throw "Patch checksum mismatch: $patchHash"
           }
 
