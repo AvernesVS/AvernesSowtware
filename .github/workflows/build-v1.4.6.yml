@@ -1,0 +1,67 @@
+name: Build AvernesSowtware v1.4.6
+
+on:
+  push:
+    branches:
+      - release/v1.4.6-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout release inputs
+        uses: actions/checkout@v4
+
+      - name: Prepare source archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'avernes146'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          Expand-Archive -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'AvernesSowtware_v1.4.5_INSTALLABLE.zip') -DestinationPath $root -Force
+          $project = Get-ChildItem -Path $root -Filter 'AvernesSowtware.csproj' -File -Recurse | Select-Object -First 1
+          if (-not $project) {
+            $nested = Get-ChildItem -Path $root -Filter '*.zip' -File -Recurse
+            foreach ($archive in $nested) {
+              $dest = Join-Path $archive.DirectoryName ([IO.Path]::GetFileNameWithoutExtension($archive.Name))
+              Expand-Archive -LiteralPath $archive.FullName -DestinationPath $dest -Force
+            }
+            $project = Get-ChildItem -Path $root -Filter 'AvernesSowtware.csproj' -File -Recurse | Select-Object -First 1
+          }
+          if (-not $project) { throw 'The v1.4.5 archive does not contain AvernesSowtware.csproj; cannot safely apply the v1.4.6 patch.' }
+          $sourceRoot = $project.Directory.FullName
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'build-input/AvernesSowtware_v1.4.6_working.patch') (Join-Path $sourceRoot 'v1.4.6.patch')
+          Push-Location $sourceRoot
+          try {
+            git init -q
+            git apply --check v1.4.6.patch
+            git apply v1.4.6.patch
+          } finally { Pop-Location }
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Prepared source root: $sourceRoot"
+          Get-ChildItem -Path $sourceRoot -Force | Select-Object Name,Mode
+
+      - name: Build and package v1.4.6
+        shell: cmd
+        run: |
+          cd /d "%SOURCE_ROOT%"
+          call BUILD_RELEASE.bat
+          if errorlevel 1 exit /b 1
+          if not exist "dist\AvernesSowtware_v1.4.6_RELEASE.zip" exit /b 1
+
+      - name: Upload release ZIP and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.6-Windows-Release
+          path: |
+            ${{ env.SOURCE_ROOT }}/dist/AvernesSowtware_v1.4.6_RELEASE.zip
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE_REPORT_RU.txt
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE.log
+            ${{ env.SOURCE_ROOT }}/AvernesSowtware_Build.log
+          if-no-files-found: error
+          retention-days: 30
