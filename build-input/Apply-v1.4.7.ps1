@@ -170,6 +170,20 @@ foreach ($relative in @('BUILD_RELEASE.bat','build/Build.bat')) {
 $validatorPath = 'build/ReleaseValidator.cs'
 $validator = Read-Text $validatorPath
 $validator = Replace-Exact $validator 'ProductVersion = \"1.4.6\"' 'ProductVersion = \"1.4.7\"' 'validator version'
+$oldLogValidator = @'
+        if (File.ReadAllText(Path.Combine(root, "src/Core/SettingsPersistence.cs")).IndexOf("ResolveWritableLogDirectory", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("AvernesSowtware_errors.log", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("AvernesSowtware_crashes.log", StringComparison.Ordinal) < 0)
+            Error("1.4.5 writable log fallback and separate error/crash logs are missing.");
+'@
+$newLogValidator = @'
+        if (File.ReadAllText(Path.Combine(root, "src/Core/SettingsPersistence.cs")).IndexOf("ResolveWritableLogDirectory", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("\"session.log\"", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("\"error.log\"", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("\"crash.log\"", StringComparison.Ordinal) < 0)
+            Error("1.4.7 fixed scripts log directory and session/error/crash logs are missing.");
+'@
+$validator = Replace-Exact $validator $oldLogValidator $newLogValidator 'legacy log validator assertion'
 $oldStart = $validator.IndexOf('        if (mainSource.IndexOf("0x81592BE4E4746D88UL"')
 $oldEnd = $validator.IndexOf('        if (persistenceSource.IndexOf("TryAtomicWriteFile"', $oldStart)
 if ($oldStart -lt 0 -or $oldEnd -lt 0) { throw 'Could not locate old validator assertions.' }
