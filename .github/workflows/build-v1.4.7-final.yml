@@ -43,6 +43,12 @@ jobs:
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "V147_BASE_DLL_SHA256=$env:V147_BASE_DLL_SHA256" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           $env:SOURCE_ROOT = $sourceRoot
+          # The baseline RuntimeDiagnostics.cs is CRLF while the corrective patch is LF.
+          # Normalize this one source file so git apply can match its context deterministically.
+          $diagnosticsPath = Join-Path $sourceRoot 'src/Core/RuntimeDiagnostics.cs'
+          $diagnosticsText = [IO.File]::ReadAllText($diagnosticsPath)
+          $diagnosticsText = $diagnosticsText.Replace("`r`n","`n").Replace("`r","`n")
+          [IO.File]::WriteAllText($diagnosticsPath,$diagnosticsText,(New-Object Text.UTF8Encoding($false)))
           $patchB64 = Join-Path $env:GITHUB_WORKSPACE 'build-input/v147_final_changes.patch.gz.b64'
           if (-not (Test-Path -LiteralPath $patchB64)) { throw 'Final correction patch is missing.' }
           $compressed = [Convert]::FromBase64String([IO.File]::ReadAllText($patchB64).Trim())
