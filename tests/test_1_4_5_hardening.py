@@ -100,11 +100,14 @@ class Hardening145Tests(unittest.TestCase):
         self.assertIn("if (_settings.SuperJump)", body)
         self.assertLess(body.index("if (_settings.SuperJump)"), body.index("FORCE_PED_TO_OPEN_PARACHUTE"))
 
-    def test_fort_zancudo_only_redirects_hostile_aircraft(self):
+    def test_fort_zancudo_redirects_aircraft_without_clearing_ambient_ground_traffic(self):
         body = method_body(CORE, "private void SuppressActiveMilitaryCombat(Ped player)")
+        self.assertIn("if (pilotInAircraft)", body)
         self.assertIn("if (!attackingPlayer) continue;", body)
         self.assertIn("TASK_PLANE_MISSION", body)
         self.assertIn("TASK_HELI_MISSION", body)
+        self.assertIn("AddSeconds(5)", body)
+        self.assertIn("AddSeconds(30)", body)
         self.assertNotIn("if (!attackingPlayer && !pilotInAircraft) continue;", body)
 
     def test_franklin_ability_is_reenabled_while_driving(self):
@@ -120,9 +123,9 @@ class Hardening145Tests(unittest.TestCase):
         append = method_body(CORE, "private void AppendLogFile(string path, string content)")
         self.assertNotIn("Flush(true)", append)
 
-    def test_non_hostile_aircraft_and_911_traffic_are_not_blanket_cleared(self):
+    def test_non_hostile_ground_traffic_is_not_blanket_cleared(self):
         body = method_body(CORE, "private void SuppressActiveMilitaryCombat(Ped player)")
-        self.assertIn("Never clear ambient aircraft/dispatch tasks", body)
+        self.assertIn("Non-hostile ground/911 dispatch vehicles keep their tasks", body)
         self.assertIn("if (!attackingPlayer) continue;", body)
 
 
