@@ -1,0 +1,140 @@
+name: Build AvernesSowtware v1.4.8 Windows
+
+on:
+  push:
+    branches:
+      - release/v1.4.8-stabilization
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout release patch
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.4.7 full baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.7-Full-Windows-Release
+          path: ${{ runner.temp }}/base147
+          repository: ${{ github.repository }}
+          run-id: 44336539721
+          github-token: ${{ github.token }}
+
+      - name: Prepare v1.4.8 source and apply reviewed patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base147') -Filter 'AvernesSowtware_v1.4.7_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Verified v1.4.7 source archive is missing.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src148'
+          Expand-Archive -LiteralPath $releaseZip.FullName -DestinationPath $extract -Force
+          $sourceRoot = Join-Path $extract 'AvernesSowtware_v1.4.7'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.4.7 source tree is incomplete.' }
+          $baselineDll = Join-Path $sourceRoot 'dist/AvernesSowtware.dll'
+          if (-not (Test-Path $baselineDll)) { throw 'Baseline DLL is missing; refusing to package an unverified binary.' }
+          $baselineHash = (Get-FileHash -LiteralPath $baselineDll -Algorithm SHA256).Hash
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "V148_BASE_DLL_SHA256=$baselineHash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          # The original archive carries CRLF in this file; normalize only patched C# files
+          # so the reviewed patch applies identically on each Windows runner.
+          foreach ($relative in @('src/Core/AvernesSowtwareScript.cs','src/Core/RuntimeDiagnostics.cs','src/Managers/VehicleSystems.cs')) {
+            $path = Join-Path $sourceRoot $relative
+            $text = [IO.File]::ReadAllText($path)
+            $text = $text.Replace("`r`n","`n").Replace("`r","`n")
+            [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
+          }
+
+          $payload = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-final.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $payload)) { throw 'v1.4.8 correction patch payload is missing.' }
+          $compressed = [Convert]::FromBase64String([IO.File]::ReadAllText($payload).Trim())
+          $inputStream = New-Object IO.MemoryStream(,$compressed)
+          $gzip = New-Object IO.Compression.GzipStream($inputStream,[IO.Compression.CompressionMode]::Decompress)
+          $outputStream = New-Object IO.MemoryStream
+          try { $gzip.CopyTo($outputStream) } finally { $gzip.Dispose(); $inputStream.Dispose() }
+          $patchPath = Join-Path $env:RUNNER_TEMP 'v148-final.patch'
+          $patchBytes = $outputStream.ToArray()
+          $outputStream.Dispose()
+          [IO.File]::WriteAllBytes($patchPath,$patchBytes)
+          $patchHash = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($patchHash -ne '5a1eecf9d3e5c8d054a60d9455ec7d5f0b969bca41fdf26c2309e9af2a4998bf') {
+            throw "Patch checksum mismatch: $patchHash"
+          }
+
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Reviewed v1.4.8 patch does not match the v1.4.7 baseline.' }
+            & git apply --ignore-space-change --whitespace=nowarn $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply the reviewed v1.4.8 patch.' }
+          } finally { Pop-Location }
+
+          $main = Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'
+          if (-not (Select-String -Path $main -Pattern 'ProductVersion = "1.4.8"' -Quiet)) { throw 'Source version marker was not updated.' }
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/RuntimeDiagnostics.cs'))) { throw 'Runtime diagnostics source file is missing.' }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run complete regression suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install pytest.' }
+          Push-Location $env:SOURCE_ROOT
+          try {
+            python -m pytest -q tests
+            if ($LASTEXITCODE -ne 0) { throw 'Regression suite failed.' }
+          } finally { Pop-Location }
+
+      - name: Compile and package v1.4.8 on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              foreach ($f in @('AvernesSowtware_Build.log','BUILD_RELEASE.log','BUILD_RELEASE_REPORT_RU.txt')) {
+                if (Test-Path $f) { Write-Host "===== $f ====="; Get-Content $f -Raw | Write-Host }
+              }
+              throw "v1.4.8 Windows C# build failed with exit code $code."
+            }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.4.8_RELEASE.zip'
+            if (-not (Test-Path $dll)) { throw 'Newly compiled v1.4.8 DLL is missing.' }
+            if (-not (Test-Path $zip)) { throw 'v1.4.8 release ZIP was not produced.' }
+            $dllHash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            if ($dllHash -eq $env:V148_BASE_DLL_SHA256) { throw 'Compiled DLL hash matches the old v1.4.7 binary.' }
+            "V148_DLL_SHA256=$dllHash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } finally { Pop-Location }
+
+      - name: Upload compiled v1.4.8 ZIP and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.8-Windows-Release
+          path: |
+            ${{ env.SOURCE_ROOT }}/dist/AvernesSowtware_v1.4.8_RELEASE.zip
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE_REPORT_RU.txt
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE.log
+            ${{ env.SOURCE_ROOT }}/AvernesSowtware_Build.log
+          if-no-files-found: warn
+          retention-days: 30
