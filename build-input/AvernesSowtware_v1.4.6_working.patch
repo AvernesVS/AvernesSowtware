@@ -518,7 +518,6 @@ index 9a417b5..21617bd 100644
          private readonly string _errorLogPath;
          private readonly string _crashReportPath;
          private readonly object _logSync = new object();
-
 @@ -377,6 +377,7 @@ namespace AvernesSowtware
              _savedVehiclesSlotsDirectory = Path.Combine(_vehiclesDirectory, "SavedVehicles");
              _savedVehiclesManifestPath = Path.Combine(_savedVehiclesSlotsDirectory, "index.json");
