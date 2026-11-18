@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/build-avernes.yml'
       - '.github/build-input/patches_1_4_4.patch.gz.b64'
+      - 'tests/test_1_4_3_regressions.py'
   workflow_dispatch:
 
 permissions:
@@ -47,8 +48,7 @@ jobs:
           @'
           import gzip, hashlib, os
           from pathlib import Path
-          packed = Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_bytes()
-          patch = gzip.decompress(packed)
+          patch = gzip.decompress(Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_bytes())
           if hashlib.sha256(patch).hexdigest() != 'fb07ad42c9e580fa809cb6f3a6ae409eb33437a7b8c8227c0b69cf4fee3a2f51':
               raise SystemExit('v1.4.4 patch SHA-256 mismatch')
           Path(os.environ['RUNNER_TEMP'], 'v144.patch').write_bytes(patch)
@@ -65,6 +65,9 @@ jobs:
         shell: pwsh
         run: |
           $env:PYTHONDONTWRITEBYTECODE='1'
+          $testDir = Join-Path $env:AVERNE_ROOT 'tests'
+          New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tests\test_1_4_3_regressions.py') (Join-Path $testDir 'test_1_4_3_regressions.py') -Force
           Push-Location $env:AVERNE_ROOT
           python -m unittest discover -s tests -p 'test_*.py' -v
           $code = $LASTEXITCODE
