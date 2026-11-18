@@ -38,6 +38,27 @@ $restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch', $up
 $updateBlock = $core.Substring($updateStart, $restoreStart - $updateStart)
 $updateBlock = Replace-Exact $updateBlock '_armyVehicleDispatchSuppressed = false;' '_armyVehicleDispatchSuppressed = true;' 'Fort Zancudo suppression state'
 $core = $core.Substring(0,$updateStart) + $updateBlock + $core.Substring($restoreStart)
+$updateStart = $core.IndexOf('private void UpdateFortZancudoArmyDispatch')
+$restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch', $updateStart)
+$updateBlock = $core.Substring($updateStart, $restoreStart - $updateStart)
+$updateBlock = Replace-Exact $updateBlock '                // Keep Army vehicle and police helicopter dispatch enabled. Newer Wanted / 911
+                // owns these response services; disabling or blocking them can leave spawned
+                // emergency transports without a valid mission/driver task.' @'
+                // Suppress only Army vehicle dispatch inside Fort Zancudo.
+                // Legacy DT_ArmyVehicle=14; service 15 is BikerBackup.
+                // Police helicopter dispatch is left entirely unchanged.
+'@ 'Fort Zancudo dispatch comment'
+$updateBlock = Replace-Exact $updateBlock '                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);   // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter' '' 'leave police helicopter dispatch untouched'
+$updateBlock = Replace-Exact $updateBlock '                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' '' 'leave police helicopter resource creation untouched'
+$updateBlock = Replace-Exact $updateBlock 'Log("Fort Zancudo Army and helicopter dispatch kept enabled for Newer Wanted / 911 traffic.");' 'Log("Fort Zancudo Army dispatch suppressed; police helicopter dispatch left unchanged.");' 'Fort Zancudo dispatch log'
+$core = $core.Substring(0,$updateStart) + $updateBlock + $core.Substring($restoreStart)
+$restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch')
+$militaryStart = $core.IndexOf('private void SuppressActiveMilitaryCombat', $restoreStart)
+$restoreBlock = $core.Substring($restoreStart, $militaryStart - $restoreStart)
+$restoreBlock = Replace-Exact $restoreBlock '                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);  // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter' '' 'restore leaves police helicopter dispatch untouched'
+$restoreBlock = Replace-Exact $restoreBlock '                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' '' 'restore leaves police helicopter resource creation untouched'
+$core = $core.Substring(0,$restoreStart) + $restoreBlock + $core.Substring($militaryStart)
+
 $core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft reassert interval'
 
 $followStatusOld = 'IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)'
