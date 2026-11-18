@@ -38,40 +38,11 @@ jobs:
           $sourceRoot = Join-Path $extract 'AvernesSowtware_v1.4.5'
           if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Verified baseline source tree is incomplete.' }
           git -C $sourceRoot init -q
-          $patchRepo = Join-Path $env:RUNNER_TEMP 'v146patch'
-          git clone --depth 1 --branch work/1.4.6-runtime-fixes https://github.com/AvernesVS/AvernesSowtware.git $patchRepo
-          @'
-          import base64, gzip, hashlib, os, zlib
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP'], 'v146patch', '.github', 'build-input')
-          import itertools
-          parts = [(root / ('patches_1_4_6.part%02d' % i)).read_text(encoding='ascii').strip() for i in range(1, 7)]
-          print('Segment stats:', [(len(x), x[:12], x[-12:], x.count('=')) for x in parts])
-          decoded_parts = [base64.b64decode(x) for x in parts]
-          packed = patch = None
-          for order in itertools.permutations(range(6)):
-              candidate = b''.join(decoded_parts[i] for i in order)
-              try:
-                  decoded = gzip.decompress(candidate)
-                  packed, patch = candidate, decoded
-                  print('Valid decoded-byte segment order:', order)
-                  break
-              except (OSError, EOFError, zlib.error):
-                  pass
-          if patch is None:
-              raise SystemExit('No ordering of the six decoded v1.4.6 patch segments produced a valid gzip archive.')
-          out = Path(os.environ['RUNNER_TEMP'], 'v1.4.6-source.patch')
-          out.write_bytes(patch)
-          print('v1.4.6 patch archive SHA256:', hashlib.sha256(packed).hexdigest())
-          print('v1.4.6 patch SHA256:', hashlib.sha256(patch).hexdigest())
-          print('Patch header:', patch[:1200].decode('utf-8', errors='replace'))
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode146.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'decode146.py')
-          if ($LASTEXITCODE -ne 0) { throw 'Could not reconstruct v1.4.6 patch segments.' }
-          git -C $sourceRoot apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v1.4.6-source.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'Verified v1.4.6 patch does not apply to the v1.4.5 baseline.' }
-          git -C $sourceRoot apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v1.4.6-source.patch')
-          if ($LASTEXITCODE -ne 0) { throw 'Failed to apply reconstructed v1.4.6 patch.' }
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'build-input/AvernesSowtware_v1.4.6_working.patch') (Join-Path $sourceRoot 'v1.4.6.patch')
+          git -C $sourceRoot apply --recount --check --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.6 working patch does not apply to the latest hardened v1.4.5 baseline.' }
+          git -C $sourceRoot apply --recount --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to apply v1.4.6 working patch.' }
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Prepared source root: $sourceRoot"
 
