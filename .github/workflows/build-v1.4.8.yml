@@ -114,7 +114,7 @@ jobs:
           $hotfixOutput.Dispose()
           [IO.File]::WriteAllBytes($hotfixPath,$hotfixBytes)
           $hotfixHash = (Get-FileHash -LiteralPath $hotfixPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hotfixHash -ne '97f3c0e7006aa82a9b52efd3ba9d973333be4e3da62ccd9085952661b73a1c8e') {
+          if ($hotfixHash -ne '986a9cf5197366aa3782aa903b5a1244f3f58cd8453a2bed3e288cc8b66445a5') {
             throw "v1.4.8 hotfix checksum mismatch: $hotfixHash"
           }
           Push-Location $sourceRoot
