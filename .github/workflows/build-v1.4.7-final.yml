@@ -1,0 +1,122 @@
+name: Build AvernesSowtware v1.4.7 FINAL CORRECTION
+
+on:
+  push:
+    branches:
+      - release/v1.4.7-final-correction
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout release inputs
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.4.7 release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.7-Final-Correction-Windows-Release
+          path: ${{ runner.temp }}/base147
+          repository: ${{ github.repository }}
+          run-id: 44316778774
+          github-token: ${{ github.token }}
+
+      - name: Prepare v1.4.7 source and apply final correction patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base147') -Filter 'AvernesSowtware_v1.4.7_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Verified v1.4.7 release source archive is missing.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src147'
+          Expand-Archive -LiteralPath $releaseZip.FullName -DestinationPath $extract -Force
+          $sourceRoot = Join-Path $extract 'AvernesSowtware_v1.4.7'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.4.7 source tree is incomplete.' }
+          $baselineDll = Join-Path $sourceRoot 'dist/AvernesSowtware.dll'
+          if (-not (Test-Path $baselineDll)) { throw 'v1.4.7 baseline DLL is missing; refusing to package an old DLL.' }
+          $env:V147_BASE_DLL_SHA256 = (Get-FileHash -LiteralPath $baselineDll -Algorithm SHA256).Hash
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "V147_BASE_DLL_SHA256=$env:V147_BASE_DLL_SHA256" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $env:SOURCE_ROOT = $sourceRoot
+          $patchB64 = Join-Path $env:GITHUB_WORKSPACE 'build-input/v147_final_changes.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $patchB64)) { throw 'Final correction patch is missing.' }
+          $compressed = [Convert]::FromBase64String([IO.File]::ReadAllText($patchB64).Trim())
+          $inputStream = New-Object IO.MemoryStream(,$compressed)
+          $gzip = New-Object IO.Compression.GzipStream($inputStream,[IO.Compression.CompressionMode]::Decompress)
+          $outputStream = New-Object IO.MemoryStream
+          try { $gzip.CopyTo($outputStream) } finally { $gzip.Dispose(); $inputStream.Dispose() }
+          $patchPath = Join-Path $env:RUNNER_TEMP 'v147_final_correction.patch'
+          [IO.File]::WriteAllBytes($patchPath,$outputStream.ToArray())
+          $outputStream.Dispose()
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Final correction patch does not match the verified v1.4.7 source.' }
+            & git apply --ignore-space-change --whitespace=nowarn $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply final correction patch.' }
+          } finally { Pop-Location }
+          if (-not (Select-String -Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs') -Pattern 'ProductVersion = "1.4.7"' -Quiet)) { throw 'Source version marker was not updated.' }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run v1.4.7 regression tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install pytest.' }
+          Push-Location $env:SOURCE_ROOT
+          python -m pytest -q tests
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { throw 'v1.4.7 regression tests failed.' }
+
+      - name: Compile and package v1.4.7
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              foreach ($f in @('AvernesSowtware_Build.log','BUILD_RELEASE.log','BUILD_RELEASE_REPORT_RU.txt')) {
+                if (Test-Path $f) { Write-Host "===== $f ====="; Get-Content $f -Raw | Write-Host }
+              }
+              throw "v1.4.7 Windows C# build failed with exit code $code."
+            }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            if (-not (Test-Path $dll)) { throw 'Newly compiled DLL is missing.' }
+            $newHash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            if ($newHash -eq $env:V147_BASE_DLL_SHA256) { throw 'DLL hash matches v1.4.7 baseline; refusing to publish an old binary.' }
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.4.7_RELEASE.zip'
+            if (-not (Test-Path $zip)) { throw 'Expected v1.4.7 release ZIP was not produced.' }
+            "V147_DLL_SHA256=$newHash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } finally { Pop-Location }
+
+      - name: Upload compiled release and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.7-Full-Windows-Release
+          path: |
+            ${{ env.SOURCE_ROOT }}/dist/AvernesSowtware_v1.4.7_RELEASE.zip
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE_REPORT_RU.txt
+            ${{ env.SOURCE_ROOT }}/BUILD_RELEASE.log
+            ${{ env.SOURCE_ROOT }}/AvernesSowtware_Build.log
+          if-no-files-found: warn
+          retention-days: 30
