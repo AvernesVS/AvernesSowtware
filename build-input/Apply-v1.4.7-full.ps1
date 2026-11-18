@@ -23,11 +23,21 @@ $corePath = 'src/Core/AvernesSowtwareScript.cs'
 $core = Read-Text $corePath
 $core = Replace-Exact $core '        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' ('        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' + $nl + '        private readonly HashSet<int> _bodyguardDismissalGroupRemovedHandles = new HashSet<int>();') 'bodyguard dismissal phase state'
 
-# Patch the four dispatch calls individually; preserve police helicopter service 2.
-$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch disable'
-$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource block'
-$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch restore'
-$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource restore'
+# Patch dispatch inside each method independently; keep police helicopter service 2 unchanged.
+$updateStart = $core.IndexOf('private void UpdateFortZancudoArmyDispatch')
+$restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch', $updateStart)
+$militaryStart = $core.IndexOf('private void SuppressActiveMilitaryCombat', $restoreStart)
+if ($updateStart -lt 0 -or $restoreStart -lt 0 -or $militaryStart -lt 0) { throw 'Could not locate Fort Zancudo dispatch methods.' }
+$updateBlock = $core.Substring($updateStart, $restoreStart - $updateStart)
+$updateBlock = Replace-Exact $updateBlock 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch disable'
+$updateBlock = Replace-Exact $updateBlock 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource block'
+$core = $core.Substring(0,$updateStart) + $updateBlock + $core.Substring($restoreStart)
+$restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch')
+$militaryStart = $core.IndexOf('private void SuppressActiveMilitaryCombat', $restoreStart)
+$restoreBlock = $core.Substring($restoreStart, $militaryStart - $restoreStart)
+$restoreBlock = Replace-Exact $restoreBlock 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo Army dispatch restore'
+$restoreBlock = Replace-Exact $restoreBlock 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo Army resource restore'
+$core = $core.Substring(0,$restoreStart) + $restoreBlock + $core.Substring($militaryStart)
 $core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft reassert interval'
 
 $followStatusOld = 'IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)'
