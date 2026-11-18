@@ -106,6 +106,79 @@ $logMethods = @'
 
 '@
 $core = $core.Substring(0,$start) + $logMethods + $core.Substring($end)
+
+$core = Replace-Exact $core '        private void ProcessBodyguardFollowing(Ped player)' @'
+        private void IssueBodyguardFollowTask(int pedHandle, int playerHandle)
+        {
+            if (!IsPedHandleUsable(pedHandle) || !IsPedHandleUsable(playerHandle)) return;
+            int formationIndex = _bodyguards.IndexOf(pedHandle);
+            if (formationIndex < 0) formationIndex = _bodyguards.Count;
+            int row = formationIndex / 2;
+            float offsetX = (formationIndex % 2 == 0) ? -1.35f : 1.35f;
+            float offsetY = -1.8f - (row * 1.35f);
+            Function.Call((Hash)0x304AE42E357B8C7EUL, pedHandle, playerHandle,
+                offsetX, offsetY, 0.0f, 2.0f, -1, 1.75f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
+            Function.Call((Hash)0x971D38760FBC02EFUL, pedHandle, true); // SET_PED_KEEP_TASK
+        }
+
+        private void ProcessBodyguardFollowing(Ped player)
+'@ 'bodyguard formation helper'
+
+$core = Replace-Exact $core '                Function.Call((Hash)0x304AE42E357B8C7EUL, guard, player.Handle,
+                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
+                Function.Call((Hash)0x971D38760FBC02EFUL, guard, true); // SET_PED_KEEP_TASK' '                IssueBodyguardFollowTask(guard, player.Handle);' 'spawn follow task'
+
+$core = Replace-Exact $core '                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
+                            Function.Call((Hash)0x971D38760FBC02EFUL, handle, true); // SET_PED_KEEP_TASK' '                            IssueBodyguardFollowTask(handle, player.Handle);' 'player-target follow task'
+
+$core = Replace-Exact $core '                                Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);' '                                IssueBodyguardFollowTask(handle, player.Handle);' 'long-distance follow task'
+
+$core = Replace-Exact $core '                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);' '                            IssueBodyguardFollowTask(handle, player.Handle);' 'boarding fallback follow task'
+
+$core = Replace-Exact $core '                        Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+                            -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);' '                        IssueBodyguardFollowTask(handle, player.Handle);' 'normal follow task'
+
+$core = Replace-Exact $core '                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED' ('                    uint parachuteGadget = GetHash("GADGET_PARACHUTE");' + $nl + '                    if (!Function.Call<bool>((Hash)0x8DECB02F88F428BCUL, ped.Handle, parachuteGadget, false))' + $nl + '                        Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, parachuteGadget, 1, false, false); // GIVE_WEAPON_TO_PED') 'parachute gadget hash'
+
+$core = Replace-Exact $core '                // Keep Army vehicle and police helicopter dispatch enabled. Newer Wanted / 911
+                // owns these response services; disabling or blocking them can leave spawned
+                // emergency transports without a valid mission/driver task.
+                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
+                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);   // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
+                _armyVehicleDispatchSuppressed = false;
+                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
+                Log("Fort Zancudo Army and helicopter dispatch kept enabled for Newer Wanted / 911 traffic.");' @'
+                // Block only Army vehicle response while the player is inside Fort Zancudo.
+                // Police helicopter dispatch (service 2) remains untouched for Newer Wanted / 911.
+                Function.Call((Hash)0xDC0F817884CDD856UL, 15, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, true);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
+                _armyVehicleDispatchSuppressed = true;
+                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
+                Log("Fort Zancudo Army dispatch suppressed; police helicopter dispatch left unchanged.");
+'@ 'Fort Zancudo Army dispatch suppression'
+
+$core = Replace-Exact $core '                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);  // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' @'
+                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
+                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
+'@ 'Fort Zancudo Army dispatch restore'
+
+$core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft flee interval'
+$core = Replace-Exact $core '                    // Reissue at most every 5 seconds so the flight task can progress.' '                    // Reassert the escape mission if hostile aircraft AI replaces it; avoid a 5-second attack window.' 'military aircraft flee comment'
+
+$oldDismiss = '_nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(200);'
+$countDismiss = ([regex]::Matches($core, [regex]::Escape($oldDismiss))).Count
+if ($countDismiss -ne 3) { throw "Expected 3 bodyguard dismissal throttle sites; found $countDismiss" }
+$core = $core.Replace($oldDismiss, '_nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(650);')
+
+
 Write-Text $corePath $core
 
 $persistPath = 'src/Core/SettingsPersistence.cs'
@@ -161,6 +234,32 @@ $vehicle = Replace-Exact $vehicle ('            int handle = vehicle.Handle;' + 
 $vehicle = Replace-Exact $vehicle 'Function.Call((Hash)0x81592BE4E4746D88UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2' 'Function.Call((Hash)0xA19435F193E081ACUL, handle, type, color); // GET_VEHICLE_COLOURS' 'secondary color native'
 $vehicle = Replace-Exact $vehicle 'secondaryType = type.GetResult<int>();' 'secondaryType = 0;' 'secondary paint type'
 Write-Text $vehiclePath $vehicle
+
+
+$vehicle = Replace-Exact $vehicle '            Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+            for (int windowIndex = 0; windowIndex < 8; windowIndex++)
+                Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
+            Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);' @'
+            Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+            Function.Call(Hash.SET_VEHICLE_DIRT_LEVEL, vehicleHandle, 0.0f);
+            Function.Call((Hash)0xE91F1B65F2B48D57UL, vehicleHandle); // REMOVE_DECALS_FROM_VEHICLE
+            for (int windowIndex = 0; windowIndex < 8; windowIndex++)
+                Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
+            Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);
+'@ 'God Mode initial visual repair'
+
+$vehicle = Replace-Exact $vehicle '                Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+                for (int windowIndex = 0; windowIndex < 8; windowIndex++)
+                    Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
+                Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);' @'
+                Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+                Function.Call(Hash.SET_VEHICLE_DIRT_LEVEL, vehicleHandle, 0.0f);
+                Function.Call((Hash)0xE91F1B65F2B48D57UL, vehicleHandle); // REMOVE_DECALS_FROM_VEHICLE
+                for (int windowIndex = 0; windowIndex < 8; windowIndex++)
+                    Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
+                Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);
+'@ 'God Mode recurring visual repair'
+
 
 foreach ($relative in @('BUILD_RELEASE.bat','build/Build.bat')) {
     $text = Read-Text $relative
