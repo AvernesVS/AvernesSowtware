@@ -382,46 +382,17 @@ Write-Text 'docs/CHANGELOG_1_4_7_RU.md' $changelog
 Write-Host 'Applied v1.4.7 source changes.'
 
 
+
 # ===== v1.4.7 full corrective pass =====
 $corePath = 'src/Core/AvernesSowtwareScript.cs'
 $core = Read-Text $corePath
 $core = Replace-Exact $core '        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' ('        private readonly HashSet<int> _bodyguardDismissalDetachedHandles = new HashSet<int>();' + $nl + '        private readonly HashSet<int> _bodyguardDismissalGroupRemovedHandles = new HashSet<int>();') 'bodyguard dismissal phase state'
 
-$oldFort = @'
-                // Keep Army vehicle and police helicopter dispatch enabled. Newer Wanted / 911
-                // owns these response services; disabling or blocking them can leave spawned
-                // emergency transports without a valid mission/driver task.
-                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true);  // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);   // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                _armyVehicleDispatchSuppressed = false;
-                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
-                Log("Fort Zancudo Army and helicopter dispatch kept enabled for Newer Wanted / 911 traffic.");
-'@
-$newFort = @'
-                // Suppress only the Army vehicle dispatch while the player is inside Fort Zancudo.
-                // DT_ArmyVehicle is 14; service 15 is BikerBackup. Police helicopter service 2
-                // is deliberately left untouched for Newer Wanted / 911 traffic.
-                Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                _armyVehicleDispatchSuppressed = true;
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                _nextFortZancudoDispatchRefreshUtc = now.AddMilliseconds(900);
-                Log("Fort Zancudo Army dispatch suppressed; police helicopter dispatch left unchanged.");
-'@
-$core = Replace-Exact $core $oldFort $newFort 'Fort Zancudo dispatch service'
-$oldRestore = @'
-                Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0xDC0F817884CDD856UL, 2, true);  // ENABLE_DISPATCH_SERVICE: DT_PoliceHelicopter
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 2, false);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-'@
-$newRestore = @'
-                Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle
-                Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION
-'@
-$core = Replace-Exact $core $oldRestore $newRestore 'Fort Zancudo dispatch restore'
-$core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft reassert interval'
+# Legacy GTA V dispatch enum: ArmyVehicle=14; service 15 is BikerBackup.
+$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, false); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo army dispatch disable'
+$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, true);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true);  // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo army resource block'
+$core = Replace-Exact $core 'Function.Call((Hash)0xDC0F817884CDD856UL, 15, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Function.Call((Hash)0xDC0F817884CDD856UL, 14, true); // ENABLE_DISPATCH_SERVICE: DT_ArmyVehicle' 'Fort Zancudo army dispatch restore'
+$core = Replace-Exact $core 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 15, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION' 'Fort Zancudo army resource restore'
 
 $followStatusOld = 'IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)'
 $followStatusCount = ([regex]::Matches($core, [regex]::Escape($followStatusOld))).Count
@@ -446,53 +417,6 @@ $newTaskStatus = @'
 '@
 $core = Replace-Exact $core $oldTaskStatus $newTaskStatus 'GET_SCRIPT_TASK_STATUS enum parameter'
 
-$followHelper = @'
-        private void IssueBodyguardFollowTask(int pedHandle, int playerHandle)
-        {
-            if (!IsPedHandleUsable(pedHandle) || !IsPedHandleUsable(playerHandle)) return;
-            int formationIndex = _bodyguards.IndexOf(pedHandle);
-            if (formationIndex < 0) formationIndex = _bodyguards.Count;
-            int row = formationIndex / 2;
-            float offsetX = (formationIndex % 2 == 0) ? -1.35f : 1.35f;
-            float offsetY = -1.8f - (row * 1.35f);
-            Function.Call((Hash)0x304AE42E357B8C7EUL, pedHandle, playerHandle,
-                offsetX, offsetY, 0.0f, 2.0f, -1, 1.75f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
-            Function.Call((Hash)0x971D38760FBC02EFUL, pedHandle, true); // SET_PED_KEEP_TASK
-        }
-
-        private void ProcessBodyguardFollowing(Ped player)
-'@
-$core = Replace-Exact $core '        private void ProcessBodyguardFollowing(Ped player)' $followHelper 'bodyguard formation helper'
-$oldSpawnFollow = @'
-                Function.Call((Hash)0x304AE42E357B8C7EUL, guard, player.Handle,
-                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
-                Function.Call((Hash)0x971D38760FBC02EFUL, guard, true); // SET_PED_KEEP_TASK
-'@
-$core = Replace-Exact $core $oldSpawnFollow '                IssueBodyguardFollowTask(guard, player.Handle);' 'spawn bodyguard formation'
-$oldHitFollow = @'
-                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
-                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
-                            Function.Call((Hash)0x971D38760FBC02EFUL, handle, true); // SET_PED_KEEP_TASK
-'@
-$core = Replace-Exact $core $oldHitFollow '                            IssueBodyguardFollowTask(handle, player.Handle);' 'player-hit follow recovery'
-$oldFarFollow = @'
-                            if (!IsScriptTaskActive(handle, (Hash)0x3EF867F4UL))
-                                Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
-                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
-'@
-$newFarFollow = @'
-                            if (!IsScriptTaskActive(handle, (Hash)0x3EF867F4UL))
-                                IssueBodyguardFollowTask(handle, player.Handle);
-'@
-$farFollowCount = ([regex]::Matches($core, [regex]::Escape($oldFarFollow))).Count
-if ($farFollowCount -ne 2) { throw "Expected 2 identical follow blocks, found $farFollowCount" }
-$core = $core.Replace($oldFarFollow, $newFarFollow)
-$oldNormalFollow = @'
-                        Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
-                            -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
-'@
-$core = Replace-Exact $core $oldNormalFollow '                        IssueBodyguardFollowTask(handle, player.Handle);' 'normal bodyguard follow'
-
 $core = Replace-Exact $core '            _bodyguardDismissalDetachedHandles.Remove(handle);' ('            _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'dead bodyguard phase cleanup'
 $core = Replace-Exact $core '                        _bodyguardDismissalDetachedHandles.Remove(handle);' ('                        _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '                        _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'queued dead bodyguard phase cleanup'
 $oldDismissal = @'
@@ -506,7 +430,7 @@ $oldDismissal = @'
                         Function.Call((Hash)0xED74007FFB146BC2UL, handle); // REMOVE_PED_FROM_GROUP
                         _bodyguardDismissalDetachedHandles.Add(handle);
                         _pendingBodyguardDismissals.Enqueue(handle);
-                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(200);
+                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(650);
                         return;
                     }
 
@@ -567,16 +491,8 @@ $newDismissal = @'
                     _queuedBodyguardDismissalHandles.Remove(handle);
 '@
 $core = Replace-Exact $core $oldDismissal $newDismissal 'three-stage bodyguard dismissal'
-$core = $core.Replace('DateTime.UtcNow.AddMilliseconds(200)', 'DateTime.UtcNow.AddMilliseconds(650)')
 $core = Replace-Exact $core '                    _bodyguardDismissalDetachedHandles.Remove(handle);' ('                    _bodyguardDismissalDetachedHandles.Remove(handle);' + $nl + '                    _bodyguardDismissalGroupRemovedHandles.Remove(handle);') 'bodyguard dismissal exception cleanup'
 $core = Replace-Exact $core '            _bodyguardDismissalDetachedHandles.Clear();' ('            _bodyguardDismissalDetachedHandles.Clear();' + $nl + '            _bodyguardDismissalGroupRemovedHandles.Clear();') 'bodyguard abort cleanup'
-$oldParachute = '                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED'
-$newParachute = @'
-                    uint parachuteGadget = GetHash("GADGET_PARACHUTE");
-                    if (!Function.Call<bool>((Hash)0x8DECB02F88F428BCUL, ped.Handle, parachuteGadget, false))
-                        Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, parachuteGadget, 1, false, false); // GIVE_WEAPON_TO_PED
-'@
-$core = Replace-Exact $core $oldParachute $newParachute 'automatic parachute equipment'
 Write-Text $corePath $core
 
 $vehiclePath = 'src/Managers/VehicleSystems.cs'
@@ -597,7 +513,7 @@ $newRefresh = @'
                 Function.Call((Hash)0xE91F1B65F2B48D57UL, vehicleHandle); // REMOVE_DECALS_FROM_VEHICLE
                 for (int windowIndex = 0; windowIndex < 8; windowIndex++)
 '@
-$vehicle = Replace-Exact $vehicle $oldRefresh $newRefresh 'recurring God Mode cosmetic repair'
+$vehicle = Replace-Exact $vehicle $oldRefresh $newRefresh 'recurring God Mode damage repair'
 $oldNitroCap = '                    Function.Call((Hash)0xBAA045B4E42F3C06UL, handle, maximumNitroSpeed); // SET_VEHICLE_MAX_SPEED (m/s)' + $nl
 $newNitroCap = @'
                     // Avoid a second native speed cap here; it can impose a ceiling
@@ -615,41 +531,23 @@ Write-Text $legacyTestPath $legacyTests
 
 $validatorPath = 'build/ReleaseValidator.cs'
 $validator = Read-Text $validatorPath
-$oldFortValidator = @'
-        if (fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 15, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 15, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("TASK_VEHICLE_DRIVE_WANDER", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0)
-            Error("1.4.5 Fort Zancudo must preserve Newer Wanted / 911 dispatch and avoid clearing tasks from emergency vehicle occupants.");
+$oldDismissValidator = @'
+        if (mainSource.IndexOf("AddMilliseconds(200)", StringComparison.Ordinal) < 0)
+            Error("1.4.6 serialized bodyguard dismissal interval was not reduced.");
 '@
-$newFortValidator = @'
-        if (fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 14, false", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 14, true", StringComparison.Ordinal) < 0 ||
-            fortDispatchBody.IndexOf("0xDC0F817884CDD856UL, 2,", StringComparison.Ordinal) >= 0 ||
-            fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2,", StringComparison.Ordinal) >= 0 ||
-            fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("TASK_VEHICLE_DRIVE_WANDER", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0)
-            Error("1.4.7 Fort Zancudo must suppress Army service 14 while leaving police helicopter dispatch untouched.");
-'@
-$validator = Replace-Exact $validator $oldFortValidator $newFortValidator 'Fort Zancudo validator'
-$oldTaskValidator = @'
-        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)", StringComparison.Ordinal) < 0)
-            Error("1.4.6 bodyguard combat and follow tasks must not be restarted on every update.");
-'@
-$newTaskValidator = @'
-        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("private void IssueBodyguardFollowTask", StringComparison.Ordinal) < 0 ||
+$newDismissValidator = @'
+        if (mainSource.IndexOf("AddMilliseconds(650)", StringComparison.Ordinal) < 0 ||
             mainSource.IndexOf("_bodyguardDismissalGroupRemovedHandles", StringComparison.Ordinal) < 0)
-            Error("1.4.7 bodyguard follow/combat task enums or staged dismissal are incomplete.");
+            Error("1.4.7 staged bodyguard dismissal is incomplete.");
+        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)", StringComparison.Ordinal) < 0)
+            Error("1.4.7 bodyguard task status must use eScriptTaskHash identifiers.");
+        if (mainSource.IndexOf("0xDC0F817884CDD856UL, 14, false", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("0x9B2BD3773123EA2FUL, 14, true", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("0xDC0F817884CDD856UL, 15, false", StringComparison.Ordinal) >= 0)
+            Error("1.4.7 Fort Zancudo must suppress Army dispatch service 14, not BikerBackup 15.");
 '@
-$validator = Replace-Exact $validator $oldTaskValidator $newTaskValidator 'bodyguard task validator'
-$validator = Replace-Exact $validator 'mainSource.IndexOf("AddMilliseconds(200)"' 'mainSource.IndexOf("AddMilliseconds(650)"' 'bodyguard dismissal interval validator'
+$validator = Replace-Exact $validator $oldDismissValidator $newDismissValidator 'full v1.4.7 corrective validator'
 Write-Text $validatorPath $validator
 
 $readmePath = 'README_RU.md'
@@ -682,17 +580,17 @@ $changelog = @'
 
 ## Исправления по коду
 - Исправлены task IDs для GET_SCRIPT_TASK_STATUS: используются значения eScriptTaskHash для FollowToOffset и CombatHatedTargetsAroundPed. Это предотвращает повторную постановку задач телохранителям каждые 500 мс.
-- Следование телохранителей переведено на двухколонное построение с разными offset.
+- Следование телохранителей использует разнесённое двухколонное построение.
 - Dismiss All Bodyguards выполняет остановку задач, снятие из группы и освобождение mission ownership в трёх отдельных игровых тиках с паузой 650 мс.
-- Fort Zancudo использует правильный индекс DT_ArmyVehicle=14. Service 15 (BikerBackup) не затрагивается; police helicopter service 2 остаётся без изменений.
-- Повторная задача отхода для военных самолётов/вертолётов подтверждается через 1,5 секунды, если AI заменяет её.
+- Fort Zancudo использует индекс DT_ArmyVehicle=14. Service 15 (BikerBackup) не затрагивается; police helicopter service 2 остаётся без изменений.
+- Повторная задача отхода для уже находящихся рядом военных самолётов/вертолётов подтверждается чаще, если AI заменяет её.
 - Автораскрытие парашюта выдаёт GADGET_PARACHUTE, если предмет отсутствует, затем вызывает раскрытие.
-- Vehicle God Mode дополнительно очищает грязь/decals; периодический цикл вызывает полный ремонт только при обнаруженном повреждении.
-- Удалён дополнительный _SET_VEHICLE_MAX_SPEED из активного Nitro-цикла, чтобы не создавать второй скоростной предел около 333 км/ч. Основное ограничение задаётся transmission top-speed adjustment и forward-speed assist.
-- Сохранены уже внесённые Max Tuning airborne guard, защита от missing-native, Wash Vehicle, High-Speed Stability и отключение Nitro для Toreador.
+- Vehicle God Mode очищает грязь/decals; периодический цикл вызывает полный ремонт только при обнаруженном повреждении.
+- Удалён дополнительный _SET_VEHICLE_MAX_SPEED из активного Nitro-цикла, чтобы не создавать второй скоростной предел около 333 км/ч.
+- Сохранены Max Tuning airborne guard, защита от missing-native, Wash Vehicle, High-Speed Stability и отключение Nitro для Toreador.
 
 ## Не относится к коду трейнера
-- Маленькое окно GTA V исправляется в настройках графики GTA V/параметрах запуска. Трейнер не должен самовольно менять разрешение или режим экрана.
+- Маленькое окно GTA V исправляется в настройках графики GTA V/параметрах запуска. Трейнер не меняет разрешение или режим экрана.
 
 ## Проверка
 - Регрессионные тесты и Windows-компиляция выполняются в CI.
