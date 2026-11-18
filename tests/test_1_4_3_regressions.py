@@ -20,8 +20,10 @@ class Release143BaselineTests(unittest.TestCase):
         self.assertIn('0x4D9CA1009AFBD057UL', SOURCE)
         self.assertIn('0x9F7794730795E019UL', SOURCE)
 
-    def test_diagnostics_are_written_to_scripts_directory(self):
-        self.assertIn('_logDirectory = _scriptsDirectory;', SOURCE)
+    def test_diagnostics_use_writable_log_directory(self):
+        storage = (ROOT / 'src' / 'Core' / 'SettingsPersistence.cs').read_text(encoding='utf-8-sig')
+        self.assertIn('ResolveWritableLogDirectory', storage)
+        self.assertIn('AvernesSowtware_Logs', storage)
         self.assertIn('Logs: " + _logPath', SOURCE)
 
 if __name__ == '__main__':
