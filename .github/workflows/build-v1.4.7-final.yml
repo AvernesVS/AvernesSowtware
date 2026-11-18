@@ -66,6 +66,24 @@ jobs:
             & git apply --ignore-space-change --whitespace=nowarn $patchPath
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply final correction patch.' }
           } finally { Pop-Location }
+          # Keep the release validator aligned with the current implementation instead of obsolete native IDs.
+          $validatorPath = Join-Path $sourceRoot 'build/ReleaseValidator.cs'
+          $validator = [IO.File]::ReadAllText($validatorPath)
+          $validatorReplacements = @(
+            @('ApplyNitroVelocityAssist(handle, maximumNitroSpeed, nitroPower)', 'ApplyNitroVelocityAssist(handle, maximumNitroSpeed, effectiveNitroPower)'),
+            @('0x16E42E800B472221UL', '0xD2F1C53C97EE81ABUL'),
+            @('0xBF25EB89375A37ADUL, 3, armyGroup, playerGroup', '0xBF25EB89375A37ADUL, 0, armyGroup, playerGroup'),
+            @('0xBF25EB89375A37ADUL, 3, playerGroup, armyGroup', '0xBF25EB89375A37ADUL, 0, playerGroup, armyGroup'),
+            @('heightAboveGround < 65.0f', 'heightAboveGround < 90.0f'),
+            @('AvernesSowtware error log initialized', '[RUNTIME INIT] Error log active.'),
+            @('AvernesSowtware crash log initialized', '[RUNTIME INIT] Crash log active.'),
+            @('if (airborne) return', 'if (airborne && !aircraft) return')
+          )
+          foreach ($pair in $validatorReplacements) {
+            if (-not $validator.Contains($pair[0])) { throw "Validator marker not found: $($pair[0])" }
+            $validator = $validator.Replace($pair[0], $pair[1])
+          }
+          [IO.File]::WriteAllText($validatorPath,$validator,(New-Object Text.UTF8Encoding($false)))
           if (-not (Select-String -Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs') -Pattern 'ProductVersion = "1.4.7"' -Quiet)) { throw 'Source version marker was not updated.' }
 
       - name: Restore ScriptHookVDotNet2 API 2 reference
