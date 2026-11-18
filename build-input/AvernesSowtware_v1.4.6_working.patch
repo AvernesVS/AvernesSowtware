@@ -997,7 +997,8 @@ index ae9d890..e94a562 100644
 +                Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);
 +            }
 +            catch (Exception ex) { LogException("Refresh vehicle God Mode damage", ex); }
-+        }+
++        }
++
          private void RestoreVehicleProtection(int vehicleHandle)
          {
              if (vehicleHandle == 0) return;
