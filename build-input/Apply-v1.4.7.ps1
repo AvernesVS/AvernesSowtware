@@ -135,7 +135,7 @@ $core = Replace-Exact $core '                            Function.Call((Hash)0x3
 $followPattern = '(?m)^(?<indent>[ \t]*)Function\.Call\(\(Hash\)0x304AE42E357B8C7EUL, handle, player\.Handle,\r?\n[ \t]*-1\.0f, -1\.0f, 0\.0f, 3\.0f, -1, 3\.0f, true\);'
 $remainingFollowCalls = [regex]::Matches($core, $followPattern).Count
 if ($remainingFollowCalls -ne 3) { throw "Expected 3 remaining shared bodyguard follow calls; found $remainingFollowCalls" }
-$core = [regex]::Replace($core, $followPattern, '\${indent}IssueBodyguardFollowTask(handle, player.Handle);')
+$core = [regex]::Replace($core, $followPattern, '${indent}IssueBodyguardFollowTask(handle, player.Handle);')
 
 $core = Replace-Exact $core '                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED' ('                    uint parachuteGadget = GetHash("GADGET_PARACHUTE");' + $nl + '                    if (!Function.Call<bool>((Hash)0x8DECB02F88F428BCUL, ped.Handle, parachuteGadget, false))' + $nl + '                        Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, parachuteGadget, 1, false, false); // GIVE_WEAPON_TO_PED') 'parachute gadget hash'
 
