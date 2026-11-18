@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   windows-release:
@@ -17,21 +18,56 @@ jobs:
       - name: Checkout release inputs
         uses: actions/checkout@v4
 
-      - name: Prepare source archive
+      - name: Download verified v1.4.5 source baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.5-RELEASE
+          path: ${{ runner.temp }}/base145
+          repository: ${{ github.repository }}
+          run-id: 44237043485
+          github-token: ${{ github.token }}
+
+      - name: Prepare source and apply v1.4.6 changes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $sourceRoot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware-v1.4.6'
-          git clone --depth 1 --branch work/1.4.5-hardening https://github.com/AvernesVS/AvernesSowtware.git $sourceRoot
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base145') -Filter 'AvernesSowtware_v1.4.5_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Verified v1.4.5 release artifact is missing.' }
+          $extract = Join-Path $env:RUNNER_TEMP 'src145'
+          Expand-Archive -LiteralPath $releaseZip.FullName -DestinationPath $extract -Force
+          $sourceRoot = Join-Path $extract 'AvernesSowtware_v1.4.5'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Verified baseline source tree is incomplete.' }
+          git -C $sourceRoot init -q
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'build-input/AvernesSowtware_v1.4.6_working.patch') (Join-Path $sourceRoot 'v1.4.6.patch')
-          Push-Location $sourceRoot
-          try {
-            git apply --recount --check v1.4.6.patch
-            git apply --recount v1.4.6.patch
-          } finally { Pop-Location }
+          git -C $sourceRoot apply --recount --check --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'v1.4.6 patch does not apply to the verified v1.4.5 source baseline.' }
+          git -C $sourceRoot apply --recount --whitespace=nowarn (Join-Path $sourceRoot 'v1.4.6.patch')
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to apply v1.4.6 patch.' }
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Prepared source root: $sourceRoot"
-          Get-ChildItem -Path $sourceRoot -Force | Select-Object Name,Mode
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          $zip = Join-Path $env:RUNNER_TEMP 'shvdn.zip'
+          Copy-Item $pkg $zip -Force
+          Expand-Archive -LiteralPath $zip -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run v1.4.6 regression tests
+        shell: pwsh
+        run: |
+          $env:PYTHONDONTWRITEBYTECODE='1'
+          Push-Location $env:SOURCE_ROOT
+          python -m pytest -q
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { throw 'v1.4.6 regression tests failed.' }
 
       - name: Build and package v1.4.6
         shell: cmd
