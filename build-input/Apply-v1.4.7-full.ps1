@@ -12,6 +12,8 @@ function Write-Text([string]$relative, [string]$text) {
     [IO.File]::WriteAllText((Join-Path $root $relative), $text, (New-Object Text.UTF8Encoding($true)))
 }
 function Replace-Exact([string]$text, [string]$old, [string]$new, [string]$label) {
+    $old = $old -replace '',''
+    $new = $new -replace '',''
     $count = ([regex]::Matches($text, [regex]::Escape($old))).Count
     if ($count -ne 1) { throw "Expected exactly one match for $label; found $count" }
     return $text.Replace($old, $new)
