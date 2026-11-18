@@ -510,7 +510,7 @@ index 9a417b5..21617bd 100644
          private const int AmmoPerWeapon = 9999;
          private const int PremiumWeaponTint = 7;
  
-@@ -28,7 +28,8 @@ namespace AvernesSowtware
+@@ -28,6 +28,7 @@ namespace AvernesSowtware
          private readonly string _legacyDataDirectory;
          private readonly string _vehiclesDirectory;
          private readonly string _logDirectory;
