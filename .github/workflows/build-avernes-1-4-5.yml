@@ -69,21 +69,22 @@ jobs:
           @'
           import base64, gzip, hashlib, os
           from pathlib import Path
-          packed = base64.b64decode(Path('.github/build-input/patches_1_4_5_report_fix.patch.gz.b64').read_text(encoding='ascii').strip(), validate=True)
-          if hashlib.sha256(packed).hexdigest() != 'e6eb6ede4f324b82a13e82e01a73f1c8e09d09bc1c0d58417ad67f28b81abc12':
-              raise SystemExit('1.4.5 test report patch archive SHA-256 mismatch')
+          parts = [Path('.github/build-input/followup_1_4_5_dispatch.part%02d' % i).read_text(encoding='ascii').strip() for i in range(1, 4)]
+          packed = base64.b64decode(''.join(parts), validate=True)
+          if hashlib.sha256(packed).hexdigest() != '375cbaa7f6ed95b32b05dcc5ed5634eff1c90294425f91adee1d99005a12c0f4':
+              raise SystemExit('1.4.5 dispatch follow-up archive SHA-256 mismatch')
           patch = gzip.decompress(packed)
-          if hashlib.sha256(patch).hexdigest() != 'bbebd09739d3766c547b8bfe3f630f97eb22c57150ada729b7474a495f2246c3':
-              raise SystemExit('1.4.5 test report patch SHA-256 mismatch')
-          Path(os.environ['RUNNER_TEMP'], 'v145-report-fix.patch').write_bytes(patch)
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode145report.py') -Encoding UTF8
-          python (Join-Path $env:RUNNER_TEMP 'decode145report.py')
-          if ($LASTEXITCODE -ne 0) { throw '1.4.5 test report patch decode failed.' }
-          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145-report-fix.patch')
-          if ($LASTEXITCODE -ne 0) { throw '1.4.5 test report patch does not apply.' }
-          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145-report-fix.patch')
-          if ($LASTEXITCODE -ne 0) { throw '1.4.5 test report patch application failed.' }
-          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'docs\TEST_REPORT_1_4_5_RU.md') -SimpleMatch -Pattern '18/18 regression tests' -Quiet)) { throw 'Updated 1.4.5 CI test report missing.' }
+          if hashlib.sha256(patch).hexdigest() != '933b33e7d40286e87c7d167e078a4a6d92dcfb6653fc724e2583f00c01ca7c7f':
+              raise SystemExit('1.4.5 dispatch follow-up patch SHA-256 mismatch')
+          Path(os.environ['RUNNER_TEMP'], 'v145-dispatch-followup.patch').write_bytes(patch)
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP 'decode145followup.py') -Encoding UTF8
+          python (Join-Path $env:RUNNER_TEMP 'decode145followup.py')
+          if ($LASTEXITCODE -ne 0) { throw '1.4.5 dispatch follow-up decode failed.' }
+          git -C $env:AVERNE_ROOT apply --check --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145-dispatch-followup.patch')
+          if ($LASTEXITCODE -ne 0) { throw '1.4.5 dispatch follow-up does not apply.' }
+          git -C $env:AVERNE_ROOT apply --whitespace=nowarn (Join-Path $env:RUNNER_TEMP 'v145-dispatch-followup.patch')
+          if ($LASTEXITCODE -ne 0) { throw '1.4.5 dispatch follow-up application failed.' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:AVERNE_ROOT 'docs\TEST_REPORT_1_4_5_RU.md') -SimpleMatch -Pattern '19/19 regression tests' -Quiet)) { throw 'Updated 1.4.5 CI test report missing.' }
 
       - name: Run 1.4.5 regression tests
         shell: pwsh
