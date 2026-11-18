@@ -90,6 +90,7 @@ class Release147Tests(unittest.TestCase):
         restore = body(CORE, "private void RestoreFortZancudoArmyDispatch")
         self.assertIn("0xDC0F817884CDD856UL, 14, false", dispatch)
         self.assertIn("0x9B2BD3773123EA2FUL, 14, true", dispatch)
+        self.assertIn("_armyVehicleDispatchSuppressed = true", dispatch)
         self.assertNotIn(", 2,", dispatch)
         self.assertIn("0xDC0F817884CDD856UL, 14, true", restore)
         self.assertIn("0x9B2BD3773123EA2FUL, 14, false", restore)
