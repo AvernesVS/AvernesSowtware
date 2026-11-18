@@ -170,19 +170,9 @@ foreach ($relative in @('BUILD_RELEASE.bat','build/Build.bat')) {
 $validatorPath = 'build/ReleaseValidator.cs'
 $validator = Read-Text $validatorPath
 $validator = Replace-Exact $validator 'ProductVersion = \"1.4.6\"' 'ProductVersion = \"1.4.7\"' 'validator version'
-$oldChecks = @'
-        if (mainSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
-            vehicleSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("0x81592BE4E3878728UL", StringComparison.Ordinal) >= 0 ||
-            vehicleSource.IndexOf("0x81592BE4E3878728UL", StringComparison.Ordinal) >= 0)
-            Error("1.4.6 vehicle secondary mod-color getter hash is incorrect or inconsistent.");
-        if (mainSource.IndexOf("AvernesSowtware error log initialized", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("AvernesSowtware crash log initialized", StringComparison.Ordinal) < 0)
-            Error("1.4.6 error and crash log files must be initialized on startup.");
-        if (mainSource.IndexOf("GetEffectiveLogPath", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("_activeLogDirectory = fallbackDir", StringComparison.Ordinal) < 0)
-            Error("1.4.6 diagnostics must retain and report the actual fallback log directory.");
-'@
+$oldStart = $validator.IndexOf('        if (mainSource.IndexOf("0x81592BE4E4746D88UL"')
+$oldEnd = $validator.IndexOf('        if (persistenceSource.IndexOf("TryAtomicWriteFile"', $oldStart)
+if ($oldStart -lt 0 -or $oldEnd -lt 0) { throw 'Could not locate old validator assertions.' }
 $newChecks = @'
         string persistenceSource = File.ReadAllText(Path.Combine(root, "src/Core/SettingsPersistence.cs"));
         if (vehicleSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) >= 0 ||
@@ -205,8 +195,11 @@ $newChecks = @'
             Error("1.4.7 vehicle safety, stability, or wash controls are incomplete.");
         if (vehicleSource.IndexOf("Land the vehicle before applying Max Tuning", StringComparison.Ordinal) < 0)
             Error("1.4.7 Max Tuning must reject airborne vehicles safely.");
+        if (mainSource.IndexOf("AddMilliseconds(200)", StringComparison.Ordinal) < 0)
+            Error("1.4.6 serialized bodyguard dismissal interval was not reduced.");
+
 '@
-$validator = Replace-Exact $validator $oldChecks $newChecks 'validator assertions'
+$validator = $validator.Substring(0,$oldStart) + $newChecks + $validator.Substring($oldEnd)
 Write-Text $validatorPath $validator
 
 $readmePath = 'README_RU.md'
