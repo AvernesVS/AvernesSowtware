@@ -158,25 +158,8 @@ $vehicle = Replace-Exact $vehicle '        // Preserve the original internal ent
 '@ 'stability helper'
 $vehicle = Replace-Exact $vehicle ('            Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);' + $nl + '            float forwardSpeed = velocity.X * forwardX + velocity.Y * forwardY + velocity.Z * forwardZ;') ('            Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);' + $nl + '            bool airborne = Function.Call<bool>((Hash)0x886E37EC497200B6UL, vehicleHandle);' + $nl + '            if (airborne) return;' + $nl + '            float forwardSpeed = velocity.X * forwardX + velocity.Y * forwardY + velocity.Z * forwardZ;') 'airborne nitro'
 $vehicle = Replace-Exact $vehicle ('            int handle = vehicle.Handle;' + $nl + '            int supportedSlots = 0;') ('            int handle = vehicle.Handle;' + $nl + '            if (Function.Call<bool>((Hash)0x886E37EC497200B6UL, handle))' + $nl + '            {' + $nl + '                Notify("Land the vehicle before applying Max Tuning. No modifications were applied.");' + $nl + '                return;' + $nl + '            }' + $nl + '            int supportedSlots = 0;') 'airborne max tune'
-$oldColor = @'
-                using (OutputArgument type = new OutputArgument())
-                using (OutputArgument color = new OutputArgument())
-                {
-                    Function.Call((Hash)0x81592BE4E4746D88UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2
-                    secondaryType = type.GetResult<int>();
-                    secondaryColor = color.GetResult<int>();
-                }
-'@
-$newColor = @'
-                using (OutputArgument primary = new OutputArgument())
-                using (OutputArgument secondary = new OutputArgument())
-                {
-                    Function.Call((Hash)0xA19435F193E081ACUL, handle, primary, secondary); // GET_VEHICLE_COLOURS
-                    secondaryType = 0;
-                    secondaryColor = secondary.GetResult<int>();
-                }
-'@
-$vehicle = Replace-Exact $vehicle $oldColor $newColor 'secondary color native'
+$vehicle = Replace-Exact $vehicle 'Function.Call((Hash)0x81592BE4E4746D88UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2' 'Function.Call((Hash)0xA19435F193E081ACUL, handle, type, color); // GET_VEHICLE_COLOURS' 'secondary color native'
+$vehicle = Replace-Exact $vehicle 'secondaryType = type.GetResult<int>();' 'secondaryType = 0;' 'secondary paint type'
 Write-Text $vehiclePath $vehicle
 
 foreach ($relative in @('BUILD_RELEASE.bat','build/Build.bat')) {
