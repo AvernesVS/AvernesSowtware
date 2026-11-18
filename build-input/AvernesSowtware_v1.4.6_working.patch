@@ -1,0 +1,1254 @@
+diff --git a/BUILD_RELEASE.bat b/BUILD_RELEASE.bat
+index 9c11c25..ed214d4 100644
+--- a/BUILD_RELEASE.bat
++++ b/BUILD_RELEASE.bat
+@@ -1,6 +1,6 @@
+ ﻿@echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.4.5 Release Builder
++title AvernesSowtware 1.4.6 Release Builder
+ cd /d "%~dp0" || (
+   echo [ERROR] Cannot enter project directory.
+   pause
+@@ -13,7 +13,7 @@ set "BUILD_LOG=%PROJECT_DIR%\BUILD_RELEASE.log"
+ set "REPORT=%PROJECT_DIR%\BUILD_RELEASE_REPORT_RU.txt"
+ set "VALIDATOR=%PROJECT_DIR%\build\ReleaseValidator.exe"
+ set "PACKAGER=%PROJECT_DIR%\build\ReleasePackager.exe"
+-set "OUTPUT_ZIP=%PROJECT_DIR%\dist\AvernesSowtware_v1.4.5_RELEASE.zip"
++set "OUTPUT_ZIP=%PROJECT_DIR%\dist\AvernesSowtware_v1.4.6_RELEASE.zip"
+ set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+ if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+ if not exist "%CSC%" (
+@@ -29,7 +29,7 @@ if not exist "build\ReleasePackager.cs" (
+   goto :fail
+ )
+ if not exist "dist" mkdir "dist" >>"%BUILD_LOG%" 2>&1
+->"%BUILD_LOG%" echo AvernesSowtware 1.4.5 release build
++>"%BUILD_LOG%" echo AvernesSowtware 1.4.6 release build
+ call :log "Starting pre-build validation."
+ call :log "Compiler: %CSC%"
+ "%CSC%" /nologo /target:exe /platform:anycpu /langversion:4 /optimize+ /warn:4 /out:"%VALIDATOR%" /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll "build\ReleaseValidator.cs" >>"%BUILD_LOG%" 2>&1
+@@ -72,7 +72,7 @@ if errorlevel 1 (
+ )
+ call :write_success_report
+ call :log "Creating full release ZIP package."
+-"%PACKAGER%" "%PROJECT_DIR%" "%OUTPUT_ZIP%" "1.4.5" >>"%BUILD_LOG%" 2>&1
++"%PACKAGER%" "%PROJECT_DIR%" "%OUTPUT_ZIP%" "1.4.6" >>"%BUILD_LOG%" 2>&1
+ if errorlevel 1 (
+   set "FAIL_REASON=Release ZIP packaging or archive validation failed."
+   goto :fail
+@@ -88,7 +88,7 @@ if "%ZIP_SIZE%"=="0" (
+ )
+ call :log "SUCCESS: %OUTPUT_ZIP% (%ZIP_SIZE% bytes)."
+ echo.
+-echo [SUCCESS] AvernesSowtware 1.4.5 release package created.
++echo [SUCCESS] AvernesSowtware 1.4.6 release package created.
+ echo Package: "%OUTPUT_ZIP%"
+ echo Report: "%REPORT%"
+ echo Log: "%BUILD_LOG%"
+@@ -100,7 +100,7 @@ pause
+ exit /b 0
+ 
+ :write_success_report
+->"%REPORT%" echo AvernesSowtware 1.4.5 - RELEASE BUILD REPORT
++>"%REPORT%" echo AvernesSowtware 1.4.6 - RELEASE BUILD REPORT
+ echo.>>"%REPORT%"
+ echo Build: SUCCESS>>"%REPORT%"
+ echo Source language/runtime: C# 4 / .NET Framework 4.0 API>>"%REPORT%"
+@@ -135,7 +135,7 @@ exit /b 1
+ :write_fail_report
+ call :log "ERROR: %FAIL_REASON%"
+ if exist "AvernesSowtware_Build.log" call :log "Trainer compiler diagnostics: %PROJECT_DIR%\AvernesSowtware_Build.log"
+->"%REPORT%" echo AvernesSowtware 1.4.5 - BUILD FAILED
++>"%REPORT%" echo AvernesSowtware 1.4.6 - BUILD FAILED
+ echo.>>"%REPORT%"
+ echo Result: FAILED>>"%REPORT%"
+ echo Reason: %FAIL_REASON%>>"%REPORT%"
+diff --git a/BUILD_RELEASE_REPORT_RU.txt b/BUILD_RELEASE_REPORT_RU.txt
+index e98ea6a..f5ee64d 100644
+--- a/BUILD_RELEASE_REPORT_RU.txt
++++ b/BUILD_RELEASE_REPORT_RU.txt
+@@ -1,14 +1,12 @@
+-AvernesSowtware 1.4.5 - RELEASE BUILD REPORT
++﻿AvernesSowtware 1.4.6 - WORKING TREE VERIFICATION REPORT
+ 
+-Build: SUCCESS
+-Source language/runtime: C# 4 / .NET Framework 4.0 API
+-Target compatibility: Windows 7 x64 / ScriptHookVDotNet2
+-Static pre-build validation: PASSED
+-C# trainer compilation: PASSED
+-Installer scripts and package validation: PASSED
+-GTA V installation was not executed by BUILD_RELEASE.bat.
+-Static post-build validation: PASSED
+-ZIP packaging: PASSED
++Status: SOURCE FIXES IN PROGRESS; NOT A RELEASE BUILD
++Python source regression checks: 14 PASSED
++Whitespace/diff validation: PASSED
++C# compilation: NOT RUN (dotnet, MSBuild, csc and Mono are unavailable in this environment)
++Installer/package validation: NOT RUN after the latest source edits
++GTA V Legacy runtime testing: NOT RUN; requires the user's game environment
+ 
+-IMPORTANT: This report confirms build-time checks only. It does not claim GTA V in-game runtime testing.
+-This package is build-complete only. GTA V Legacy Story Mode runtime behavior has not been validated by this script.
++The DLL currently present in dist/ predates the latest source edits and MUST NOT be distributed as the 1.4.6 build. Run BUILD_RELEASE.bat on a supported Windows build machine to compile a fresh DLL, execute the C# validators, package the installer, and verify the resulting archive.
++
++No claim is made that the 1.4.6 gameplay fixes are proven in GTA V. Nitro, bodyguard AI, vehicle damage, Fort Zancudo, Toreador ability, parachute behavior, and the 911/Newer Wanted interaction require in-game verification.
+diff --git a/Install_AvernesSowtware.bat b/Install_AvernesSowtware.bat
+index 4fcca4b..29c9804 100644
+--- a/Install_AvernesSowtware.bat
++++ b/Install_AvernesSowtware.bat
+@@ -1,13 +1,13 @@
+ ﻿@echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.4.5 Installer
++title AvernesSowtware 1.4.6 Installer
+ cd /d "%~dp0" || goto :project_dir_fail
+ set "PROJECT_DIR=%CD%"
+ set "INSTALL_LOG=%PROJECT_DIR%\AvernesSowtware_Install.log"
+ if /i "%~2"=="--elevated" (
+   call :log "Installer resumed with elevated permissions."
+ ) else (
+-  >"%INSTALL_LOG%" echo AvernesSowtware 1.4.5 installation log
++  >"%INSTALL_LOG%" echo AvernesSowtware 1.4.6 installation log
+   call :log "Installer started. Project directory: %PROJECT_DIR%"
+ )
+ set "GTAV_DIR=%~1"
+@@ -169,9 +169,9 @@ if not "%SOURCE_SIZE%"=="%FINAL_SIZE%" (
+   goto :fail
+ )
+ call :log "Installation successful. DLL=%CURRENT_DLL%; database=%VEHICLES_DIR%\vehicles.json; bytes=%FINAL_SIZE%."
+->>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.4.5 installation completed. Full log: %INSTALL_LOG%
++>>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.4.6 installation completed. Full log: %INSTALL_LOG%
+ echo.
+-echo [SUCCESS] AvernesSowtware 1.4.5 installed.
++echo [SUCCESS] AvernesSowtware 1.4.6 installed.
+ echo DLL: "%CURRENT_DLL%"
+ echo Vehicle database: "%VEHICLES_DIR%\vehicles.json"
+ echo User files preserved; shipped databases updated in place.
+diff --git a/README_RU.md b/README_RU.md
+index 0a4305c..541b1fc 100644
+--- a/README_RU.md
++++ b/README_RU.md
+@@ -1,38 +1,29 @@
+-﻿# AvernesSowtware 1.4.5 — GTA V Legacy Trainer
++﻿# AvernesSowtware 1.4.6 — GTA V Legacy Trainer
+ 
+-AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNet2. Ветка 1.4.5 включает исправления по итогам игрового отчёта 1.4.4. Существующие функции, API, GUI, настройки, интеграции и пользовательские данные сохранены.
++AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNet2. Версия 1.4.6 содержит адресные исправления по игровому отчёту 1.4.5. Существующие функции, API, GUI, настройки, интеграции и пользовательские данные сохраняются.
+ 
+-## Изменения 1.4.5
++## Изменения 1.4.6
+ 
+-- Nitro: однократный burst до расчётной цели x8 = 1200 км/ч вместо прежнего медленного разгона; обработка включает самолёты и вертолёты.
+-- Телохранители: усилена фиксация боевой стойки, отключены evasive dive/cower/cover/bullet reactions; массовое увольнение остаётся двухфазным без `DELETE_ENTITY`.
+-- Двери: увеличена пауза между открытием двери и анимированной посадкой телохранителя. Vehicle God Mode больше не вызывает `SET_VEHICLE_FIXED` при первичном восстановлении, чтобы не сбрасывать состояние дверей.
+-- Повреждения: Vehicle God Mode повторно блокирует визуальный урон и фиксирует деформацию/окна без полного сброса дверей.
+-- Fort Zancudo: только атакующие пилоты перенаправляются на отход; задачи не-hostile авиации и диспетчерского трафика не очищаются.
+-- Newer Wanted / 911: устранено безусловное прерывание задач неагрессивных армейских пилотов; совместимость со сторонними скриптами требует игрового теста.
+-- Сохранения: 50 машин хранятся раздельно в `Vehicles/SavedVehicles/slot_XX.json`; `index.json` описывает занятые слоты. Старый `saved_vehicles.json` остаётся для миграции и совместимости.
+-- Меню сохранений: пять групп по 10 слотов, отдельная страница действий каждого автомобиля и сохранение в первый свободный слот.
+-- Цвета: каждый этап восстановления окраски изолирован, чтобы ошибка одного native не обрывала остальные.
+-- Высокий прыжок: автопарашют отключён на время Super Jump.
+-- Toreador: Franklin Special Ability повторно включается при управлении транспортом; наземный режим подлежит проверке в игре.
+-- Логи: `scripts/AvernesSowtware_Logs` при доступе на запись, иначе `%LOCALAPPDATA%\AvernesSowtware\GTA V Legacy\Logs`; основной, error и crash logs раздельные.
+-- Завершение: сокращены синхронные действия с телохранителями при выгрузке скрипта и убран принудительный физический flush для каждой записи лога.
++- Nitro: фиксированная цель 1200 км/ч и непрерывное задание продольной скорости для наземного транспорта и авиации.
++- Vehicle God Mode: однократный полный ремонт ранее полученных повреждений при включении защиты; периодическое восстановление деформации и стёкол без сброса дверей.
++- Телохранители: устранение повторного перезапуска задач боя/следования; более быстрая последовательная очередь удаления.
++- Fort Zancudo: военные самолёты и вертолёты получают задачу отхода от игрока.
++- Newer Wanted / 911: Never Wanted больше не отключает полицейский AI; Cops Ignore сохраняет отдельную функцию полного игнорирования.
++- Franklin / Toreador: включение и разблокировка способности для модели Franklin, восстановление пустого индикатора в Toreador.
++- Сохранение машин: исправлен hash чтения вторичного цвета модификаций; окраска считывается до mod kit и восстанавливается после сбора модификаций.
++- Парашют: минимальная высота 65 м; перед раскрытием выдаётся WEAPON_PARACHUTE; Super Jump блокирует автоматическое раскрытие.
++- Логи: error/crash-файлы создаются при запуске; фактический путь показывается в уведомлении трейнера. Если папка игры недоступна для записи, журналы переходят в `%LOCALAPPDATA%\AvernesSowtware\GTA V Legacy\Logs`.
++- 50 слотов транспорта и раздельные JSON-файлы сохраняются; старый `saved_vehicles.json` остаётся для совместимости.
+ 
+-## Что требует игрового подтверждения
++## Ограничение
+ 
+-- Реальные 1200 км/ч на разных классах транспорта, включая самолёты.
+-- Отсутствие уклонений телохранителей и стабильное массовое увольнение.
+-- Анимация дверей и отсутствие визуальных повреждений при Vehicle God Mode.
+-- Fort Zancudo, Newer Wanted / 911 и способность Franklin в Toreador.
+-- Маленькое окно запуска GTA V: это настройка самой игры/репака; мод не переписывает `settings.xml`.
++Малоразмерное окно игры не меняется трейнером. Проверь режим экрана и разрешение GTA V, параметры лаунчера и конфигурацию сборки.
+ 
+-Локальные статические тесты не заменяют сборку Windows и запуск GTA V Legacy. Нельзя считать игровые пункты окончательно исправленными до повторной проверки в Story Mode.
+-
+-## Установка релиза 1.4.5
++## Установка 1.4.6
+ 
+ 1. Закрой GTA V Legacy и распакуй архив, сохранив структуру каталогов.
+ 2. Запусти `Install_AvernesSowtware.bat`.
+-3. Убедись, что установлен ScriptHookVDotNet2 API 2, затем запусти GTA V Legacy в Story Mode.
++3. Убедись, что установлен ScriptHookVDotNet2 API 2, затем запусти Story Mode.
+ 4. Перед обновлением сделай резервную копию `scripts\AvernesSowtware` и `scripts\AvernesSowtware_Logs`.
+ 
+ Пользовательские настройки, сохранённые машины, избранные точки, hotkeys и дополнения сохраняются. Установщик не должен удалять или обнулять пользовательские данные.
+diff --git a/START_HERE_RU.txt b/START_HERE_RU.txt
+index 6fa246d..75e0b9b 100644
+--- a/START_HERE_RU.txt
++++ b/START_HERE_RU.txt
+@@ -1,4 +1,4 @@
+-﻿AVERNESSOWTWARE 1.4.5 — ГОТОВЫЙ УСТАНОВОЧНЫЙ ПАКЕТ
++﻿AVERNESSOWTWARE 1.4.6 — ГОТОВЫЙ УСТАНОВОЧНЫЙ ПАКЕТ
+ 
+ Архив содержит собранную AvernesSowtware.dll и установщик. Самостоятельно компилировать исходники не требуется.
+ 
+@@ -12,4 +12,4 @@
+ 
+ Совместимость: GTA V Legacy Story Mode, Windows x64, ScriptHookVDotNet2 API 2. GTA Online не поддерживается. ScriptHookVDotNet2 должен быть предварительно установлен.
+ 
+-Перед первым запуском сделай резервную копию папки scripts\AvernesSowtware. После установки проверь пункты ручного теста в docs\TEST_REPORT_1_4_3_RU.md.
++Перед первым запуском сделай резервную копию папки scripts\AvernesSowtware. После установки проверь пункты ручного теста в docs\TEST_REPORT_1_4_6_RU.md.
+diff --git a/Uninstall_AvernesSowtware.bat b/Uninstall_AvernesSowtware.bat
+index 2558566..6183e6d 100644
+--- a/Uninstall_AvernesSowtware.bat
++++ b/Uninstall_AvernesSowtware.bat
+@@ -1,8 +1,8 @@
+ ﻿@echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.4.5 Uninstaller
++title AvernesSowtware 1.4.6 Uninstaller
+ set "UNINSTALL_LOG=%TEMP%\AvernesSowtware_Uninstall.log"
+->"%UNINSTALL_LOG%" echo AvernesSowtware 1.4.5 uninstall log
++>"%UNINSTALL_LOG%" echo AvernesSowtware 1.4.6 uninstall log
+ set "GTAV_DIR=%~1"
+ if not defined GTAV_DIR set "GTAV_DIR=C:\Program Files (x86)\Grand Theft Auto V"
+ set "GTAV_DIR=%GTAV_DIR:"=%"
+diff --git a/build/Build.bat b/build/Build.bat
+index c5530ef..8829b20 100644
+--- a/build/Build.bat
++++ b/build/Build.bat
+@@ -1,6 +1,6 @@
+ ﻿@echo off
+ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.4.5 Build
++title AvernesSowtware 1.4.6 Build
+ cd /d "%~dp0.." || (
+   echo [ERROR] Cannot enter the project folder.
+   pause
+@@ -8,7 +8,7 @@ cd /d "%~dp0.." || (
+ )
+ set "PROJECT_DIR=%CD%"
+ set "BUILD_LOG=%PROJECT_DIR%\AvernesSowtware_Build.log"
+->"%BUILD_LOG%" echo AvernesSowtware 1.4.5 build log
++>"%BUILD_LOG%" echo AvernesSowtware 1.4.6 build log
+ call :log "Build started. Project directory: %PROJECT_DIR%"
+ set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+ if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+@@ -41,7 +41,7 @@ call :log "Compiler: %CSC%"
+ call :log "GTA V directory: %GTAV_DIR%"
+ call :log "ScriptHookVDotNet2 reference: %SHVDN_DLL%"
+ echo.
+-echo AvernesSowtware 1.4.5 - source build
++echo AvernesSowtware 1.4.6 - source build
+ if not exist "dist" mkdir "dist" >>"%BUILD_LOG%" 2>&1
+ set "BUILD_DLL=dist\AvernesSowtware.build.dll"
+ set "FINAL_DLL=dist\AvernesSowtware.dll"
+diff --git a/build/ReleasePackager.cs b/build/ReleasePackager.cs
+index c4e2b31..669dcd9 100644
+--- a/build/ReleasePackager.cs
++++ b/build/ReleasePackager.cs
+@@ -49,7 +49,7 @@ internal static class ReleasePackager
+             string archiveRootName = "AvernesSowtware_v" + stageName;
+             string packageRoot = Path.Combine(stage, archiveRootName);
+             Directory.CreateDirectory(packageRoot);
+-            string[] dirs = new string[] { "src", "build", "package", "docs", "dist", "assets" };
++            string[] dirs = new string[] { "src", "build", "package", "docs", "dist", "assets", "tests" };
+             for (int i = 0; i < dirs.Length; i++) CopyDirectory(Path.Combine(root, dirs[i]), Path.Combine(packageRoot, dirs[i]));
+             string[] files = new string[] {
+                 "AvernesSowtware.csproj", "AvernesSowtware.sln", "BUILD_RELEASE.bat", "START_HERE_RU.txt",
+@@ -93,6 +93,8 @@ internal static class ReleasePackager
+                     archiveRootName + "/package/AvernesSowtware/hotkeys.json",
+                     archiveRootName + "/docs/CHANGELOG_1_4_3_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_3_RU.md",
+                     archiveRootName + "/docs/CHANGELOG_1_4_5_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_5_RU.md",
++                    archiveRootName + "/docs/CHANGELOG_1_4_6_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_6_RU.md",
++                    archiveRootName + "/tests/test_1_4_6_regressions.py",
+                     archiveRootName + "/package/AvernesSowtware/Vehicles/SavedVehicles/README.txt",
+                     archiveRootName + "/dist/AvernesSowtware.dll",
+                     archiveRootName + "/assets/AvernesSowtware.png",
+diff --git a/build/ReleaseValidator.cs b/build/ReleaseValidator.cs
+index 5be3249..10ce07a 100644
+--- a/build/ReleaseValidator.cs
++++ b/build/ReleaseValidator.cs
+@@ -123,8 +123,9 @@ internal static class ReleaseValidator
+             "docs/CHANGELOG_1_3_7_RU.md", "docs/TEST_REPORT_1_3_7_RU.md",
+             "docs/CHANGELOG_1_3_8_RU.md", "docs/TEST_REPORT_1_3_8_RU.md",
+             "docs/CHANGELOG_1_3_9_RU.md", "docs/TEST_REPORT_1_3_9_RU.md",
+-            "docs/CHANGELOG_1_4_3_RU.md", "docs/TEST_REPORT_1_4_3_RU.md", "tests/test_1_4_3_regressions.py",
+-            "docs/CHANGELOG_1_4_5_RU.md", "docs/TEST_REPORT_1_4_5_RU.md", "tests/test_1_4_5_hardening.py",
++            "docs/CHANGELOG_1_4_3_RU.md", "docs/TEST_REPORT_1_4_3_RU.md",
++            "docs/CHANGELOG_1_4_5_RU.md", "docs/TEST_REPORT_1_4_5_RU.md",
++            "docs/CHANGELOG_1_4_6_RU.md", "docs/TEST_REPORT_1_4_6_RU.md", "tests/test_1_4_6_regressions.py",
+             "docs/CHANGELOG_1_3_1_RU.md", "docs/TEST_REPORT_1_3_1_RU.md", "docs/REGRESSION_TEST_PLAN_RU.md",
+             "docs/CHANGELOG_1_2_8_RU.md", "docs/TEST_REPORT_1_2_8_RU.md", "docs/AUDIT_1_2_8_PROGRESS_RU.md", "docs/CHANGELOG_1_2_9_RU.md", "docs/TEST_REPORT_1_2_9_RU.md", "docs/CHANGELOG_1_3_0_RU.md", "docs/TEST_REPORT_1_3_0_RU.md", "docs/NATIVE_REFERENCES_RU.md"
+         };
+@@ -237,14 +238,15 @@ internal static class ReleaseValidator
+         string vehicleSource = File.ReadAllText(Path.Combine(root, "src/Managers/VehicleSystems.cs"));
+         string catalogSource = File.ReadAllText(Path.Combine(root, "src/Managers/VehicleCatalog.cs"));
+         string uiSource = File.ReadAllText(Path.Combine(root, "src/UI/MenuRenderer.cs"));
+-        if (vehicleSource.IndexOf("Function.Call((Hash)0xAB54A438726D25D5UL", StringComparison.Ordinal) < 0 ||
+-            vehicleSource.IndexOf("_nitroBurstApplied", StringComparison.Ordinal) < 0 ||
+-            vehicleSource.IndexOf("ApplyNitroVelocityAssist(handle, maximumNitroSpeed)", StringComparison.Ordinal) < 0)
+-            Error("1.4.5 Nitro must apply one forward-speed burst per boost session instead of the old gradual force ramp.");
++        if (vehicleSource.IndexOf("ApplyNitroVelocityAssist(handle, maximumNitroSpeed, nitroPower)", StringComparison.Ordinal) < 0 ||
++            vehicleSource.IndexOf("GET_FRAME_TIME", StringComparison.Ordinal) < 0 ||
++            vehicleSource.IndexOf("SET_VEHICLE_FORWARD_SPEED", StringComparison.Ordinal) < 0 ||
++            vehicleSource.IndexOf("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed)", StringComparison.Ordinal) < 0)
++            Error("1.4.6 Nitro must continuously force the target forward speed and preserve the original helper entry point.");
+         if (vehicleSource.IndexOf("CalculateNitroMaximumSpeedMetersPerSecond", StringComparison.Ordinal) < 0 ||
+-            vehicleSource.IndexOf("150.0f / 3.6f", StringComparison.Ordinal) < 0 ||
++            vehicleSource.IndexOf("1200.0f / 3.6f", StringComparison.Ordinal) < 0 ||
+             vehicleSource.IndexOf("maximumNitroSpeed", StringComparison.Ordinal) < 0)
+-            Error("1.3.8 Nitro compatibility must scale the target speed linearly: x3=450 km/h and x8=1200 km/h.");
++            Error("1.4.6 Nitro must enforce the 1200 km/h target independently of acceleration power.");
+         int vehicleSettingsStart = vehicleSource.IndexOf("private void ApplyVehicleSettings", StringComparison.Ordinal);
+         int vehicleSettingsEnd = vehicleSettingsStart >= 0
+             ? vehicleSource.IndexOf("private void RestoreVehicleProtection", vehicleSettingsStart, StringComparison.Ordinal)
+@@ -325,7 +327,7 @@ internal static class ReleaseValidator
+             mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0)
+             Error("1.4.5 Fort Zancudo must preserve Newer Wanted / 911 dispatch and avoid clearing tasks from emergency vehicle occupants.");
+         if (catalogSource.IndexOf("superDiamondAlias", StringComparison.Ordinal) < 0 ||
+-            File.ReadAllText(Path.Combine(root, "src/Core/AvernesSowtwareScript.cs")).IndexOf("ProductVersion = \"1.4.5\"", StringComparison.Ordinal) < 0)
++            File.ReadAllText(Path.Combine(root, "src/Core/AvernesSowtwareScript.cs")).IndexOf("ProductVersion = \"1.4.6\"", StringComparison.Ordinal) < 0)
+             Error("1.3.6 version marker or Super Diamond search alias is missing.");
+         if (vehicleSource.IndexOf("0xBAA045B4E42F3C06UL", StringComparison.Ordinal) < 0 ||
+             vehicleSource.IndexOf("0x93A3996368C94158UL", StringComparison.Ordinal) < 0 ||
+@@ -343,7 +345,7 @@ internal static class ReleaseValidator
+         if (mainSource.IndexOf("StartDiagnosticSession", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("POSSIBLE GTA/SHVDN CRASH", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("Path.Combine(_scriptsDirectory, \"AvernesSowtware\")", StringComparison.Ordinal) < 0)
+-            Error("1.4.5 crash-session diagnostics path or marker is missing.");
++            Error("1.4.6 crash-session diagnostics path or marker is missing.");
+         if (mainSource.IndexOf("0x965791A9A488A062UL, handle, playerVehicleHandle", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("10000, stagedSeat, 1.0f, 1, 0)", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("_bodyguardBoardingEnterAtUtc", StringComparison.Ordinal) < 0 ||
+@@ -383,7 +385,8 @@ internal static class ReleaseValidator
+             mainSource.IndexOf("Restore saved pearlescent/wheel color", StringComparison.Ordinal) < 0)
+             Error("1.4.5 independent vehicle paint restoration is incomplete.");
+         if (mainSource.IndexOf("if (_settings.SuperJump)", StringComparison.Ordinal) < 0 ||
+-            mainSource.IndexOf("ENABLE_SPECIAL_ABILITY", StringComparison.Ordinal) < 0)
++            mainSource.IndexOf("ENABLE_SPECIAL_ABILITY", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("heightAboveGround < 65.0f", StringComparison.Ordinal) < 0)
+             Error("1.4.5 Super Jump parachute guard or Franklin ability re-enable is missing.");
+         string[] requiredDlcWeapons = new string[] { "WEAPON_PISTOLXM3", "WEAPON_BATTLERIFLE", "WEAPON_SERVICECARBINE", "WEAPON_EMPLAUNCHER", "WEAPON_STUNGUN_MP" };
+         for (int weaponIndex = 0; weaponIndex < requiredDlcWeapons.Length; weaponIndex++)
+@@ -392,7 +395,7 @@ internal static class ReleaseValidator
+         if (mainSource.IndexOf("if (!attackingPlayer) continue;", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("TASK_PLANE_MISSION", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("TASK_HELI_MISSION", StringComparison.Ordinal) < 0)
+-            Error("1.4.5 Fort Zancudo must redirect only hostile pilots and preserve non-hostile dispatch traffic.");
++            Error("1.4.6 Fort Zancudo must redirect aircraft away from the player while preserving non-hostile dispatch traffic.");
+         if (File.ReadAllText(Path.Combine(root, "src/Core/SettingsPersistence.cs")).IndexOf("ResolveWritableLogDirectory", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("AvernesSowtware_errors.log", StringComparison.Ordinal) < 0 ||
+             mainSource.IndexOf("AvernesSowtware_crashes.log", StringComparison.Ordinal) < 0)
+@@ -400,12 +403,50 @@ internal static class ReleaseValidator
+         int repairStart = vehicleSource.IndexOf("private void RepairVehicleForGodMode", StringComparison.Ordinal);
+         int repairEnd = repairStart >= 0 ? vehicleSource.IndexOf("private void RestoreVehicleProtection", repairStart, StringComparison.Ordinal) : -1;
+         string repairBody = repairStart >= 0 && repairEnd > repairStart ? vehicleSource.Substring(repairStart, repairEnd - repairStart) : String.Empty;
+-        if (repairBody.IndexOf("SET_VEHICLE_FIXED", StringComparison.Ordinal) >= 0 ||
++        if (repairBody.IndexOf("SET_VEHICLE_FIXED", StringComparison.Ordinal) < 0 ||
+             repairBody.IndexOf("SET_VEHICLE_DEFORMATION_FIXED", StringComparison.Ordinal) < 0)
+-            Error("1.4.5 God Mode repair must avoid full vehicle reset to preserve door state.");
++            Error("1.4.6 God Mode must fully repair pre-existing vehicle damage once, then use non-destructive periodic refresh.");
+         if (mainSource.IndexOf("_bodyguardBoardingEnterAtUtc[handle] = DateTime.UtcNow.AddMilliseconds(900)", StringComparison.Ordinal) < 0)
+             Error("1.4.5 bodyguard door-open animation wait is missing.");
+ 
++        if (mainSource.IndexOf("SET_POLICE_IGNORE_PLAYER, Game.Player, _settings.CopsIgnore", StringComparison.Ordinal) < 0)
++            Error("1.4.6 Never Wanted must not globally disable police AI required by external 911 dispatch.");
++        if (mainSource.IndexOf("destinationX", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("destinationY", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("aircraft, 0, 0,", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("destinationX, destinationY, destinationZ, 4", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("destinationX, destinationY, destinationZ, 8", StringComparison.Ordinal) < 0)
++            Error("1.4.6 Fort Zancudo aircraft must use safe plane/heli mission types and destination away from player.");
++        if (mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)", StringComparison.Ordinal) < 0)
++            Error("1.4.6 bodyguard combat and follow tasks must not be restarted on every update.");
++        if (mainSource.IndexOf("status >= 0 && status <= 2", StringComparison.Ordinal) < 0)
++            Error("1.4.6 GET_SCRIPT_TASK_STATUS must treat states 0 through 2 as active.");
++        if (mainSource.IndexOf("GetHash(\"TOREADOR\")", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("SPECIAL_ABILITY_FILL_METER", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("SPECIAL_ABILITY_UNLOCK", StringComparison.Ordinal) < 0)
++            Error("1.4.6 Franklin special ability unlock/enable/refill for Toreador is missing.");
++        if (mainSource.IndexOf("heightAboveGround < 65.0f", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("GET_ENTITY_HEIGHT_ABOVE_GROUND", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("GIVE_WEAPON_TO_PED", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("0xBF0FD6E56C964FCBUL", StringComparison.Ordinal) < 0)
++            Error("1.4.6 automatic parachute must require safe altitude and equip parachute before deployment.");
++        if (mainSource.IndexOf("RestoreCapturedVehiclePaint(handle, saved)", StringComparison.Ordinal) < 0)
++            Error("1.4.6 vehicle save must restore the live vehicle paint after mod-kit enumeration.");
++        if (mainSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
++            vehicleSource.IndexOf("0x81592BE4E4746D88UL", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("0x81592BE4E3878728UL", StringComparison.Ordinal) >= 0 ||
++            vehicleSource.IndexOf("0x81592BE4E3878728UL", StringComparison.Ordinal) >= 0)
++            Error("1.4.6 vehicle secondary mod-color getter hash is incorrect or inconsistent.");
++        if (mainSource.IndexOf("AvernesSowtware error log initialized", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("AvernesSowtware crash log initialized", StringComparison.Ordinal) < 0)
++            Error("1.4.6 error and crash log files must be initialized on startup.");
++        if (mainSource.IndexOf("GetEffectiveLogPath", StringComparison.Ordinal) < 0 ||
++            mainSource.IndexOf("_activeLogDirectory = fallbackDir", StringComparison.Ordinal) < 0)
++            Error("1.4.6 diagnostics must retain and report the actual fallback log directory.");
++        if (mainSource.IndexOf("AddMilliseconds(200)", StringComparison.Ordinal) < 0)
++            Error("1.4.6 serialized bodyguard dismissal interval was not reduced.");
++
+         string persistenceSource = File.ReadAllText(Path.Combine(root, "src/Core/SettingsPersistence.cs"));
+         if (persistenceSource.IndexOf("TryAtomicWriteFile", StringComparison.Ordinal) < 0 ||
+             persistenceSource.IndexOf("QueueSettingsSnapshot", StringComparison.Ordinal) < 0 ||
+diff --git a/dist/README_RU.txt b/dist/README_RU.txt
+index 52699aa..a1941eb 100644
+--- a/dist/README_RU.txt
++++ b/dist/README_RU.txt
+@@ -1,7 +1,7 @@
+-﻿AvernesSowtware 1.4.5 release package
++﻿AvernesSowtware 1.4.6 release package
+ 
+ The release builder compiles the DLL from the included C# 4 source and packages the installer.
+-Do not substitute an older DLL for the 1.4.5 build output.
++Do not substitute an older DLL for the 1.4.6 build output.
+ 
+ Run BUILD_RELEASE.bat on Windows with .NET Framework compiler tools and ScriptHookVDotNet2 API 2 available.
+ Only install after the build and package validation complete successfully.
+diff --git a/docs/CHANGELOG_1_4_6_RU.md b/docs/CHANGELOG_1_4_6_RU.md
+new file mode 100644
+index 0000000..a5ef63a
+--- /dev/null
++++ b/docs/CHANGELOG_1_4_6_RU.md
+@@ -0,0 +1,22 @@
++# AvernesSowtware 1.4.6 — исправления по игровому тесту 1.4.5
++
++- Nitro: целевая скорость 1200 км/ч; непрерывное принудительное задание продольной скорости через `SET_VEHICLE_FORWARD_SPEED` вместо импульса `SET_ENTITY_VELOCITY`, который ограничивался физикой обычного транспорта.
++- Vehicle God Mode: однократный полный ремонт ранее полученных повреждений при первом включении защиты; периодическое обновление деформации и стёкол остаётся без полного сброса дверей.
++- Телохранители: исправлена трактовка статуса задач GTA — активными считаются статусы 0–2 (ожидание, выполнение, dormant), статусы 3 и 7 означают отсутствие/завершение задачи. Это устраняет повторное назначение задач следования/прицеливания каждые 500 мс. Массовое увольнение остаётся последовательным, с паузой между обработкой сущностей.
++- Fort Zancudo: для самолётов используется миссия полёта к безопасным координатам (тип 4), для вертолётов — отдельная миссия отхода (тип 8); не передаётся игрок как цель.
++- Newer Wanted / 911: сохранена отдельная настройка `Cops Ignore`; `Never Wanted` не включает `SET_POLICE_IGNORE_PLAYER`. Нативный вызов 911 не реализован самим трейнером, поэтому совместимость требует изоляционного теста с выключенными `Never Wanted` и `Cops Ignore`.
++- Franklin / Toreador: при нахождении Franklin в Toreador способность включается, модельная способность разблокируется при необходимости, пустой индикатор пополняется.
++- Сохранение транспорта: исправлен неверный hash `GET_VEHICLE_MOD_COLOR_2` (`0x81592BE4E4746D88`); исправление применено и в сохранении, и в режиме матовой окраски. Краска считывается до установки mod kit и возвращается после перечисления модификаций.
++- Парашют: минимальная высота автоматического раскрытия увеличена до 65 м; перед раскрытием выдаётся `WEAPON_PARACHUTE`; защита от Super Jump сохранена. Повреждённые игровые текстуры из архивов GTA тренер восстановить не может.
++- Диагностика: error/crash файлы и маркер сессии создаются при запуске; фактический путь журналов выводится в уведомлении загрузки. Native crash stack нельзя получить из завершившегося процесса GTA, но незакрытый маркер позволяет зафиксировать вероятное аварийное завершение при следующем запуске.
++- Раздельные JSON-файлы слотов и `index.json` сохранены; старый `saved_vehicles.json` остаётся для совместимости.
++
++## Ограничения, требующие отдельной проверки
++
++- Малоразмерное окно игры не меняется этой версией: режим окна и разрешение задаются настройками GTA V, лаунчером или конфигурацией сборки.
++- Поведение Newer Wanted / 911 нужно проверить с выключенными `Never Wanted` и `Cops Ignore`, затем повторить тест с временно отключённой DLL трейнера. Если полицейские машины буксуют и без DLL, причина находится вне AvernesSowtware.
++- Визуальная текстура парашюта зависит от целостности игровых архивов и установленных модов.
++
++## Проверка
++
++Автоматические исходниковые проверки и сборка не заменяют игровое тестирование GTA V Legacy. Фактическая работа игровых механик должна быть подтверждена после установки сборки пользователем.
+diff --git a/docs/TEST_REPORT_1_4_6_RU.md b/docs/TEST_REPORT_1_4_6_RU.md
+new file mode 100644
+index 0000000..dfc2451
+--- /dev/null
++++ b/docs/TEST_REPORT_1_4_6_RU.md
+@@ -0,0 +1,33 @@
++# AvernesSowtware 1.4.6 — промежуточный отчёт
++
++## Результат исходниковых проверок
++
++- Python regression suite: **14/14 passed**.
++- `git diff --check` с учётом CRLF: **passed**.
++- C# compilation: **не запускалась** — в текущей среде отсутствуют .NET SDK, MSBuild, csc и Mono.
++- Installer/package validation после последних правок: **не запускалась**.
++- GTA V Legacy runtime: **не запускался**.
++
++## Матрица отчёта 1.4.5
++
++| № | Дефект | Изменение в исходниках 1.4.6 | Статус |
++|---|---|---|---|
++| 1 | Наземное Nitro ~335 км/ч | Непрерывный `SET_VEHICLE_FORWARD_SPEED`, целевой предел 1200 км/ч | Требует игры |
++| 2 | Визуальные повреждения | Однократный полный ремонт при включении Vehicle God Mode; периодическая защита остаётся | Требует игры |
++| 3 | Телохранители танцуют/массовое удаление | Исправлены статусы задач 0–2; очередь удаления последовательная | Требует игры |
++| 4 | Истребители Fort Zancudo атакуют | Самолёт получает безопасную координатную миссию; вертолёт — отдельную миссию отхода | Требует игры |
++| 5 | Nitro на истребителях срабатывает один раз | Непрерывное задание продольной скорости на каждом кадре ускорения | Требует игры |
++| 6 | Newer Wanted + 911, полиция буксует | `Cops Ignore` не включается автоматически; 911 не является функцией трейнера | Нужен изоляционный тест |
++| 7 | Цвет машины сбрасывается | Исправлен hash `GET_VEHICLE_MOD_COLOR_2` в сохранении и обработке матовой краски | Требует игры |
++| 8 | Franklin ability в Toreador | Разблокировка способности для `player_one`, включение и пополнение индикатора | Требует игры |
++| 9 | Парашют раскрывается низко/текстура повреждена | Порог 65 м; перед раскрытием выдаётся `WEAPON_PARACHUTE` | Требует игры; текстура зависит от GTA/mod-файлов |
++| 10 | Нет error/crash логов | Инициализация логов и маркера; при ошибке записи активируется и отображается реальный LocalAppData fallback | Требует игры |
++| 11 | Игра открывается в маленьком окне | Не менялось: вероятнее настройки GTA/лаунчера/репака | Вне кода трейнера |
++
++## Ограничения и обязательные проверки
++
++- Наличие исходниковых тестов не доказывает фактическое поведение GTA V.
++- Текущая DLL в `dist/` создана до последних правок; её нельзя выдавать за собранную 1.4.6.
++- После компиляции на Windows необходимо проверить DLL, C# validators, установщик, ZIP и сохранность 50 слотов/старых JSON.
++- Для пункта 6 сначала проверить с `Never Wanted = OFF` и `Cops Ignore = OFF`; затем повторить без DLL AvernesSowtware. Это отделит конфликт трейнера от поведения Newer Wanted/911 или другого мода.
++- Native crash stack после завершения процесса GTA получить из managed ScriptHookVDotNet невозможно. Crash-файл фиксирует необработанные managed exceptions и вероятное аварийное завершение по незакрытому маркеру предыдущей сессии.
+diff --git a/package/AvernesSowtware/AvernesSowtware.ini b/package/AvernesSowtware/AvernesSowtware.ini
+index 7a70708..d3c2e08 100644
+--- a/package/AvernesSowtware/AvernesSowtware.ini
++++ b/package/AvernesSowtware/AvernesSowtware.ini
+@@ -1,4 +1,4 @@
+-﻿; AvernesSowtware 1.4.5
++﻿; AvernesSowtware 1.4.6
+ ; The trainer reads this file from scripts\\AvernesSowtware\\AvernesSowtware.ini.
+ ; The original Config.ini is not modified.
+ 
+diff --git a/package/AvernesSowtware/Vehicles/SavedVehicles/README.txt b/package/AvernesSowtware/Vehicles/SavedVehicles/README.txt
+index 29c197e..1492b3b 100644
+--- a/package/AvernesSowtware/Vehicles/SavedVehicles/README.txt
++++ b/package/AvernesSowtware/Vehicles/SavedVehicles/README.txt
+@@ -1,4 +1,4 @@
+-Saved vehicle storage (AvernesSowtware 1.4.5)
++﻿Saved vehicle storage (AvernesSowtware 1.4.6)
+ 
+ Each occupied slot is stored in its own JSON file:
+   slot_01.json ... slot_50.json
+diff --git a/src/Core/AvernesSowtwareScript.cs b/src/Core/AvernesSowtwareScript.cs
+index 9a417b5..21617bd 100644
+--- a/src/Core/AvernesSowtwareScript.cs
++++ b/src/Core/AvernesSowtwareScript.cs
+@@ -16,7 +16,7 @@ namespace AvernesSowtware
+     public sealed partial class AvernesSowtwareScript : Script
+     {
+         private const string ProductName = "AvernesSowtware";
+-        private const string ProductVersion = "1.4.5";
++        private const string ProductVersion = "1.4.6";
+         private const int AmmoPerWeapon = 9999;
+         private const int PremiumWeaponTint = 7;
+ 
+@@ -377,6 +377,7 @@ namespace AvernesSowtware
+             _savedVehiclesSlotsDirectory = Path.Combine(_vehiclesDirectory, "SavedVehicles");
+             _savedVehiclesManifestPath = Path.Combine(_savedVehiclesSlotsDirectory, "index.json");
+             _logDirectory = ResolveWritableLogDirectory(_scriptsDirectory, _dataDirectory);
++            _activeLogDirectory = _logDirectory;
+             _sourceConfigPath = Path.Combine(_dataDirectory, "Config.ini");
+             _configPath = Path.Combine(_dataDirectory, "AvernesSowtware.ini");
+             _addonPath = Path.Combine(_dataDirectory, "addons.json");
+@@ -416,7 +417,7 @@ namespace AvernesSowtware
+             // AppendLogFile creates the target directory itself and falls back to LocalAppData.
+             Log("Startup reached script constructor. BaseDirectory=" + AppDomain.CurrentDomain.BaseDirectory +
+                 "; gameDirectory=" + _gameDirectory + "; scriptsDirectory=" + _scriptsDirectory +
+-                "; assembly=" + GetType().Assembly.Location);
++                "; logDirectory=" + GetEffectiveLogPath(_logPath) + "; assembly=" + GetType().Assembly.Location);
+ 
+             try
+             {
+@@ -461,9 +462,9 @@ namespace AvernesSowtware
+                 try { RebuildVehicleSpawnerMenu(); } catch (Exception rebuildEx) { LogException("RebuildVehicleSpawnerMenu", rebuildEx); }
+             }
+ 
+-            Notify(ProductName + " " + ProductVersion + " loaded. Logs: " + _logPath + ". Press " + GetHotkeyLabel("MenuToggle") + " to open.");
++            Notify(ProductName + " " + ProductVersion + " loaded. Logs: " + GetEffectiveLogPath(_logPath) + ". Press " + GetHotkeyLabel("MenuToggle") + " to open.");
+             Log("Initialized. Legacy settings and save paths were preserved. Vehicle DB: " + _vehicleCatalogPath +
+-                "; diagnostics: " + _logDirectory);
++                "; diagnostics: " + _activeLogDirectory);
+         }
+ 
+         private void OnTick(object sender, EventArgs e)
+@@ -834,9 +835,19 @@ namespace AvernesSowtware
+             bool isFranklin = currentPlayerModel == GetHash("player_one");
+             if (isFranklin && ped.IsInVehicle())
+             {
+-                // Franklin's Driving Focus is disabled by some vehicle scripts after
+-                // model/vehicle transitions. Re-enable it while he is driving.
++                // Franklin's Driving Focus can be disabled by special-vehicle scripts.
++                // Re-enable it after each vehicle transition; the Toreador can also
++                // leave the meter empty even though the native toggle is enabled.
+                 Function.Call((Hash)0x181EC197DAEFE121UL, Game.Player, true, 0); // ENABLE_SPECIAL_ABILITY
++                int currentVehicleHandle = Function.Call<int>((Hash)0x9A9112A0FE9A4713UL, ped.Handle, false);
++                if (currentVehicleHandle != 0 && Function.Call<uint>(Hash.GET_ENTITY_MODEL, currentVehicleHandle) == GetHash("TOREADOR"))
++                {
++                    uint franklinModel = GetHash("player_one");
++                    if (!Function.Call<bool>((Hash)0xC6017F6A6CDFA694UL, franklinModel))
++                        Function.Call((Hash)0xF145F3BE2EFA9A3BUL, franklinModel); // SPECIAL_ABILITY_UNLOCK
++                    if (!Function.Call<bool>((Hash)0x05A1FE504B7F2587UL, Game.Player)) // IS_SPECIAL_ABILITY_METER_FULL
++                        Function.Call((Hash)0x3DACA8DDC6FD4980UL, Game.Player, true); // SPECIAL_ABILITY_FILL_METER
++                }
+             }
+             if (_settings.InfiniteSpecialAbility &&
+                 !Function.Call<bool>((Hash)0x05A1FE504B7F2587UL, Game.Player))
+@@ -856,7 +867,9 @@ namespace AvernesSowtware
+                 Function.Call((Hash)0xAA5F02DB48D704B9UL, 0); // SET_MAX_WANTED_LEVEL
+                 Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player, 0, false);
+                 Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player, false);
+-                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
++                // Never Wanted suppresses wanted-level escalation, not police AI.
++                // External Newer Wanted / 911 dispatch needs police to retain normal tasks.
++                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _settings.CopsIgnore);
+             }
+             else
+             {
+@@ -1001,15 +1014,23 @@ namespace AvernesSowtware
+                         if (_militaryAircraftFleeIssuedUtc.TryGetValue(npc.Handle, out lastFleeTaskUtc) &&
+                             now < lastFleeTaskUtc.AddSeconds(5)) continue;
+                         _militaryAircraftFleeIssuedUtc[npc.Handle] = now;
++                        Vector3 aircraftPosition = Function.Call<Vector3>(Hash.GET_ENTITY_COORDS, aircraft, true);
++                        float awayX = aircraftPosition.X - playerPosition.X;
++                        float awayY = aircraftPosition.Y - playerPosition.Y;
++                        float awayLength = (float)Math.Sqrt(awayX * awayX + awayY * awayY);
++                        if (awayLength < 1.0f) { awayX = 1.0f; awayY = 0.0f; awayLength = 1.0f; }
++                        float destinationX = aircraftPosition.X + (awayX / awayLength) * 2500.0f;
++                        float destinationY = aircraftPosition.Y + (awayY / awayLength) * 2500.0f;
++                        float destinationZ = Math.Max(aircraftPosition.Z + 350.0f, playerPosition.Z + 500.0f);
+                         if (vehicleClass == 16)
+                         {
+-                            Function.Call((Hash)0x23703CD154E83B88UL, npc.Handle, aircraft, 0, player.Handle,
+-                                0.0f, 0.0f, 0.0f, 8, 100.0f, 0.0f, -1.0f, 1000.0f, 200.0f, false); // TASK_PLANE_MISSION: flee
++                            Function.Call((Hash)0x23703CD154E83B88UL, npc.Handle, aircraft, 0, 0,
++                                destinationX, destinationY, destinationZ, 4, 100.0f, 0.0f, -1.0f, 1000.0f, 200.0f, false); // TASK_PLANE_MISSION: fly to safe destination (4); 8 is not the plane flee task
+                         }
+                         else
+                         {
+-                            Function.Call((Hash)0xDAD029E187A2BEB4UL, npc.Handle, aircraft, 0, player.Handle,
+-                                0.0f, 0.0f, 0.0f, 8, 60.0f, 0.0f, -1.0f, 1000, 200, 100.0f, 0); // TASK_HELI_MISSION: flee
++                            Function.Call((Hash)0xDAD029E187A2BEB4UL, npc.Handle, aircraft, 0, 0,
++                                destinationX, destinationY, destinationZ, 8, 60.0f, 0.0f, -1.0f, 1000, 200, 100.0f, 0); // TASK_HELI_MISSION: flee away
+                         }
+                         Function.Call((Hash)0x971D38760FBC02EFUL, npc.Handle, true); // SET_PED_KEEP_TASK
+                         continue;
+@@ -1904,25 +1925,6 @@ namespace AvernesSowtware
+             saved.Extras = new bool[15];
+             saved.NeonEnabled = new bool[4];
+ 
+-            Function.Call((Hash)0x1F2AA07F00B3217AUL, handle, 0); // SET_VEHICLE_MOD_KIT
+-            for (int modType = 0; modType < 50; modType++)
+-            {
+-                try
+-                {
+-                    int modIndex = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, modType);
+-                    saved.Mods[modType] = modIndex;
+-                    if (modIndex >= 0)
+-                        saved.ModVariations[modType] = Function.Call<bool>((Hash)0xB3924ECD70E095DCUL, handle, modType);
+-                }
+-                catch (Exception ex) { LogException("Capture vehicle mod " + modType, ex); }
+-            }
+-            int[] toggleTypes = new int[] { 18, 20, 22 };
+-            for (int i = 0; i < toggleTypes.Length; i++)
+-            {
+-                try { saved.ToggleMods[i] = Function.Call<bool>((Hash)0x84B233A8C8FC8AE7UL, handle, toggleTypes[i]); }
+-                catch (Exception ex) { LogException("Capture vehicle toggle mod " + toggleTypes[i], ex); }
+-            }
+-            saved.WheelType = Function.Call<int>((Hash)0xB3ED1BFB4BE636DCUL, handle);
+             using (OutputArgument primary = new OutputArgument())
+             using (OutputArgument secondary = new OutputArgument())
+             {
+@@ -1949,7 +1951,7 @@ namespace AvernesSowtware
+             using (OutputArgument colorType = new OutputArgument())
+             using (OutputArgument colorIndex = new OutputArgument())
+             {
+-                Function.Call((Hash)0x81592BE4E3878728UL, handle, colorType, colorIndex);
++                Function.Call((Hash)0x81592BE4E4746D88UL, handle, colorType, colorIndex);
+                 saved.ModColor2Type = colorType.GetResult<int>();
+                 saved.ModColor2Index = colorIndex.GetResult<int>();
+             }
+@@ -2008,14 +2010,51 @@ namespace AvernesSowtware
+             }
+             for (int side = 0; side < 4; side++)
+                 saved.NeonEnabled[side] = Function.Call<bool>((Hash)0x8C4B92553E4766A5UL, handle, side);
++            Function.Call((Hash)0x1F2AA07F00B3217AUL, handle, 0); // SET_VEHICLE_MOD_KIT
++            for (int modType = 0; modType < 50; modType++)
++            {
++                try
++                {
++                    int modIndex = Function.Call<int>((Hash)0x772960298DA26FDBUL, handle, modType);
++                    saved.Mods[modType] = modIndex;
++                    if (modIndex >= 0)
++                        saved.ModVariations[modType] = Function.Call<bool>((Hash)0xB3924ECD70E095DCUL, handle, modType);
++                }
++                catch (Exception ex) { LogException("Capture vehicle mod " + modType, ex); }
++            }
++            int[] toggleTypes = new int[] { 18, 20, 22 };
++            for (int i = 0; i < toggleTypes.Length; i++)
++            {
++                try { saved.ToggleMods[i] = Function.Call<bool>((Hash)0x84B233A8C8FC8AE7UL, handle, toggleTypes[i]); }
++                catch (Exception ex) { LogException("Capture vehicle toggle mod " + toggleTypes[i], ex); }
++            }
++            saved.WheelType = Function.Call<int>((Hash)0xB3ED1BFB4BE636DCUL, handle);
+             for (int extra = 0; extra < 15; extra++)
+             {
+                 if (Function.Call<bool>((Hash)0x1262D55792428154UL, handle, extra))
+                     saved.Extras[extra] = Function.Call<bool>((Hash)0xD2E6822DBFD6C8BDUL, handle, extra);
+             }
++            RestoreCapturedVehiclePaint(handle, saved);
+             return saved;
+         }
+ 
++        private void RestoreCapturedVehiclePaint(int handle, SavedVehicle saved)
++        {
++            if (saved == null || !IsVehicleHandleUsable(handle)) return;
++            try
++            {
++                Function.Call((Hash)0x55E1D2758F34E437UL, handle);
++                Function.Call((Hash)0x5FFBDEEC3E8E2009UL, handle);
++                Function.Call((Hash)0x4F1D4BE3A7F24601UL, handle, saved.PrimaryColor, saved.SecondaryColor);
++                Function.Call((Hash)0x43FEB945EE7F85B8UL, handle, saved.ModColor1Type, saved.ModColor1Index, saved.ModColor1Pearlescent);
++                Function.Call((Hash)0x816562BADFDEC83EUL, handle, saved.ModColor2Type, saved.ModColor2Index);
++                Function.Call((Hash)0x2036F561ADD12E33UL, handle, saved.PearlescentColor, saved.WheelColor);
++                if (saved.PrimaryCustom) Function.Call((Hash)0x7141766F91D15BEAUL, handle, saved.PrimaryRed, saved.PrimaryGreen, saved.PrimaryBlue);
++                if (saved.SecondaryCustom) Function.Call((Hash)0x36CED73BFED89754UL, handle, saved.SecondaryRed, saved.SecondaryGreen, saved.SecondaryBlue);
++            }
++            catch (Exception ex) { LogException("Restore captured vehicle paint", ex); }
++        }
++
+         private string GetVehicleDisplayName(int modelHash)
+         {
+             try
+@@ -2979,6 +3018,22 @@ namespace AvernesSowtware
+             }
+         }
+ 
++        private bool IsScriptTaskActive(int pedHandle, Hash taskHash)
++        {
++            if (!IsPedHandleUsable(pedHandle)) return false;
++            try
++            {
++                // GET_SCRIPT_TASK_STATUS: 0=WAITING_TO_START, 1=PERFORMING,
++                // 2=DORMANT, 3=VACANT, 7=FINISHED. Only 0..2 still represent
++                // an assigned task. Treating only status 1 as active caused
++                // follow/aim tasks to be reissued every 500 ms, producing the
++                // visible stop-dodge-stop / "dance in place" behaviour.
++                int status = Function.Call<int>((Hash)0x77F1BEB8863288D5UL, pedHandle, taskHash);
++                return status >= 0 && status <= 2;
++            }
++            catch (Exception ex) { LogException("Read bodyguard task status", ex); return false; }
++        }
++
+         private void ProcessBodyguardFollowing(Ped player)
+         {
+             if (_bodyguards.Count == 0 || !IsEntityUsable(player)) return;
+@@ -3021,13 +3076,19 @@ namespace AvernesSowtware
+                     // the target, then restore the normal follow task.
+                     if (Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, handle, player.Handle))
+                     {
+-                        Function.Call(Hash.CLEAR_PED_TASKS, handle);
+-                        Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+-                            -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
+-                        Function.Call((Hash)0x971D38760FBC02EFUL, handle, true); // SET_PED_KEEP_TASK
++                        if (!IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL))
++                        {
++                            Function.Call(Hash.CLEAR_PED_TASKS, handle);
++                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
++                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true); // TASK_FOLLOW_TO_OFFSET_OF_ENTITY
++                            Function.Call((Hash)0x971D38760FBC02EFUL, handle, true); // SET_PED_KEEP_TASK
++                        }
+                         continue;
+                     }
+ 
++                    // Do not overwrite an aim/combat task with a follow task while
++                    // the AI is still transitioning into combat.
++                    if (_lastBodyguardAimTargetHandle != 0 && IsPedHandleUsable(_lastBodyguardAimTargetHandle)) continue;
+                     bool inCombat = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, handle, 0);
+                     if (inCombat) continue;
+ 
+@@ -3070,8 +3131,9 @@ namespace AvernesSowtware
+                             player.Position.X, player.Position.Y, player.Position.Z, true);
+                         if (distance > 28.0f)
+                         {
+-                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+-                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
++                            if (!IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL))
++                                Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
++                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
+                             continue;
+                         }
+ 
+@@ -3140,8 +3202,9 @@ namespace AvernesSowtware
+                         }
+                         else
+                         {
+-                            Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+-                                -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
++                            if (!IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL))
++                                Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
++                                    -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
+                         }
+                         continue;
+                     }
+@@ -3161,7 +3224,8 @@ namespace AvernesSowtware
+                     bool playerInCombat = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, player.Handle, 0);
+                     if (playerInCombat)
+                     {
+-                        Function.Call((Hash)0x7CF1C3B65E9C67B1UL, handle, 45.0f, 0); // TASK_COMBAT_HATED_TARGETS_AROUND_PED
++                        if (!IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL))
++                            Function.Call((Hash)0x7CF1C3B65E9C67B1UL, handle, 45.0f, 0); // TASK_COMBAT_HATED_TARGETS_AROUND_PED
+                         continue;
+                     }
+ 
+@@ -3169,7 +3233,7 @@ namespace AvernesSowtware
+                     float playerDistance = Function.Call<float>(Hash.GET_DISTANCE_BETWEEN_COORDS,
+                         position.X, position.Y, position.Z,
+                         player.Position.X, player.Position.Y, player.Position.Z, true);
+-                    if (playerDistance > 5.0f)
++                    if (playerDistance > 5.0f && !IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL))
+                     {
+                         Function.Call((Hash)0x304AE42E357B8C7EUL, handle, player.Handle,
+                             -1.0f, -1.0f, 0.0f, 3.0f, -1, 3.0f, true);
+@@ -3263,7 +3327,7 @@ namespace AvernesSowtware
+                         _bodyguardDismissalDetachedHandles.Remove(handle);
+                         _queuedBodyguardDismissalHandles.Remove(handle);
+                         _bodyguardGroupCleanupNotBeforeUtc = DateTime.UtcNow.AddSeconds(2);
+-                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(650);
++                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(200);
+                         return;
+                     }
+ 
+@@ -3278,7 +3342,7 @@ namespace AvernesSowtware
+                         Function.Call((Hash)0xED74007FFB146BC2UL, handle); // REMOVE_PED_FROM_GROUP
+                         _bodyguardDismissalDetachedHandles.Add(handle);
+                         _pendingBodyguardDismissals.Enqueue(handle);
+-                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(650);
++                        _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(200);
+                         return;
+                     }
+ 
+@@ -3306,7 +3370,7 @@ namespace AvernesSowtware
+                 }
+ 
+                 _bodyguardGroupCleanupNotBeforeUtc = DateTime.UtcNow.AddSeconds(2);
+-                _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(650);
++                _nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(200);
+                 return;
+             }
+ 
+@@ -3390,10 +3454,20 @@ namespace AvernesSowtware
+                     _parachuteAutoDeploymentRequested = false;
+                     return;
+                 }
++                float heightAboveGround = Function.Call<float>((Hash)0x1DD55701034110E5UL, ped.Handle); // GET_ENTITY_HEIGHT_ABOVE_GROUND
++                if (Single.IsNaN(heightAboveGround) || Single.IsInfinity(heightAboveGround) || heightAboveGround < 65.0f)
++                {
++                    _parachuteAutoDeploymentRequested = false;
++                    return;
++                }
+ 
+                 int parachuteState = Function.Call<int>((Hash)0x79CFD9827CC979B6UL, ped.Handle); // GET_PED_PARACHUTE_STATE
+                 if (parachuteState == 0 && !_parachuteAutoDeploymentRequested)
+                 {
++                    // Ensure the parachute weapon/equipment exists before forcing
++                    // deployment. Without it GTA can open an invalid/partially loaded
++                    // parachute state, especially after model changes or fresh installs.
++                    Function.Call((Hash)0xBF0FD6E56C964FCBUL, ped.Handle, GetHash("WEAPON_PARACHUTE"), 1, false, false); // GIVE_WEAPON_TO_PED
+                     Function.Call((Hash)0x16E42E800B472221UL, ped.Handle); // FORCE_PED_TO_OPEN_PARACHUTE
+                     _parachuteAutoDeploymentRequested = true;
+                     Log("Automatic parachute deployment requested during free fall.");
+@@ -4150,7 +4224,7 @@ namespace AvernesSowtware
+             DateTime now = DateTime.UtcNow;
+             if ((now - _lastErrorNotificationUtc).TotalSeconds < 5.0) return;
+             _lastErrorNotificationUtc = now;
+-            Notify("AvernesSowtware error in " + context + ". Report: " + _errorLogPath);
++            Notify("AvernesSowtware error in " + context + ". Report: " + GetEffectiveLogPath(_errorLogPath));
+         }
+ 
+         private static int EncodingSize(string content)
+@@ -4158,20 +4232,29 @@ namespace AvernesSowtware
+             return content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
+         }
+ 
++        private string GetEffectiveLogPath(string path)
++        {
++            string directory = String.IsNullOrEmpty(_activeLogDirectory) ? _logDirectory : _activeLogDirectory;
++            return Path.Combine(directory, Path.GetFileName(path));
++        }
++
+         private void AppendLogFile(string path, string content)
+         {
++            string effectivePath = GetEffectiveLogPath(path);
+             try
+             {
+-                Directory.CreateDirectory(_logDirectory);
++                string effectiveDirectory = Path.GetDirectoryName(effectivePath);
++                if (String.IsNullOrEmpty(effectiveDirectory)) throw new IOException("Log directory is unavailable.");
++                Directory.CreateDirectory(effectiveDirectory);
+                 lock (_logSync)
+                 {
+-                    if (File.Exists(path) && new FileInfo(path).Length + EncodingSize(content) > 1024 * 1024)
++                    if (File.Exists(effectivePath) && new FileInfo(effectivePath).Length + EncodingSize(content) > 1024 * 1024)
+                     {
+-                        string rotated = path + ".1";
++                        string rotated = effectivePath + ".1";
+                         if (File.Exists(rotated)) File.Delete(rotated);
+-                        File.Move(path, rotated);
++                        File.Move(effectivePath, rotated);
+                     }
+-                    using (FileStream stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
++                    using (FileStream stream = new FileStream(effectivePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                     using (StreamWriter writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                     {
+                         writer.Write(content);
+@@ -4182,14 +4265,15 @@ namespace AvernesSowtware
+             }
+             catch
+             {
+-                // Logging never falls back into the legacy scripts root or creates YnixTrainer artifacts.
++                // Keep the actual fallback directory for all subsequent logs and notices.
+                 try
+                 {
+                     string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                     if (String.IsNullOrEmpty(local)) return;
+                     string fallbackDir = Path.Combine(local, "AvernesSowtware", "GTA V Legacy", "Logs");
+                     Directory.CreateDirectory(fallbackDir);
+-                    string fallbackPath = Path.Combine(fallbackDir, Path.GetFileName(path));
++                    _activeLogDirectory = fallbackDir;
++                    string fallbackPath = GetEffectiveLogPath(path);
+                     using (FileStream stream = new FileStream(fallbackPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                     using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8)) { writer.Write(content); writer.Flush(); stream.Flush(); }
+                 }
+@@ -4215,10 +4299,14 @@ namespace AvernesSowtware
+         {
+             try
+             {
+-                if (File.Exists(_sessionMarkerPath))
++                if (!File.Exists(GetEffectiveLogPath(_errorLogPath)))
++                    AppendLogFile(_errorLogPath, "AvernesSowtware error log initialized. No errors recorded yet." + Environment.NewLine);
++                if (!File.Exists(GetEffectiveLogPath(_crashReportPath)))
++                    AppendLogFile(_crashReportPath, "AvernesSowtware crash log initialized. No abnormal session recorded yet." + Environment.NewLine);
++                if (File.Exists(GetEffectiveLogPath(_sessionMarkerPath)))
+                 {
+                     string previous = String.Empty;
+-                    try { previous = File.ReadAllText(_sessionMarkerPath); } catch { }
++                    try { previous = File.ReadAllText(GetEffectiveLogPath(_sessionMarkerPath)); } catch { }
+                     string unexpected = Environment.NewLine + "!!!!!!!!!!!!!!!! POSSIBLE GTA/SHVDN CRASH !!!!!!!!!!!!!!!!" + Environment.NewLine +
+                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + Environment.NewLine +
+                         "The previous trainer session marker was not cleared by a normal shutdown. A native GTA crash, forced process termination, or power loss is suspected." + Environment.NewLine +
+@@ -4229,7 +4317,7 @@ namespace AvernesSowtware
+ 
+                 string marker = "PID=" + ProcessIdText() + Environment.NewLine +
+                     "STARTED_UTC=" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + Environment.NewLine;
+-                using (FileStream stream = new FileStream(_sessionMarkerPath, FileMode.Create, FileAccess.Write, FileShare.Read))
++                using (FileStream stream = new FileStream(GetEffectiveLogPath(_sessionMarkerPath), FileMode.Create, FileAccess.Write, FileShare.Read))
+                 using (StreamWriter writer = new StreamWriter(stream, new UTF8Encoding(false)))
+                 {
+                     writer.Write(marker);
+@@ -4248,7 +4336,11 @@ namespace AvernesSowtware
+ 
+         private void DeleteSessionMarker()
+         {
+-            try { if (!String.IsNullOrEmpty(_sessionMarkerPath) && File.Exists(_sessionMarkerPath)) File.Delete(_sessionMarkerPath); }
++            try
++            {
++                string markerPath = GetEffectiveLogPath(_sessionMarkerPath);
++                if (!String.IsNullOrEmpty(markerPath) && File.Exists(markerPath)) File.Delete(markerPath);
++            }
+             catch (Exception ex) { AppendLogFile(_errorLogPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " [WARN] Could not remove session marker: " + ex + Environment.NewLine); }
+         }
+ 
+diff --git a/src/Managers/VehicleSystems.cs b/src/Managers/VehicleSystems.cs
+index ae9d890..e94a562 100644
+--- a/src/Managers/VehicleSystems.cs
++++ b/src/Managers/VehicleSystems.cs
+@@ -14,6 +14,7 @@ namespace AvernesSowtware
+     {
+         private int _pendingGodModeRepairVehicleHandle;
+         private DateTime _pendingGodModeRepairAtUtc = DateTime.MinValue;
++        private DateTime _nextVehicleGodModeRepairUtc = DateTime.MinValue;
+ 
+         private void ApplyAntiEject(Ped ped)
+         {
+@@ -71,6 +72,7 @@ namespace AvernesSowtware
+ 
+             if (currentHandle == 0)
+             {
++                _nextVehicleGodModeRepairUtc = DateTime.MinValue;
+                 _pendingGodModeRepairVehicleHandle = 0;
+                 _pendingGodModeRepairAtUtc = DateTime.MinValue;
+                 _lastAppliedVehicleSettingsHandle = 0;
+@@ -89,6 +91,16 @@ namespace AvernesSowtware
+             bool protectWheels = godMode || _settings.BulletproofTires;
+             bool wasGodModeAlreadyApplied = _vehicleSettingsCacheValid &&
+                 _lastAppliedVehicleSettingsHandle == currentHandle && _lastVehicleGodModeSetting;
++            if (godMode && wasGodModeAlreadyApplied && _pendingGodModeRepairVehicleHandle == 0 &&
++                DateTime.UtcNow >= _nextVehicleGodModeRepairUtc)
++            {
++                RefreshVehicleGodModeDamage(currentHandle);
++                _nextVehicleGodModeRepairUtc = DateTime.UtcNow.AddMilliseconds(450);
++            }
++            else if (!godMode)
++            {
++                _nextVehicleGodModeRepairUtc = DateTime.MinValue;
++            }
+             if (_vehicleSettingsCacheValid && _lastAppliedVehicleSettingsHandle == currentHandle &&
+                 _lastVehicleGodModeSetting == godMode &&
+                 _lastVehicleBulletproofTiresSetting == _settings.BulletproofTires &&
+@@ -121,6 +133,7 @@ namespace AvernesSowtware
+                     RepairVehicleForGodMode(currentHandle);
+                     _pendingGodModeRepairVehicleHandle = 0;
+                     _pendingGodModeRepairAtUtc = DateTime.MinValue;
++                    _nextVehicleGodModeRepairUtc = DateTime.UtcNow.AddMilliseconds(450);
+                 }
+             }
+             else if (_pendingGodModeRepairVehicleHandle == currentHandle)
+@@ -162,6 +175,10 @@ namespace AvernesSowtware
+         private void RepairVehicleForGodMode(int vehicleHandle)
+         {
+             if (!IsVehicleHandleUsable(vehicleHandle)) return;
++            // SET_VEHICLE_DEFORMATION_FIXED removes deformation but does not fully
++            // restore all body/engine damage states. SET_VEHICLE_FIXED is required
++            // for pre-existing dents and damage when God Mode is first enabled.
++            Function.Call(Hash.SET_VEHICLE_FIXED, vehicleHandle);
+             Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
+             for (int windowIndex = 0; windowIndex < 8; windowIndex++)
+                 Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
+@@ -169,6 +186,19 @@ namespace AvernesSowtware
+             Log("Vehicle God Mode initial repair completed. Vehicle=" + vehicleHandle + ".");
+         }
+ 
++        private void RefreshVehicleGodModeDamage(int vehicleHandle)
++        {
++            if (!IsVehicleHandleUsable(vehicleHandle)) return;
++            try
++            {
++                Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicleHandle);
++                for (int windowIndex = 0; windowIndex < 8; windowIndex++)
++                    Function.Call((Hash)0x772282EBEB95E682UL, vehicleHandle, windowIndex); // FIX_VEHICLE_WINDOW
++                Function.Call(Hash.SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED, vehicleHandle, false);
++            }
++            catch (Exception ex) { LogException("Refresh vehicle God Mode damage", ex); }
++        }+
+         private void RestoreVehicleProtection(int vehicleHandle)
+         {
+             if (vehicleHandle == 0) return;
+@@ -281,17 +311,18 @@ namespace AvernesSowtware
+                         if (baseMaximumSpeed < 1.0f)
+                             baseMaximumSpeed = Function.Call<float>((Hash)0xF417C2502FFFED43UL, Function.Call<uint>(Hash.GET_ENTITY_MODEL, handle)); // GET_VEHICLE_MODEL_ESTIMATED_MAX_SPEED
+                         if (baseMaximumSpeed < 1.0f) baseMaximumSpeed = 50.0f;
+-                        float topSpeedIncreasePercent = ClampFloat(((maximumNitroSpeed / baseMaximumSpeed) - 1.0f) * 100.0f, 0.0f, 3000.0f);
++                        float topSpeedIncreasePercent = ClampFloat(((maximumNitroSpeed / baseMaximumSpeed) - 1.0f) * 100.0f, 0.0f, 10000.0f);
+                         Function.Call((Hash)0x93A3996368C94158UL, handle, topSpeedIncreasePercent); // MODIFY_VEHICLE_TOP_SPEED
+                         _nitroVehicleHandle = handle;
+                         Log("Nitro handling boost applied: vehicle=" + handle + "; estimatedBase=" + baseMaximumSpeed.ToString("0.00", CultureInfo.InvariantCulture) + " m/s; target=" + maximumNitroSpeed.ToString("0.00", CultureInfo.InvariantCulture) + " m/s; increase=" + topSpeedIncreasePercent.ToString("0.0", CultureInfo.InvariantCulture) + "%.");
+                     }
+ 
+-                    // Apply the top-speed cap and a single forward-speed impulse per
+-                    // boost session. This avoids the old slow ramp and also works on aircraft.
++                    // Keep the top-speed cap and forward acceleration active for every
++                    // frame the boost key is held. A one-shot impulse decays under GTA
++                    // vehicle physics, which is especially visible on aircraft.
+                     Function.Call((Hash)0xB59E4BD37AE292DBUL, handle, 1.8f); // SET_VEHICLE_CHEAT_POWER_INCREASE
+                     Function.Call((Hash)0xBAA045B4E42F3C06UL, handle, maximumNitroSpeed); // SET_VEHICLE_MAX_SPEED (m/s)
+-                    ApplyNitroVelocityAssist(handle, maximumNitroSpeed);
++                    ApplyNitroVelocityAssist(handle, maximumNitroSpeed, nitroPower);
+                 }
+             }
+             else
+@@ -304,13 +335,39 @@ namespace AvernesSowtware
+                 Function.Call((Hash)0xC5F68BE9613E2D18UL, handle, 1, 0.0f, 0.0f, 8.5f, 0.0f, 0.0f, 0.0f, 0, false, true, true, false, true);
+         }
+ 
++        // Preserve the original internal entry point for existing callers/reflection-based integrations.
+         private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed)
+         {
+-            if (vehicleHandle == 0 || !IsVehicleHandleUsable(vehicleHandle) || _nitroBurstApplied) return;
+-            // SET_VEHICLE_FORWARD_SPEED uses m/s and bypasses the gradual gearbox ramp.
+-            // At x8 the target is 333.33 m/s (1200 km/h), including aircraft.
+-            Function.Call((Hash)0xAB54A438726D25D5UL, vehicleHandle, maximumSpeed); // SET_VEHICLE_FORWARD_SPEED
+-            _nitroBurstApplied = true;
++            ApplyNitroVelocityAssist(vehicleHandle, maximumSpeed, _settings.NitroPower);
++        }
++
++        private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)
++        {
++            if (vehicleHandle == 0 || !IsVehicleHandleUsable(vehicleHandle)) return;
++            Vector3 forward = Function.Call<Vector3>(Hash.GET_ENTITY_FORWARD_VECTOR, vehicleHandle);
++            float forwardLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y + forward.Z * forward.Z);
++            if (forwardLength < 0.001f) return;
++            float forwardX = forward.X / forwardLength;
++            float forwardY = forward.Y / forwardLength;
++            float forwardZ = forward.Z / forwardLength;
++
++            Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
++            float forwardSpeed = velocity.X * forwardX + velocity.Y * forwardY + velocity.Z * forwardZ;
++            if (forwardSpeed < -1.0f) return; // Do not reverse the vehicle when the driver is backing up.
++            float deltaSeconds = Function.Call<float>((Hash)0x15C40837039FFAF7UL); // GET_FRAME_TIME
++            if (Single.IsNaN(deltaSeconds) || Single.IsInfinity(deltaSeconds)) deltaSeconds = 0.016f;
++            deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
++            float acceleration = 65.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 12.0f;
++            float nextForwardSpeed = ClampFloat(forwardSpeed, 0.0f, maximumSpeed);
++            if (nextForwardSpeed >= maximumSpeed) return;
++            nextForwardSpeed = Math.Min(maximumSpeed, nextForwardSpeed + acceleration * deltaSeconds);
++
++            // Applying a raw entity velocity is clamped by vehicle handling/engine speed
++            // in many land vehicles (the observed ceiling was ~335 km/h). Force the
++            // vehicle's forward speed directly on every boost frame instead.
++            // SET_VEHICLE_FORWARD_SPEED accepts m/s, matching the target calculation.
++            Function.Call((Hash)0xAB54A438726D25D5UL, vehicleHandle, nextForwardSpeed); // SET_VEHICLE_FORWARD_SPEED
++            _nitroBurstApplied = true; // Retained for session diagnostics; no longer gates subsequent frames.
+         }
+ 
+         private void RestoreNitroSpeedLimit()
+@@ -333,8 +390,9 @@ namespace AvernesSowtware
+ 
+         private static float CalculateNitroMaximumSpeedMetersPerSecond(float nitroPower)
+         {
+-            // 150 km/h per power step: x3 = 450 km/h; x8 = 1200 km/h.
+-            return ClampFloat(nitroPower, 0.5f, 8.0f) * (150.0f / 3.6f);
++            // Release acceptance target: 1200 km/h for every NitroPower setting.
++            // NitroPower now affects acceleration only, not the top-speed ceiling.
++            return 1200.0f / 3.6f;
+         }
+ 
+         private void DrawSpeedometer(Ped ped)
+@@ -1026,7 +1084,7 @@ namespace AvernesSowtware
+                 using (OutputArgument type = new OutputArgument())
+                 using (OutputArgument color = new OutputArgument())
+                 {
+-                    Function.Call((Hash)0x81592BE4E3878728UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2
++                    Function.Call((Hash)0x81592BE4E4746D88UL, handle, type, color); // GET_VEHICLE_MOD_COLOR_2
+                     secondaryType = type.GetResult<int>();
+                     secondaryColor = color.GetResult<int>();
+                 }
+diff --git a/tests/test_1_4_6_regressions.py b/tests/test_1_4_6_regressions.py
+new file mode 100644
+index 0000000..5bed04e
+--- /dev/null
++++ b/tests/test_1_4_6_regressions.py
+@@ -0,0 +1,156 @@
++from pathlib import Path
++import re
++import unittest
++
++ROOT = Path(__file__).resolve().parents[1]
++CORE = (ROOT / "src/Core/AvernesSowtwareScript.cs").read_text(encoding="utf-8-sig")
++VEHICLE = (ROOT / "src/Managers/VehicleSystems.cs").read_text(encoding="utf-8-sig")
++PERSISTENCE = (ROOT / "src/Core/SettingsPersistence.cs").read_text(encoding="utf-8-sig")
++
++
++def method_body(source: str, signature: str) -> str:
++    start = source.index(signature)
++    opening = source.index("{", start)
++    depth = 0
++    in_string = False
++    escaped = False
++    for i in range(opening, len(source)):
++        ch = source[i]
++        if in_string:
++            if escaped:
++                escaped = False
++            elif ch == "\\":
++                escaped = True
++            elif ch == '"':
++                in_string = False
++            continue
++        if ch == '"':
++            in_string = True
++        elif ch == "{":
++            depth += 1
++        elif ch == "}":
++            depth -= 1
++            if depth == 0:
++                return source[opening:i + 1]
++    raise AssertionError(f"Unclosed method: {signature}")
++
++
++class Release146RegressionTests(unittest.TestCase):
++    def test_nitro_uses_fixed_1200_kmh_target(self):
++        body = method_body(VEHICLE, "private static float CalculateNitroMaximumSpeedMetersPerSecond")
++        self.assertIn("return 1200.0f / 3.6f", body)
++        self.assertNotIn("nitroPower *", body)
++
++    def test_nitro_assist_forces_continuous_forward_speed(self):
++        caller = method_body(VEHICLE, "private void ApplyLegacyVehicleEffects")
++        legacy_assist = method_body(VEHICLE, "private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed)")
++        assist = method_body(VEHICLE, "private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)")
++        self.assertIn("ApplyNitroVelocityAssist(handle, maximumNitroSpeed, nitroPower)", caller)
++        self.assertIn("ApplyNitroVelocityAssist(vehicleHandle, maximumSpeed, _settings.NitroPower)", legacy_assist)
++        self.assertIn("GET_ENTITY_FORWARD_VECTOR", assist)
++        self.assertIn("SET_VEHICLE_FORWARD_SPEED", assist)
++        self.assertNotIn("SET_ENTITY_VELOCITY", assist)
++        self.assertNotIn("|| _nitroBurstApplied", assist)
++        self.assertIn("GET_FRAME_TIME", assist)
++
++    def test_vehicle_god_mode_repairs_visual_damage_repeatedly(self):
++        body = method_body(VEHICLE, "private void ApplyVehicleSettings")
++        repair = method_body(VEHICLE, "private void RefreshVehicleGodModeDamage")
++        self.assertIn("RefreshVehicleGodModeDamage(currentHandle)", body)
++        self.assertIn("AddMilliseconds(450)", body)
++        self.assertIn("SET_VEHICLE_DEFORMATION_FIXED", repair)
++        self.assertIn("0x772282EBEB95E682UL", repair)
++        self.assertIn("SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED", repair)
++        initial_repair = method_body(VEHICLE, "private void RepairVehicleForGodMode")
++        self.assertIn("SET_VEHICLE_FIXED", initial_repair)
++
++    def test_script_task_status_zero_is_treated_as_active(self):
++        body = method_body(CORE, "private bool IsScriptTaskActive")
++        self.assertIn("status >= 0 && status <= 2", body)
++        self.assertNotIn("== 1", body)
++
++    def test_bodyguard_follow_and_combat_tasks_are_not_restarted(self):
++        body = method_body(CORE, "private void ProcessBodyguardFollowing")
++        self.assertIn("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)", body)
++        self.assertIn("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)", body)
++        self.assertIn("_lastBodyguardAimTargetHandle", body)
++
++    def test_bulk_dismissal_remains_serialized_and_shorter(self):
++        body = method_body(CORE, "private void ProcessPendingBodyguardDismissals")
++        self.assertIn("_pendingBodyguardDismissals.Dequeue()", body)
++        self.assertIn("MarkAsNoLongerNeeded", body)
++        self.assertIn("AddMilliseconds(200)", body)
++        self.assertNotIn("DeleteEntity", body)
++
++    def test_fort_zancudo_aircraft_flee_away_from_player(self):
++        body = method_body(CORE, "private void SuppressActiveMilitaryCombat")
++        self.assertIn("destinationX", body)
++        self.assertIn("destinationY", body)
++        self.assertIn("destinationZ", body)
++        self.assertIn("aircraft, 0, 0,", body)
++        self.assertIn("TASK_PLANE_MISSION", body)
++        self.assertIn("TASK_HELI_MISSION", body)
++        self.assertIn("destinationX, destinationY, destinationZ, 4", body)
++        self.assertIn("destinationX, destinationY, destinationZ, 8", body)
++
++    def test_never_wanted_keeps_police_ai_available_to_911(self):
++        body = method_body(CORE, "private void ApplyPlayerSettings")
++        self.assertIn("SET_POLICE_IGNORE_PLAYER, Game.Player, _settings.CopsIgnore", body)
++
++    def test_franklin_toreador_meter_is_refilled_when_empty(self):
++        body = method_body(CORE, "private void ApplyPlayerSettings")
++        self.assertIn('GetHash("TOREADOR")', body)
++        self.assertIn("IS_SPECIAL_ABILITY_METER_FULL", body)
++        self.assertIn("SPECIAL_ABILITY_FILL_METER", body)
++        self.assertIn("SPECIAL_ABILITY_UNLOCK", body)
++        self.assertIn("ENABLE_SPECIAL_ABILITY", body)
++
++    def test_parachute_has_minimum_altitude_and_super_jump_guard(self):
++        body = method_body(CORE, "private void ProcessAutomaticParachuteDeployment")
++        self.assertIn("_settings.SuperJump", body)
++        self.assertIn("GET_ENTITY_HEIGHT_ABOVE_GROUND", body)
++        self.assertIn("heightAboveGround < 65.0f", body)
++        self.assertIn("GIVE_WEAPON_TO_PED", body)
++        self.assertIn("0xBF0FD6E56C964FCBUL", body)
++        self.assertLess(body.index("heightAboveGround < 65.0f"), body.index("FORCE_PED_TO_OPEN_PARACHUTE"))
++
++    def test_vehicle_paint_is_captured_before_mod_kit_and_restored(self):
++        body = method_body(CORE, "private SavedVehicle CaptureSavedVehicle")
++        self.assertLess(body.index("GET_VEHICLE_COLOURS"), body.index("SET_VEHICLE_MOD_KIT"))
++        self.assertIn("RestoreCapturedVehiclePaint(handle, saved)", body)
++        self.assertIn("private void RestoreCapturedVehiclePaint", CORE)
++        self.assertIn("0x81592BE4E4746D88UL", CORE)
++        self.assertNotIn("0x81592BE4E3878728UL", CORE)
++        self.assertIn("0x81592BE4E4746D88UL", VEHICLE)
++        self.assertNotIn("0x81592BE4E3878728UL", VEHICLE)
++        matte = method_body(VEHICLE, "private void ApplyMattePaintPreservingColor")
++        self.assertIn("0x81592BE4E4746D88UL", matte)
++
++    def test_diagnostics_files_exist_after_startup_and_are_separate(self):
++        body = method_body(CORE, "private void StartDiagnosticSession")
++        self.assertIn("_errorLogPath", body)
++        self.assertIn("_crashReportPath", body)
++        self.assertIn("AvernesSowtware error log initialized", body)
++        self.assertIn("AvernesSowtware crash log initialized", body)
++        self.assertIn('"AvernesSowtware_errors.log"', CORE)
++        self.assertIn('"AvernesSowtware_crashes.log"', CORE)
++        self.assertIn("ResolveWritableLogDirectory", PERSISTENCE)
++        self.assertIn("GetEffectiveLogPath", CORE)
++        self.assertIn("loaded. Logs: " + '" + GetEffectiveLogPath(_logPath)', CORE)
++        append = method_body(CORE, "private void AppendLogFile")
++        self.assertIn("_activeLogDirectory = fallbackDir", append)
++        self.assertIn("GetEffectiveLogPath(path)", append)
++
++    def test_per_slot_json_and_legacy_storage_are_preserved(self):
++        self.assertIn("_savedVehiclesSlotsDirectory", CORE)
++        self.assertIn("_savedVehiclesManifestPath", CORE)
++        self.assertIn("slot_", CORE)
++        self.assertIn("saved_vehicles.json", CORE)
++        self.assertIn("SavedVehiclesGroup", CORE)
++
++    def test_release_version(self):
++        self.assertRegex(CORE, r'ProductVersion\s*=\s*"1\.4\.6"')
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
