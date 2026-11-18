@@ -288,6 +288,7 @@ $legacyTests = Read-Text $legacyTestPath
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn("IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)", body)' 'self.assertIn("IsScriptTaskActive(handle, (Hash)0x3EF867F4UL)", body)' 'legacy follow task enum'
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn("IsScriptTaskActive(handle, (Hash)0x7CF1C3B65E9C67B1UL)", body)' 'self.assertIn("IsScriptTaskActive(handle, (Hash)0xAA05B492UL)", body)' 'legacy combat task enum'
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn("AddMilliseconds(200)", body)' 'self.assertIn("AddMilliseconds(650)", body)' 'legacy dismissal interval assertion'
+$legacyTests = $legacyTests.Replace('1\.4\.6','1\.4\.7')
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn(''"AvernesSowtware_errors.log"'', CORE)' 'self.assertIn(''"error.log"'', CORE)' 'legacy error log filename assertion'
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn(''"AvernesSowtware_crashes.log"'', CORE)' 'self.assertIn(''"crash.log"'', CORE)' 'legacy crash log filename assertion'
 $newLogAssertions = 'self.assertIn("FileShare.ReadWrite | FileShare.Delete", append)' + $nl + '        self.assertIn("for (int attempt = 0; attempt < 3; attempt++)", append)'
