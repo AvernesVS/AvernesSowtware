@@ -33,6 +33,11 @@ $resourceRestore = 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, false); // BLO
 $resourceBlock = 'Function.Call((Hash)0x9B2BD3773123EA2FUL, 14, true); // BLOCK_DISPATCH_SERVICE_RESOURCE_CREATION'
 $core = $core.Remove($resourceMatches[1].Index, $resourceOld.Length).Insert($resourceMatches[1].Index, $resourceRestore)
 $core = $core.Remove($resourceMatches[0].Index, $resourceOld.Length).Insert($resourceMatches[0].Index, $resourceBlock)
+$updateStart = $core.IndexOf('private void UpdateFortZancudoArmyDispatch')
+$restoreStart = $core.IndexOf('private void RestoreFortZancudoArmyDispatch', $updateStart)
+$updateBlock = $core.Substring($updateStart, $restoreStart - $updateStart)
+$updateBlock = Replace-Exact $updateBlock '_armyVehicleDispatchSuppressed = false;' '_armyVehicleDispatchSuppressed = true;' 'Fort Zancudo suppression state'
+$core = $core.Substring(0,$updateStart) + $updateBlock + $core.Substring($restoreStart)
 $core = Replace-Exact $core 'now < lastFleeTaskUtc.AddSeconds(5)' 'now < lastFleeTaskUtc.AddSeconds(1.5)' 'military aircraft reassert interval'
 
 $followStatusOld = 'IsScriptTaskActive(handle, (Hash)0x304AE42E357B8C7EUL)'
@@ -257,7 +262,8 @@ $oldFortValidator = @'
             fortDispatchBody.IndexOf("0x9B2BD3773123EA2FUL, 2, false", StringComparison.Ordinal) < 0 ||
             fortDispatchBody.IndexOf("AddMilliseconds(900)", StringComparison.Ordinal) < 0 ||
             mainSource.IndexOf("TASK_VEHICLE_DRIVE_WANDER", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0)
+            mainSource.IndexOf("if (pedInVehicle)", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("_armyVehicleDispatchSuppressed = true;", StringComparison.Ordinal) < 0)
             Error("1.4.5 Fort Zancudo must preserve Newer Wanted / 911 dispatch and avoid clearing tasks from emergency vehicle occupants.");
 '@
 $newFortValidator = @'
