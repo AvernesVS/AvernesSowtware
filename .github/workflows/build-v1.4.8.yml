@@ -125,6 +125,43 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply the final v1.4.8 hotfix.' }
           } finally { Pop-Location }
 
+          # Apply the post-review runtime hardening patch (safe ped group reads + event teardown).
+          $runtimeFiles = @(
+            'src/Core/AvernesSowtwareScript.cs',
+            'tests/test_1_4_7_regressions.py',
+            'tests/test_1_4_8_regressions.py',
+            'docs/CHANGELOG_1_4_8_RU.md',
+            'docs/TEST_REPORT_1_4_8_RU.md'
+          )
+          foreach ($relative in $runtimeFiles) {
+            $path = Join-Path $sourceRoot $relative
+            $text = [IO.File]::ReadAllText($path)
+            $text = $text.Replace("`r`n","`n").Replace("`r","`n")
+            [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
+          }
+          $runtimePatchPath = Join-Path $env:RUNNER_TEMP 'v148-runtime-hardening.patch'
+          $runtimePatchEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-runtime-hardening.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $runtimePatchEncodedPath)) { throw 'v1.4.8 runtime hardening patch is missing.' }
+          $runtimeCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($runtimePatchEncodedPath).Trim()))
+          $runtimeInput = New-Object IO.MemoryStream(,$runtimeCompressed)
+          $runtimeGzip = New-Object IO.Compression.GzipStream($runtimeInput,[IO.Compression.CompressionMode]::Decompress)
+          $runtimeOutput = New-Object IO.MemoryStream
+          try { $runtimeGzip.CopyTo($runtimeOutput) } finally { $runtimeGzip.Dispose(); $runtimeInput.Dispose() }
+          $runtimeBytes = $runtimeOutput.ToArray()
+          $runtimeOutput.Dispose()
+          [IO.File]::WriteAllBytes($runtimePatchPath,$runtimeBytes)
+          $runtimeHash = (Get-FileHash -LiteralPath $runtimePatchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($runtimeHash -ne 'b51e3fccb97709bf6a3e8a6deff639bb144404c28dd843f186fd1720a45fcfcc') {
+            throw "v1.4.8 runtime hardening patch checksum mismatch: $runtimeHash"
+          }
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $runtimePatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Runtime hardening patch does not match the reviewed v1.4.8 source.' }
+            & git apply --ignore-space-change --whitespace=nowarn $runtimePatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply the runtime hardening patch.' }
+          } finally { Pop-Location }
+
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
