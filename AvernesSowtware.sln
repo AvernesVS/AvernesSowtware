@@ -1,0 +1,18 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvernesSowtware", "AvernesSowtware.csproj", "{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+		{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+		{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+		{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}.Release|Any CPU.Build.0 = Release|AnyCPU
+	EndGlobalSection
+EndGlobal

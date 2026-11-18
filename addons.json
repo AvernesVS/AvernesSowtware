@@ -1,0 +1,427 @@
+[
+  {
+    "name": "S80RR",
+    "model": "s80",
+    "category": "Super"
+  },
+  {
+    "name": "Prototipo",
+    "model": "prototipo",
+    "category": "Super"
+  },
+  {
+    "name": "Weevil",
+    "model": "weevil",
+    "category": "Muscle"
+  },
+  {
+    "name": "Gauntlet Classic Custom",
+    "model": "gauntlet5",
+    "category": "Muscle"
+  },
+  {
+    "name": "Fagaloa",
+    "model": "fagaloa",
+    "category": "Classic"
+  },
+  {
+    "name": "Peyote Custom",
+    "model": "peyote3",
+    "category": "Classic"
+  },
+  {
+    "name": "Stafford",
+    "model": "stafford",
+    "category": "Classic"
+  },
+  {
+    "name": "Asbo",
+    "model": "asbo",
+    "category": "Compacts"
+  },
+  {
+    "name": "Brioso 300",
+    "model": "brioso2",
+    "category": "Compacts"
+  },
+  {
+    "name": "Club",
+    "model": "club",
+    "category": "Compacts"
+  },
+  {
+    "name": "Schafter LWB",
+    "model": "schafter5",
+    "category": "Sedans"
+  },
+  {
+    "name": "Winky",
+    "model": "winky",
+    "category": "Off-road"
+  },
+  {
+    "name": "Manchez Scout",
+    "model": "manchez2",
+    "category": "Motorcycles"
+  },
+  {
+    "name": "Annihilator Stealth",
+    "model": "annihilator2",
+    "category": "Helicopters"
+  },
+  {
+    "name": "Sea Sparrow (DLC)",
+    "model": "seasparrow2",
+    "category": "Helicopters"
+  },
+  {
+    "name": "Alkonost",
+    "model": "alkonost",
+    "category": "Planes"
+  },
+  {
+    "name": "Avisa",
+    "model": "avisa",
+    "category": "Boats"
+  },
+  {
+    "name": "Kosatka",
+    "model": "kosatka",
+    "category": "Boats"
+  },
+  {
+    "name": "Longfin",
+    "model": "longfin",
+    "category": "Boats"
+  },
+  {
+    "name": "Patrol Boat",
+    "model": "patrolboat",
+    "category": "Boats"
+  },
+  {
+    "name": "Barrage",
+    "model": "barrage",
+    "category": "Military"
+  },
+  {
+    "name": "Deluxo",
+    "model": "deluxo",
+    "category": "Sports Classic"
+  },
+  {
+    "name": "GT500",
+    "model": "gt500",
+    "category": "Sports Classic"
+  },
+  {
+    "name": "Z190",
+    "model": "z190",
+    "category": "Sports Classic"
+  },
+  {
+    "name": "Brutus",
+    "model": "brutus",
+    "category": "Off-road"
+  },
+  {
+    "name": "Brutus Apocalypse",
+    "model": "brutus2",
+    "category": "Off-road"
+  },
+  {
+    "name": "Brutus Future Shock",
+    "model": "brutus3",
+    "category": "Off-road"
+  },
+  {
+    "name": "Cerberus",
+    "model": "cerberus",
+    "category": "Commercial"
+  },
+  {
+    "name": "Cerberus Apocalypse",
+    "model": "cerberus2",
+    "category": "Commercial"
+  },
+  {
+    "name": "Cerberus Future Shock",
+    "model": "cerberus3",
+    "category": "Commercial"
+  },
+  {
+    "name": "Dominator Arena Apocalypse",
+    "model": "dominator4",
+    "category": "Muscle"
+  },
+  {
+    "name": "Dominator Arena Future Shock",
+    "model": "dominator5",
+    "category": "Muscle"
+  },
+  {
+    "name": "Dominator Arena Nightmare",
+    "model": "dominator6",
+    "category": "Muscle"
+  },
+  {
+    "name": "Impaler Apocalypse",
+    "model": "impaler2",
+    "category": "Muscle"
+  },
+  {
+    "name": "Impaler Future Shock",
+    "model": "impaler3",
+    "category": "Muscle"
+  },
+  {
+    "name": "Impaler Nightmare",
+    "model": "impaler4",
+    "category": "Muscle"
+  },
+  {
+    "name": "Issi Apocalypse",
+    "model": "issi4",
+    "category": "Compacts"
+  },
+  {
+    "name": "Issi Future Shock",
+    "model": "issi5",
+    "category": "Compacts"
+  },
+  {
+    "name": "Issi Nightmare",
+    "model": "issi6",
+    "category": "Compacts"
+  },
+  {
+    "name": "Monster Nightmare",
+    "model": "monster3",
+    "category": "Off-road"
+  },
+  {
+    "name": "Monster Future Shock",
+    "model": "monster4",
+    "category": "Off-road"
+  },
+  {
+    "name": "Monster Apocalypse",
+    "model": "monster5",
+    "category": "Off-road"
+  },
+  {
+    "name": "RC Bandito",
+    "model": "rcbandito",
+    "category": "Remote Control"
+  },
+  {
+    "name": "Scarab",
+    "model": "scarab",
+    "category": "Military"
+  },
+  {
+    "name": "Scarab Apocalypse",
+    "model": "scarab2",
+    "category": "Military"
+  },
+  {
+    "name": "Scarab Future Shock",
+    "model": "scarab3",
+    "category": "Military"
+  },
+  {
+    "name": "Slamvan Apocalypse",
+    "model": "slamvan4",
+    "category": "Muscle"
+  },
+  {
+    "name": "Slamvan Future Shock",
+    "model": "slamvan5",
+    "category": "Muscle"
+  },
+  {
+    "name": "Slamvan Nightmare",
+    "model": "slamvan6",
+    "category": "Muscle"
+  },
+  {
+    "name": "ZR380",
+    "model": "zr380",
+    "category": "Sports"
+  },
+  {
+    "name": "ZR380 Apocalypse",
+    "model": "zr3802",
+    "category": "Sports"
+  },
+  {
+    "name": "ZR380 Future Shock",
+    "model": "zr3803",
+    "category": "Sports"
+  },
+  {
+    "name": "Dynasty",
+    "model": "dynasty",
+    "category": "Classic"
+  },
+  {
+    "name": "Paragon R Armored",
+    "model": "paragon2",
+    "category": "Sports"
+  },
+  {
+    "name": "Rocket Voltic",
+    "model": "rrocket",
+    "category": "Super"
+  },
+  {
+    "name": "Stryder",
+    "model": "stryder",
+    "category": "Motorcycles"
+  },
+  {
+    "name": "Sugoi",
+    "model": "sugoi",
+    "category": "Sports"
+  },
+  {
+    "name": "Formula",
+    "model": "formula",
+    "category": "Open Wheel"
+  },
+  {
+    "name": "Formula 2",
+    "model": "formula2",
+    "category": "Open Wheel"
+  },
+  {
+    "name": "Imorgon",
+    "model": "imorgon",
+    "category": "Sports"
+  },
+  {
+    "name": "RC Tank",
+    "model": "minitank",
+    "category": "Remote Control"
+  },
+  {
+    "name": "Outlaw",
+    "model": "outlaw",
+    "category": "Off-road"
+  },
+  {
+    "name": "Rebla GTS",
+    "model": "rebla",
+    "category": "SUVs"
+  },
+  {
+    "name": "Sultan Classic",
+    "model": "sultan2",
+    "category": "Sports"
+  },
+  {
+    "name": "Vagrant",
+    "model": "vagrant",
+    "category": "Off-road"
+  },
+  {
+    "name": "V-STR",
+    "model": "vstr",
+    "category": "Sedans"
+  },
+  {
+    "name": "Dukes Beater",
+    "model": "dukes3",
+    "category": "Muscle"
+  },
+  {
+    "name": "Glendale Custom",
+    "model": "glendale2",
+    "category": "Sedans"
+  },
+  {
+    "name": "PR4",
+    "model": "openwheel1",
+    "category": "Open Wheel"
+  },
+  {
+    "name": "R88",
+    "model": "openwheel2",
+    "category": "Open Wheel"
+  },
+  {
+    "name": "Penumbra FF",
+    "model": "penumbra2",
+    "category": "Sports"
+  },
+  {
+    "name": "Seminole Frontier",
+    "model": "seminole2",
+    "category": "SUVs"
+  },
+  {
+    "name": "Tigon",
+    "model": "tigon",
+    "category": "Super"
+  },
+  {
+    "name": "Yosemite Rancher",
+    "model": "yosemite3",
+    "category": "Muscle"
+  },
+  {
+    "name": "Youga Classic 4x4",
+    "model": "youga3",
+    "category": "Vans"
+  },
+  {
+    "name": "Dinghy 5",
+    "model": "dinghy5",
+    "category": "Boats"
+  },
+  {
+    "name": "Itali RSX",
+    "model": "italirsx",
+    "category": "Sports"
+  },
+  {
+    "name": "Sea Sparrow (variant)",
+    "model": "seasparrow3",
+    "category": "Helicopters"
+  },
+  {
+    "name": "Slamtruck",
+    "model": "slamtruck",
+    "category": "Commercial"
+  },
+  {
+    "name": "Squaddie",
+    "model": "squaddie",
+    "category": "SUVs"
+  },
+  {
+    "name": "Toreador",
+    "model": "toreador",
+    "category": "Sports Classic"
+  },
+  {
+    "name": "Verus",
+    "model": "verus",
+    "category": "Off-road"
+  },
+  {
+    "name": "Vetir",
+    "model": "vetir",
+    "category": "Military"
+  },
+  {
+    "name": "Veto",
+    "model": "veto",
+    "category": "Sports"
+  },
+  {
+    "name": "Veto Classic",
+    "model": "veto2",
+    "category": "Sports"
+  }
+]

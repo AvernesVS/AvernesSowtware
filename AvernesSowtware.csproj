@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <GtaVDirectory Condition=" '$(GtaVDirectory)' == '' ">C:\Program Files (x86)\Grand Theft Auto V</GtaVDirectory>
+    <ScriptHookVDotNetPath Condition=" '$(ScriptHookVDotNetPath)' == '' and Exists('$(GtaVDirectory)\ScriptHookVDotNet2.dll') ">$(GtaVDirectory)\ScriptHookVDotNet2.dll</ScriptHookVDotNetPath>
+    <ScriptHookVDotNetPath Condition=" '$(ScriptHookVDotNetPath)' == '' and Exists('$(GtaVDirectory)\scripts\ScriptHookVDotNet2.dll') ">$(GtaVDirectory)\scripts\ScriptHookVDotNet2.dll</ScriptHookVDotNetPath>
+    <ScriptHookVDotNetPath Condition=" '$(ScriptHookVDotNetPath)' == '' and '$(AVERNE_SHVDN_DLL)' != '' ">$(AVERNE_SHVDN_DLL)</ScriptHookVDotNetPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5D1B6D5D-C7B0-4FB3-9A39-1C2DA4D2E2A8}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>AvernesSowtware</RootNamespace>
+    <AssemblyName>AvernesSowtware</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <LangVersion>4</LangVersion>
+    <OutputPath>dist\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <DefineConstants>TRACE</DefineConstants>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="ScriptHookVDotNet2">
+      <HintPath>$(ScriptHookVDotNetPath)</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="src\Core\AvernesSowtwareScript.cs" />
+    <Compile Include="src\Core\SettingsPersistence.cs" />
+    <Compile Include="src\Core\RuntimeDiagnostics.cs" />
+    <Compile Include="src\Core\HotkeyManager.cs" />
+    <Compile Include="src\Core\TeleportHistory.cs" />
+    <Compile Include="src\Managers\VehicleSystems.cs" />
+    <Compile Include="src\Managers\VehicleCatalog.cs" />
+    <Compile Include="src\UI\MenuRenderer.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "bindings": {
+    "MenuToggle": "F11",
+    "MenuUp": "Up",
+    "MenuDown": "Down",
+    "MenuSelect": "Enter",
+    "MenuBack": "Back",
+    "VehicleRockets": "Add"
+  }
+}
