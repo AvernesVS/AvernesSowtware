@@ -291,6 +291,8 @@ $legacyTests = Replace-Exact $legacyTests 'self.assertIn("AddMilliseconds(200)",
 $legacyTests = $legacyTests.Replace('1\.4\.6','1\.4\.7')
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn(''"AvernesSowtware_errors.log"'', CORE)' 'self.assertIn(''"error.log"'', CORE)' 'legacy error log filename assertion'
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn(''"AvernesSowtware_crashes.log"'', CORE)' 'self.assertIn(''"crash.log"'', CORE)' 'legacy crash log filename assertion'
+$legacyTests = Replace-Exact $legacyTests 'self.assertIn("0x81592BE4E4746D88UL", VEHICLE)' 'self.assertIn("0xA19435F193E081ACUL", VEHICLE)' 'legacy matte paint color native assertion'
+$legacyTests = Replace-Exact $legacyTests 'self.assertIn("0x81592BE4E4746D88UL", matte)' 'self.assertIn("0xA19435F193E081ACUL", matte)' 'legacy matte paint getter assertion'
 $newLogAssertions = 'self.assertIn("FileShare.ReadWrite | FileShare.Delete", append)' + $nl + '        self.assertIn("for (int attempt = 0; attempt < 3; attempt++)", append)'
 $legacyTests = Replace-Exact $legacyTests 'self.assertIn("_activeLogDirectory = fallbackDir", append)' $newLogAssertions 'legacy strict log directory assertion'
 Write-Text $legacyTestPath $legacyTests
