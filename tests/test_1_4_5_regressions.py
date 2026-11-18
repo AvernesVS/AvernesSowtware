@@ -4,6 +4,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 VEHICLE = (ROOT / 'src' / 'Managers' / 'VehicleSystems.cs').read_text(encoding='utf-8-sig')
 MAIN = (ROOT / 'src' / 'Core' / 'AvernesSowtwareScript.cs').read_text(encoding='utf-8-sig')
+VALIDATOR = (ROOT / 'build' / 'ReleaseValidator.cs').read_text(encoding='utf-8-sig')
 
 
 class Release145VehicleEntryRegressionTests(unittest.TestCase):
@@ -28,6 +29,16 @@ class Release145VehicleEntryRegressionTests(unittest.TestCase):
         self.assertIn('Hash.SET_VEHICLE_FIXED', body)
         self.assertIn('Hash.SET_VEHICLE_DEFORMATION_FIXED', body)
         self.assertIn('0x772282EBEB95E682UL', body)
+
+    def test_fort_zancudo_disables_the_army_dispatch_service_not_police_boats(self):
+        start = MAIN.index('private void UpdateFortZancudoArmyDispatch')
+        end = MAIN.index('private void RestoreFortZancudoArmyDispatch', start)
+        body = MAIN[start:end]
+        self.assertIn('0xDC0F817884CDD856UL, 15, false', body)
+        self.assertIn('0x9B2BD3773123EA2FUL, 15, true', body)
+        self.assertNotIn('0xDC0F817884CDD856UL, 14, false', body)
+        self.assertIn('0xDC0F817884CDD856UL, 15, true', MAIN[end:MAIN.index('private void SuppressActiveMilitaryCombat', end)])
+        self.assertIn('0xDC0F817884CDD856UL, 15, false', VALIDATOR)
 
     def test_version_is_145_and_existing_features_remain(self):
         self.assertIn('ProductVersion = "1.4.5"', MAIN)
