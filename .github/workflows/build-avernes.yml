@@ -45,9 +45,9 @@ jobs:
         shell: pwsh
         run: |
           @'
-          import base64, gzip, hashlib, os
+          import gzip, hashlib, os
           from pathlib import Path
-          packed = base64.b64decode(Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_text(encoding='ascii').strip(), validate=True)
+          packed = Path('.github/build-input/patches_1_4_4.patch.gz.b64').read_bytes()
           patch = gzip.decompress(packed)
           if hashlib.sha256(patch).hexdigest() != 'fb07ad42c9e580fa809cb6f3a6ae409eb33437a7b8c8227c0b69cf4fee3a2f51':
               raise SystemExit('v1.4.4 patch SHA-256 mismatch')
