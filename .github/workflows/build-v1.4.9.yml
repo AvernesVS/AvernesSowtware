@@ -75,6 +75,60 @@ jobs:
                'archiveRootName + "/docs/CHANGELOG_1_4_9_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_9_RU.md",\n                    archiveRootName + "/tests/test_1_4_9_regressions.py",\n                    archiveRootName + "/tests/test_1_4_8_regressions.py",')
           edit("build/ReleasePackager.cs", "1.4.8", "1.4.9", required=False)
 
+          # Nitro: stabilize airborne land-vehicle direction and prevent frame-hitch impulses.
+          edit("src/Managers/VehicleSystems.cs",
+               "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 5.0f;",
+               "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 1.0f;")
+          edit("src/Managers/VehicleSystems.cs",
+               """                float forwardLength = aircraft
+                    ? (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y + forward.Z * forward.Z)
+                    : (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
+                if (forwardLength < 0.001f) return;
+                float fx = forward.X / forwardLength;
+                float fy = forward.Y / forwardLength;
+                float fz = aircraft ? forward.Z / forwardLength : 0.0f;""",
+               """                float horizontalForwardLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
+                float forwardLength = aircraft
+                    ? (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y + forward.Z * forward.Z)
+                    : horizontalForwardLength;
+                // A land vehicle can point almost vertically during a jump. Its XY
+                // forward vector then collapses toward zero; derive a stable horizontal
+                // heading instead of dropping the boost or injecting erratic impulses.
+                if (!aircraft && horizontalForwardLength < 0.15f)
+                {
+                    float heading = Function.Call<float>((Hash)0xE83D4F9BA2A38914UL, vehicleHandle) * (float)(Math.PI / 180.0);
+                    forward.X = -(float)Math.Sin(heading);
+                    forward.Y = (float)Math.Cos(heading);
+                    horizontalForwardLength = 1.0f;
+                    forwardLength = 1.0f;
+                }
+                if (forwardLength < 0.001f) return;
+                float fx = forward.X / forwardLength;
+                float fy = forward.Y / forwardLength;
+                float fz = aircraft ? forward.Z / forwardLength : 0.0f;""")
+          edit("src/Managers/VehicleSystems.cs",
+               """                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
+                float acceleration = 32.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 8.0f;""",
+               """                // Clamp long frames tightly: a hitch must not become a large one-frame
+                // impulse that launches the vehicle or destabilizes airborne handling.
+                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.033f);
+                float acceleration = 16.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 3.5f;""")
+          edit("src/Core/AvernesSowtwareScript.cs",
+               "World.GetNearbyPeds(player, 3200.0f)",
+               "World.GetNearbyPeds(player, 5000.0f)")
+          edit("src/Core/AvernesSowtwareScript.cs",
+               """                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);
+                    if (!attackingPlayer) continue;
+                    DateTime lastIssued;
+                    if (_prisonNpcFleeIssuedUtc.TryGetValue(npc.Handle, out lastIssued) &&
+                        now < lastIssued.AddSeconds(2.0)) continue;""",
+               """                    // Newer Wanted can leave prison NPCs in an aggressive task even
+                    // before IS_PED_IN_COMBAT reports the player as their target.
+                    // Proactively replace combat/aim tasks while law-ignore is active.
+                    DateTime lastIssued;
+                    if (_prisonNpcFleeIssuedUtc.TryGetValue(npc.Handle, out lastIssued) &&
+                        now < lastIssued.AddSeconds(1.5)) continue;""")
+
           for rel in ["tests/test_1_4_6_regressions.py", "tests/test_1_4_7_regressions.py",
                       "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_user_reported_fixes.py"]:
               p = root / rel
@@ -94,8 +148,8 @@ jobs:
           (root / "docs/CHANGELOG_1_4_9_RU.md").write_text("""# AvernesSowtware 1.4.9 — исправления и стабилизация
 
           ## Изменения
-          - Nitro для наземного транспорта: целевой верхний предел повышен до 745 км/ч (206,94 м/с). Разгон остаётся покадровым через вектор скорости; SET_VEHICLE_FORWARD_SPEED и резкие телепортации скорости не используются.
-          - Сохранены исправления 1.4.8: подавление атак Army в Fort Zancudo и Bolingbroke, локальная настройка Police Ignore, разрешение урона телохранителям, отложенное безопасное снятие с группы, отключённый автодеплой парашюта, логи строго в scripts/AvernesSowtware_Logs, Toreador homing/ability hooks.
+          - Nitro: сглажен разгон, ограничен импульс при длинных кадрах, добавлен устойчивый горизонтальный вектор для автомобиля в почти вертикальном положении в воздухе; целевой предел 745 км/ч сохранён.
+          - Fort Zancudo: увеличен радиус обнаружения военных самолётов для более раннего перенаправления. Bolingbroke: подавление агрессивных задач охраны и заключённых выполняется превентивно, а не только после регистрации атаки. Сохранены Police Ignore, безопасное удаление телохранителей, урон телохранителям, отключённый автодеплой парашюта, логи в scripts\\AvernesSowtware_Logs и Toreador hooks.
           - Обновлены версия DLL, validator, упаковщик, установщик, сборочные скрипты и документация до 1.4.9.
 
           ## Ограничения проверки
@@ -142,6 +196,26 @@ jobs:
                                  "ProcessPendingBodyguardDismissals", "ProcessAutomaticParachuteDeployment",
                                  "ApplyPoliceIgnore"]:
                       self.assertIn(marker, CORE)
+
+              def test_nitro_airborne_car_uses_stable_horizontal_heading_and_bounded_impulse(self):
+                  start = VEHICLE.index("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)")
+                  end = VEHICLE.index("private void RestoreNitroSpeedLimit", start)
+                  method = VEHICLE[start:end]
+                  self.assertIn("0.15f", method)
+                  self.assertIn("0xE83D4F9BA2A38914UL", method)
+                  self.assertIn("ClampFloat(deltaSeconds, 0.001f, 0.033f)", method)
+                  self.assertIn("16.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 3.5f", method)
+                  self.assertIn("maximumNitroSpeed + 1.0f", VEHICLE)
+
+              def test_prison_combat_is_suppressed_before_attack_state(self):
+                  start = CORE.index("private void SuppressBolingbrokePrisonCombat")
+                  end = CORE.index("private void ApplyMilitaryIgnore", start)
+                  method = CORE[start:end]
+                  self.assertNotIn("if (!attackingPlayer) continue", method)
+                  self.assertIn("AddSeconds(1.5)", method)
+
+              def test_fort_aircraft_scan_covers_dispatch_approach(self):
+                  self.assertIn("World.GetNearbyPeds(player, 5000.0f)", CORE)
 
           if __name__ == "__main__":
               unittest.main()
