@@ -200,7 +200,7 @@ jobs:
               if (CanWriteDirectory(temporary)) return temporary;
               return scriptsLogs;
           }
-'@
+          '@
           $updatedSettings = [regex]::Replace($settingsText, $resolverPattern, $resolverReplacement)
           if ($updatedSettings -eq $settingsText) { throw 'Could not locate the log directory resolver in SettingsPersistence.cs.' }
           [IO.File]::WriteAllText($settingsPath, $updatedSettings, (New-Object Text.UTF8Encoding($false)))
@@ -220,7 +220,7 @@ jobs:
                   writer = body(CORE, "private void AppendLogFile")
                   self.assertIn("attempt < 3", writer)
                   self.assertIn("_lastLogWriteFailure", writer)
-'@
+          '@
           if ($testText -match 'def test_logs_stay_in_scripts_directory') {
               $testText = [regex]::Replace($testText, $oldTestPattern, $newTest)
               [IO.File]::WriteAllText($testPath, $testText, (New-Object Text.UTF8Encoding($false)))
