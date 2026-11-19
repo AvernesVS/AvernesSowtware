@@ -175,7 +175,21 @@ jobs:
           Push-Location $env:SOURCE_ROOT
           try {
             & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
-            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed: $LASTEXITCODE" }
+            if ($LASTEXITCODE -ne 0) {
+              if (Test-Path (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.log')) {
+                Write-Host '===== BUILD_RELEASE.log ====='
+                Get-Content (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.log') -Tail 400
+              }
+              if (Test-Path (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE_REPORT_RU.txt')) {
+                Write-Host '===== BUILD_RELEASE_REPORT_RU.txt ====='
+                Get-Content (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE_REPORT_RU.txt')
+              }
+              if (Test-Path (Join-Path $env:SOURCE_ROOT 'AvernesSowtware_Build.log')) {
+                Write-Host '===== AvernesSowtware_Build.log ====='
+                Get-Content (Join-Path $env:SOURCE_ROOT 'AvernesSowtware_Build.log') -Tail 400
+              }
+              throw "BUILD_RELEASE.bat failed: $LASTEXITCODE"
+            }
             $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
             $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.4.9_RELEASE.zip'
             if (-not (Test-Path $dll) -or -not (Test-Path $zip)) { throw 'Compiled DLL or release ZIP is missing.' }
@@ -185,16 +199,18 @@ jobs:
           } finally { Pop-Location }
 
       - name: Upload compiled release and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: AvernesSowtware-v1.4.9-Windows-Release
           path: |
             ${{ runner.temp }}/src149/dist/AvernesSowtware_v1.4.9_RELEASE.zip
+            ${{ runner.temp }}/src149/build/ReleaseValidator.log
             ${{ runner.temp }}/src149/BUILD_RELEASE_REPORT_RU.txt
             ${{ runner.temp }}/src149/BUILD_RELEASE.log
             ${{ runner.temp }}/src149/AvernesSowtware_Build.log
             ${{ runner.temp }}/src149/SHA256SUMS.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Publish v1.4.9 release asset
