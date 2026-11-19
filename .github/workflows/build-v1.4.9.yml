@@ -80,32 +80,16 @@ jobs:
                "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 5.0f;",
                "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 1.0f;")
           edit("src/Managers/VehicleSystems.cs",
-               """                float forwardLength = aircraft
-                    ? (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y + forward.Z * forward.Z)
-                    : (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
-                if (forwardLength < 0.001f) return;
-                float fx = forward.X / forwardLength;
-                float fy = forward.Y / forwardLength;
-                float fz = aircraft ? forward.Z / forwardLength : 0.0f;""",
-               """                float horizontalForwardLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
-                float forwardLength = aircraft
-                    ? (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y + forward.Z * forward.Z)
-                    : horizontalForwardLength;
-                // A land vehicle can point almost vertically during a jump. Its XY
-                // forward vector then collapses toward zero; derive a stable horizontal
-                // heading instead of dropping the boost or injecting erratic impulses.
-                if (!aircraft && horizontalForwardLength < 0.15f)
+               "                if (forwardLength < 0.001f) return;",
+               """                // Keep horizontal nitro available when a land vehicle pitches almost vertically in a jump.
+                if (!aircraft && forwardLength < 0.15f)
                 {
                     float heading = Function.Call<float>((Hash)0xE83D4F9BA2A38914UL, vehicleHandle) * (float)(Math.PI / 180.0);
                     forward.X = -(float)Math.Sin(heading);
                     forward.Y = (float)Math.Cos(heading);
-                    horizontalForwardLength = 1.0f;
                     forwardLength = 1.0f;
                 }
-                if (forwardLength < 0.001f) return;
-                float fx = forward.X / forwardLength;
-                float fy = forward.Y / forwardLength;
-                float fz = aircraft ? forward.Z / forwardLength : 0.0f;""")
+                if (forwardLength < 0.001f) return;""")
           edit("src/Managers/VehicleSystems.cs",
                """                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
                 float acceleration = 32.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 8.0f;""",
