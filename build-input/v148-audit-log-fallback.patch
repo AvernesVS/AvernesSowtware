@@ -1,9 +1,8 @@
 --- a/src/Core/SettingsPersistence.cs
 +++ b/src/Core/SettingsPersistence.cs
-@@ -41,9 +41,43 @@
+@@ -41,8 +41,42 @@
              return scriptsData;
          }
-
 -        private static string ResolveWritableLogDirectory(string scriptsDirectory, string dataDirectory)
 -        {
 -            return Path.Combine(scriptsDirectory, "AvernesSowtware_Logs");
@@ -51,10 +50,9 @@
              string probe = null;
 --- a/tests/test_1_4_7_regressions.py
 +++ b/tests/test_1_4_7_regressions.py
-@@ -38,10 +38,13 @@
+@@ -38,9 +38,12 @@
          for name in ('"session.log"', '"error.log"', '"crash.log"'):
              self.assertIn(name, CORE)
-
 -    def test_logs_stay_in_scripts_directory(self):
 +    def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
          resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
