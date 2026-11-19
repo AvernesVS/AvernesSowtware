@@ -207,7 +207,7 @@ jobs:
 
           $testPath = Join-Path $sourceRoot 'tests/test_1_4_7_regressions.py'
           $testText = [IO.File]::ReadAllText($testPath)
-          $oldTestPattern = '(?s)    def test_logs_stay_in_scripts_directory\(self\):.*?(?=\n    def |\nclass |\\z)'
+          $oldTestPattern = '(?s)    def test_logs_stay_in_scripts_directory\(self\):.*?(?=\n    def |\nclass |\z)'
           $newTest = @'
     def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
         resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
