@@ -102,12 +102,20 @@ jobs:
           edit("src/Core/AvernesSowtwareScript.cs",
                "                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);",
                "")
-          edit("src/Core/AvernesSowtwareScript.cs",
-               "                    if (!attackingPlayer) continue;\\n                    DateTime lastIssued;",
-               "                    DateTime lastIssued;")
-          edit("src/Core/AvernesSowtwareScript.cs",
-               "                    if (pedInVehicle)\\n                    {\\n                        DateTime lastVehicleResponse;",
-               "                    if (pedInVehicle)\\n                    {\\n                        if (!attackingPlayer || aircraft == 0) continue;\\n                        DateTime lastVehicleResponse;")
+          # Scope the combat gate to the prison routine only; keep military vehicle logic intact.
+          core_path = root / "src/Core/AvernesSowtwareScript.cs"
+          core = core_path.read_text(encoding="utf-8-sig")
+          military_start = core.index("private void SuppressActiveMilitaryCombat")
+          prison_start = core.index("private void SuppressBolingbrokePrisonCombat", military_start)
+          military = core[military_start:prison_start]
+          if "if (!attackingPlayer || aircraft == 0) continue;" not in military:
+              import re
+              military, count = re.subn(r"(if \\(pedInVehicle\\)\\s*\\{)", r"\\1\\n                        if (!attackingPlayer || aircraft == 0) continue;", military, count=1)
+              if count != 1: raise SystemExit("Could not restore military vehicle attack guard.")
+          prison_end = core.index("private void ApplyMilitaryIgnore", prison_start)
+          prison = core[prison_start:prison_end].replace("if (!attackingPlayer) continue;", "")
+          core = core[:military_start] + military + prison + core[prison_end:]
+          core_path.write_text(core, encoding="utf-8-sig", newline="")
           edit("src/Core/AvernesSowtwareScript.cs",
                "                        now < lastIssued.AddSeconds(2.0)) continue;",
                "                        now < lastIssued.AddSeconds(1.5)) continue;")
