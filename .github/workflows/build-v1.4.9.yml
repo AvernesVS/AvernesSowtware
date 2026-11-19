@@ -1,4 +1,5 @@
 name: AvernesSowtware v1.4.9 Windows Release
+# Re-trigger release CI after the workflow was installed on the default branch.
 
 on:
   push:
