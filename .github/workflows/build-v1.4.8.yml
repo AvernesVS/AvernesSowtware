@@ -263,6 +263,9 @@ jobs:
           [IO.File]::WriteAllBytes($userFixPath,$userFixBytes)
           $userFixHash = (Get-FileHash -LiteralPath $userFixPath -Algorithm SHA256).Hash.ToLowerInvariant()
           Write-Host "Decoded user-reported fixes patch SHA256: $userFixHash"
+          if ($userFixHash -ne 'da877c4edf638efb7ce41c5e8d86744b32a2944370189909b765b1fda7e8d597') {
+            throw "User-reported fixes patch checksum mismatch: $userFixHash"
+          }
           Push-Location $sourceRoot
           try {
             & git apply --check --ignore-space-change --whitespace=nowarn $userFixPath
