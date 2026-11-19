@@ -4,12 +4,13 @@ on:
   push:
     branches:
       - release/v1.4.9-build
+      - main
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -195,3 +196,18 @@ jobs:
             ${{ runner.temp }}/src149/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish v1.4.9 release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.4.9
+          name: AvernesSowtware 1.4.9
+          body: |
+            Windows release package for GTA V Legacy / ScriptHookVDotNet2.
+            The package includes the newly compiled DLL, installer, source, regression tests and build report.
+            In-game runtime verification is not claimed; validate in GTA V Legacy Story Mode.
+          files: ${{ runner.temp }}/src149/dist/AvernesSowtware_v1.4.9_RELEASE.zip
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+          make_latest: true
