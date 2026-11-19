@@ -1,0 +1,192 @@
+name: AvernesSowtware v1.4.9 Windows Release
+
+on:
+  push:
+    branches:
+      - release/v1.4.9-build
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download verified v1.4.8 source snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.8-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44568164953
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base148
+
+      - name: Prepare v1.4.9 source and apply release fixes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outer = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base148') -Filter 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip' -Recurse | Select-Object -First 1
+          if (-not $outer) { throw 'Verified v1.4.8 source snapshot is missing.' }
+          $sourceRoot = Join-Path $env:RUNNER_TEMP 'src149'
+          Expand-Archive -LiteralPath $outer.FullName -DestinationPath $sourceRoot -Force
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Source snapshot is incomplete.' }
+          $env:SOURCE_ROOT = $sourceRoot
+          @'
+          from pathlib import Path
+          root = Path(__import__("os").environ["SOURCE_ROOT"])
+
+          def edit(rel, old, new, required=True):
+              p = root / rel
+              s = p.read_text(encoding="utf-8-sig")
+              if required and old not in s:
+                  raise SystemExit(f"Expected marker missing in {rel}: {old}")
+              s = s.replace(old, new)
+              p.write_text(s, encoding="utf-8-sig", newline="")
+
+          for rel in ["BUILD_RELEASE.bat", "build/Build.bat", "README_RU.md", "START_HERE_RU.txt"]:
+              p = root / rel
+              s = p.read_text(encoding="utf-8-sig").replace("1.4.8", "1.4.9")
+              p.write_text(s, encoding="utf-8-sig", newline="")
+
+          edit("src/Core/AvernesSowtwareScript.cs", 'ProductVersion = "1.4.8"', 'ProductVersion = "1.4.9"')
+          edit("src/Managers/VehicleSystems.cs", "return 190.0f; // 684 km/h", "return 206.94f; // 745 km/h; frame-time-scaled velocity ceiling.")
+          edit("build/ReleaseValidator.cs", "return 190.0f", "return 206.94f")
+          edit("build/ReleaseValidator.cs",
+               '"docs/CHANGELOG_1_4_8_RU.md", "docs/TEST_REPORT_1_4_8_RU.md", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",',
+               '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",')
+          edit("build/ReleasePackager.cs",
+               'archiveRootName + "/docs/CHANGELOG_1_4_8_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_8_RU.md",\n                    archiveRootName + "/tests/test_1_4_8_regressions.py",',
+               'archiveRootName + "/docs/CHANGELOG_1_4_9_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_9_RU.md",\n                    archiveRootName + "/tests/test_1_4_9_regressions.py",\n                    archiveRootName + "/tests/test_1_4_8_regressions.py",')
+          edit("build/ReleasePackager.cs", "1.4.8", "1.4.9", required=False)
+
+          for rel in ["tests/test_1_4_6_regressions.py", "tests/test_1_4_7_regressions.py",
+                      "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_user_reported_fixes.py"]:
+              p = root / rel
+              s = p.read_text(encoding="utf-8-sig")
+              s = s.replace('ProductVersion = "1.4.8"', 'ProductVersion = "1.4.9"')
+              s = s.replace(r'ProductVersion\s*=\s*"1\.4\.8"', r'ProductVersion\s*=\s*"1\.4\.9"')
+              s = s.replace("return 190.0f", "return 206.94f")
+              p.write_text(s, encoding="utf-8-sig", newline="")
+
+          for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat",
+                      "dist/README_RU.txt", "package/AvernesSowtware/Vehicles/SavedVehicles/README.txt",
+                      "BUILD_RELEASE_REPORT_RU.txt"]:
+              p = root / rel
+              s = p.read_text(encoding="utf-8-sig").replace("1.4.6", "1.4.9").replace("1.4.8", "1.4.9")
+              p.write_text(s, encoding="utf-8-sig", newline="")
+
+          (root / "docs/CHANGELOG_1_4_9_RU.md").write_text("""# AvernesSowtware 1.4.9 — исправления и стабилизация
+
+          ## Изменения
+          - Nitro для наземного транспорта: целевой верхний предел повышен до 745 км/ч (206,94 м/с). Разгон остаётся покадровым через вектор скорости; SET_VEHICLE_FORWARD_SPEED и резкие телепортации скорости не используются.
+          - Сохранены исправления 1.4.8: подавление атак Army в Fort Zancudo и Bolingbroke, локальная настройка Police Ignore, разрешение урона телохранителям, отложенное безопасное снятие с группы, отключённый автодеплой парашюта, логи строго в scripts/AvernesSowtware_Logs, Toreador homing/ability hooks.
+          - Обновлены версия DLL, validator, упаковщик, установщик, сборочные скрипты и документация до 1.4.9.
+
+          ## Ограничения проверки
+          Статические тесты и компиляция не доказывают поведение игровых native-вызовов. Nitro на 745 км/ч, отсутствие скачка/невидимой стены, RPG/jet suppression, урон телохранителям, Dismiss All, парашют и Toreador требуют проверки в GTA V Legacy Story Mode.
+          """, encoding="utf-8")
+          (root / "docs/TEST_REPORT_1_4_9_RU.md").write_text("""# Отчёт проверки AvernesSowtware 1.4.9
+
+          - Python regression suite запускается в Windows CI до компиляции.
+          - ReleaseValidator проверяет версию 1.4.9, Nitro velocity assist, отсутствие SET_VEHICLE_FORWARD_SPEED и сохранение совместимости.
+          - C# DLL собирается на Windows с ScriptHookVDotNet2 API 2.
+          - Упаковщик проверяет обязательные файлы и наличие скомпилированной DLL.
+
+          Не подтверждено без GTA V Legacy: скорость Nitro, столкновения/streaming boundary, военные и полицейские NPC, RPG, телохранители, Dismiss All, парашют и Toreador.
+          """, encoding="utf-8")
+          (root / "tests/test_1_4_9_regressions.py").write_text("""from pathlib import Path
+          import unittest
+
+          ROOT = Path(__file__).resolve().parents[1]
+          CORE = (ROOT / "src/Core/AvernesSowtwareScript.cs").read_text(encoding="utf-8-sig")
+          VEHICLE = (ROOT / "src/Managers/VehicleSystems.cs").read_text(encoding="utf-8-sig")
+          VALIDATOR = (ROOT / "build/ReleaseValidator.cs").read_text(encoding="utf-8-sig")
+
+          class Release149Regressions(unittest.TestCase):
+              def test_release_version_is_149(self):
+                  self.assertIn('ProductVersion = "1.4.9"', CORE)
+
+              def test_nitro_target_is_745_kmh(self):
+                  self.assertIn("return 206.94f", VEHICLE)
+                  self.assertIn("return 206.94f", VALIDATOR)
+
+              def test_nitro_uses_continuous_velocity_assist(self):
+                  start = VEHICLE.index("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)")
+                  end = VEHICLE.index("private void RestoreNitroSpeedLimit", start)
+                  method = VEHICLE[start:end]
+                  self.assertIn("GET_FRAME_TIME", method)
+                  self.assertIn("SET_ENTITY_VELOCITY", method)
+                  self.assertNotIn("SET_VEHICLE_FORWARD_SPEED", method)
+
+              def test_stability_does_not_compete_with_nitro(self):
+                  self.assertIn("_settings.VehicleStability && !nitroRequested", VEHICLE)
+
+              def test_existing_reported_fixes_remain(self):
+                  for marker in ["SuppressActiveMilitaryCombat", "SuppressBolingbrokePrisonCombat",
+                                 "ProcessPendingBodyguardDismissals", "ProcessAutomaticParachuteDeployment",
+                                 "ApplyPoliceIgnore"]:
+                      self.assertIn(marker, CORE)
+
+          if __name__ == "__main__":
+              unittest.main()
+          """, encoding="utf-8")
+          '@ | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'patch_149.py') -Encoding utf8
+          python (Join-Path $env:RUNNER_TEMP 'patch_149.py')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not prepare v1.4.9 source.' }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run regression suite
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try { python -m pytest -q tests; if ($LASTEXITCODE -ne 0) { throw 'Regression suite failed.' } }
+          finally { Pop-Location }
+
+      - name: Compile and package v1.4.9 on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed: $LASTEXITCODE" }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.4.9_RELEASE.zip'
+            if (-not (Test-Path $dll) -or -not (Test-Path $zip)) { throw 'Compiled DLL or release ZIP is missing.' }
+            $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
+            "DLL_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } finally { Pop-Location }
+
+      - name: Upload compiled release and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.9-Windows-Release
+          path: |
+            ${{ runner.temp }}/src149/dist/AvernesSowtware_v1.4.9_RELEASE.zip
+            ${{ runner.temp }}/src149/BUILD_RELEASE_REPORT_RU.txt
+            ${{ runner.temp }}/src149/BUILD_RELEASE.log
+            ${{ runner.temp }}/src149/AvernesSowtware_Build.log
+            ${{ runner.temp }}/src149/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
