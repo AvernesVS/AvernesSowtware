@@ -277,10 +277,13 @@ jobs:
           # Allow damage to tracked bodyguards only while the player is aiming at them.
           $corePath = Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'
           $coreText = [IO.File]::ReadAllText($corePath)
-          $oldDamageBlock = "                if (target == 0)`n                {`n                    _lastPlayerDamageWhitelistTargetHandle = 0;`n                    return;`n                }`n                uint playerGroup = Function.Call<uint>((Hash)0x7DBDD04862D95F04UL, player.Handle);"
+          $methodStart = $coreText.IndexOf('private void EnsurePlayerCanDamageAimedNpc', [StringComparison]::Ordinal)
+          $damageBlockStart = $coreText.IndexOf('                if (target == 0)', $methodStart, [StringComparison]::Ordinal)
+          $playerGroupLine = '                uint playerGroup = Function.Call<uint>((Hash)0x7DBDD04862D95F04UL, player.Handle);'
+          $damageBlockEnd = $coreText.IndexOf($playerGroupLine, $damageBlockStart, [StringComparison]::Ordinal)
+          if ($methodStart -lt 0 -or $damageBlockStart -lt 0 -or $damageBlockEnd -lt 0) { throw 'Could not locate the aimed-NPC damage whitelist block.' }
           $newDamageBlock = "                if (target == 0)`n                {`n                    Function.Call((Hash)0xB3B1CB349FF9C75DUL, player.Handle, false, false); // SET_CAN_ATTACK_FRIENDLY`n                    _lastPlayerDamageWhitelistTargetHandle = 0;`n                    return;`n                }`n                // Friendly-fire protection is a separate gate from entity vulnerability.`n                // Enable it only while the player is aiming at one of this trainer's tracked bodyguards.`n                bool aimedAtTrackedBodyguard = _bodyguards.Contains(target);`n                Function.Call((Hash)0xB3B1CB349FF9C75DUL, player.Handle, aimedAtTrackedBodyguard, false); // SET_CAN_ATTACK_FRIENDLY`n                uint playerGroup = Function.Call<uint>((Hash)0x7DBDD04862D95F04UL, player.Handle);"
-          if (-not $coreText.Contains($oldDamageBlock)) { throw 'Could not locate the aimed-NPC damage whitelist block.' }
-          $coreText = $coreText.Replace($oldDamageBlock,$newDamageBlock)
+          $coreText = $coreText.Substring(0,$damageBlockStart) + $newDamageBlock + $coreText.Substring($damageBlockEnd + $playerGroupLine.Length)
           [IO.File]::WriteAllText($corePath,$coreText,(New-Object Text.UTF8Encoding($false)))
 
           # Replace the legacy release validator with the v1.4.8 regression contract.
