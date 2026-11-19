@@ -226,6 +226,46 @@ jobs:
               [IO.File]::WriteAllText($testPath, $testText, (New-Object Text.UTF8Encoding($false)))
           }
           
+          # Apply the targeted fixes for the user's eight reported regressions.
+          $userFixFiles = @(
+            'src/Core/AvernesSowtwareScript.cs',
+            'src/Core/SettingsPersistence.cs',
+            'src/Managers/VehicleSystems.cs',
+            'Install_AvernesSowtware.bat',
+            'tests/test_1_4_6_regressions.py',
+            'tests/test_1_4_7_regressions.py',
+            'tests/test_1_4_8_regressions.py',
+            'tests/test_1_4_8_hotfix_regressions.py'
+          )
+          foreach ($relative in $userFixFiles) {
+            $path = Join-Path $sourceRoot $relative
+            $text = [IO.File]::ReadAllText($path)
+            $text = $text.Replace("`r`n","`n").Replace("`r","`n")
+            [IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
+          }
+          $userFixEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-user-reported-fixes.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $userFixEncodedPath)) { throw 'User-reported v1.4.8 fixes patch is missing.' }
+          $userFixCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($userFixEncodedPath).Trim()))
+          $userFixInput = New-Object IO.MemoryStream(,$userFixCompressed)
+          $userFixGzip = New-Object IO.Compression.GzipStream($userFixInput,[IO.Compression.CompressionMode]::Decompress)
+          $userFixOutput = New-Object IO.MemoryStream
+          try { $userFixGzip.CopyTo($userFixOutput) } finally { $userFixGzip.Dispose(); $userFixInput.Dispose() }
+          $userFixBytes = $userFixOutput.ToArray()
+          $userFixOutput.Dispose()
+          $userFixPath = Join-Path $env:RUNNER_TEMP 'v148-user-reported-fixes.patch'
+          [IO.File]::WriteAllBytes($userFixPath,$userFixBytes)
+          $userFixHash = (Get-FileHash -LiteralPath $userFixPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($userFixHash -ne '6fa041639d037fa03d934c8e63a60549bc8bc461406690fb5bb76f9358097e70') {
+            throw "User-reported fixes patch checksum mismatch: $userFixHash"
+          }
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $userFixPath
+            if ($LASTEXITCODE -ne 0) { throw 'User-reported fixes patch does not match the assembled v1.4.8 source.' }
+            & git apply --ignore-space-change --whitespace=nowarn $userFixPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply user-reported fixes patch.' }
+          } finally { Pop-Location }
+
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
