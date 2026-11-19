@@ -109,9 +109,9 @@ jobs:
           prison_start = core.index("private void SuppressBolingbrokePrisonCombat", military_start)
           military = core[military_start:prison_start]
           if "if (!attackingPlayer || aircraft == 0) continue;" not in military:
-              import re
-              military, count = re.subn(r"(if \\(pedInVehicle\\)\\s*\\{)", r"\\1\\n                        if (!attackingPlayer || aircraft == 0) continue;", military, count=1)
-              if count != 1: raise SystemExit("Could not restore military vehicle attack guard.")
+              vehicle_if = military.index("if (pedInVehicle)")
+              vehicle_brace = military.index("{", vehicle_if)
+              military = military[:vehicle_brace + 1] + "\\n                        if (!attackingPlayer || aircraft == 0) continue;" + military[vehicle_brace + 1:]
           prison_end = core.index("private void ApplyMilitaryIgnore", prison_start)
           prison = core[prison_start:prison_end].replace("if (!attackingPlayer) continue;", "")
           core = core[:military_start] + military + prison + core[prison_end:]
