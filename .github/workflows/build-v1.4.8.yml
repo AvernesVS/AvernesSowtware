@@ -274,34 +274,14 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply user-reported fixes patch.' }
           } finally { Pop-Location }
 
-          # Apply the focused post-validation corrections (friendly-fire gate and validator contract).
-          $incrementalEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-post-validation-fixes.patch.gz.b64'
-          if (-not (Test-Path -LiteralPath $incrementalEncodedPath)) { throw 'Incremental v1.4.8 fixes patch is missing.' }
-          $incrementalCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($incrementalEncodedPath).Trim()))
-          if ($incrementalCompressed.Length -le 18 -or $incrementalCompressed[0] -ne 0x1f -or $incrementalCompressed[1] -ne 0x8b -or $incrementalCompressed[2] -ne 8) {
-            throw 'Incremental v1.4.8 fixes payload is not a valid gzip/deflate stream.'
-          }
-          $incrementalDeflateBytes = New-Object byte[] ($incrementalCompressed.Length - 18)
-          [Array]::Copy($incrementalCompressed,10,$incrementalDeflateBytes,0,$incrementalDeflateBytes.Length)
-          $incrementalInput = New-Object IO.MemoryStream(,$incrementalDeflateBytes)
-          $incrementalDeflate = New-Object IO.Compression.DeflateStream($incrementalInput,[IO.Compression.CompressionMode]::Decompress)
-          $incrementalOutput = New-Object IO.MemoryStream
-          try { $incrementalDeflate.CopyTo($incrementalOutput) } finally { $incrementalDeflate.Dispose(); $incrementalInput.Dispose() }
-          $incrementalBytes = $incrementalOutput.ToArray()
-          $incrementalOutput.Dispose()
-          $incrementalPatchPath = Join-Path $env:RUNNER_TEMP 'v148-post-validation-fixes.patch'
-          [IO.File]::WriteAllBytes($incrementalPatchPath,$incrementalBytes)
-          $incrementalHash = (Get-FileHash -LiteralPath $incrementalPatchPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($incrementalHash -ne '3df4d56e6ce22719e4fc069a47d34a2cbfffd1713dadd99f16d23ecfaedd60f9') {
-            throw "Incremental v1.4.8 patch checksum mismatch: $incrementalHash"
-          }
-          Push-Location $sourceRoot
-          try {
-            & git apply --check --ignore-space-change --whitespace=nowarn $incrementalPatchPath
-            if ($LASTEXITCODE -ne 0) { throw 'Incremental v1.4.8 patch does not match the first-stage source.' }
-            & git apply --ignore-space-change --whitespace=nowarn $incrementalPatchPath
-            if ($LASTEXITCODE -ne 0) { throw 'Could not apply incremental v1.4.8 patch.' }
-          } finally { Pop-Location }
+          # Allow damage to tracked bodyguards only while the player is aiming at them.
+          $corePath = Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'
+          $coreText = [IO.File]::ReadAllText($corePath)
+          $oldDamageBlock = "                if (target == 0)`n                {`n                    _lastPlayerDamageWhitelistTargetHandle = 0;`n                    return;`n                }`n                uint playerGroup = Function.Call<uint>((Hash)0x7DBDD04862D95F04UL, player.Handle);"
+          $newDamageBlock = "                if (target == 0)`n                {`n                    Function.Call((Hash)0xB3B1CB349FF9C75DUL, player.Handle, false, false); // SET_CAN_ATTACK_FRIENDLY`n                    _lastPlayerDamageWhitelistTargetHandle = 0;`n                    return;`n                }`n                // Friendly-fire protection is a separate gate from entity vulnerability.`n                // Enable it only while the player is aiming at one of this trainer's tracked bodyguards.`n                bool aimedAtTrackedBodyguard = _bodyguards.Contains(target);`n                Function.Call((Hash)0xB3B1CB349FF9C75DUL, player.Handle, aimedAtTrackedBodyguard, false); // SET_CAN_ATTACK_FRIENDLY`n                uint playerGroup = Function.Call<uint>((Hash)0x7DBDD04862D95F04UL, player.Handle);"
+          if (-not $coreText.Contains($oldDamageBlock)) { throw 'Could not locate the aimed-NPC damage whitelist block.' }
+          $coreText = $coreText.Replace($oldDamageBlock,$newDamageBlock)
+          [IO.File]::WriteAllText($corePath,$coreText,(New-Object Text.UTF8Encoding($false)))
 
           # Replace the legacy release validator with the v1.4.8 regression contract.
           $validatorEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-validator-full.gz.b64'
