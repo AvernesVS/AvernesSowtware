@@ -246,10 +246,17 @@ jobs:
           $userFixEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-user-reported-fixes.patch.gz.b64'
           if (-not (Test-Path -LiteralPath $userFixEncodedPath)) { throw 'User-reported v1.4.8 fixes patch is missing.' }
           $userFixCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($userFixEncodedPath).Trim()))
-          $userFixInput = New-Object IO.MemoryStream(,$userFixCompressed)
-          $userFixGzip = New-Object IO.Compression.GzipStream($userFixInput,[IO.Compression.CompressionMode]::Decompress)
+          # Python gzip header is fixed at 10 bytes and its trailer at 8 bytes.
+          # Feed the raw DEFLATE payload to .NET DeflateStream for broad runner compatibility.
+          if ($userFixCompressed.Length -le 18 -or $userFixCompressed[0] -ne 0x1f -or $userFixCompressed[1] -ne 0x8b -or $userFixCompressed[2] -ne 8) {
+            throw 'User-reported fixes payload is not a valid gzip/deflate stream.'
+          }
+          $userFixDeflateBytes = New-Object byte[] ($userFixCompressed.Length - 18)
+          [Array]::Copy($userFixCompressed,10,$userFixDeflateBytes,0,$userFixDeflateBytes.Length)
+          $userFixInput = New-Object IO.MemoryStream(,$userFixDeflateBytes)
+          $userFixDeflate = New-Object IO.Compression.DeflateStream($userFixInput,[IO.Compression.CompressionMode]::Decompress)
           $userFixOutput = New-Object IO.MemoryStream
-          try { $userFixGzip.CopyTo($userFixOutput) } finally { $userFixGzip.Dispose(); $userFixInput.Dispose() }
+          try { $userFixDeflate.CopyTo($userFixOutput) } finally { $userFixDeflate.Dispose(); $userFixInput.Dispose() }
           $userFixBytes = $userFixOutput.ToArray()
           $userFixOutput.Dispose()
           $userFixPath = Join-Path $env:RUNNER_TEMP 'v148-user-reported-fixes.patch'
