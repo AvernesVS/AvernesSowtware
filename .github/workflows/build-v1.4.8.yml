@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release/v1.4.8-stabilization
+      - fix/v1.4.8-audit-log-fallback
   workflow_dispatch:
 
 permissions:
@@ -160,6 +161,19 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Runtime hardening patch does not match the reviewed v1.4.8 source.' }
             & git apply --ignore-space-change --whitespace=nowarn $runtimePatchPath
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply the runtime hardening patch.' }
+          } finally { Pop-Location }
+
+          # Apply the targeted Program Files logging fallback fix without changing ProductVersion.
+          $auditPatchPath = Join-Path $env:RUNNER_TEMP 'v148-audit-log-fallback.patch'
+          $auditPatchSource = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-audit-log-fallback.patch'
+          if (-not (Test-Path -LiteralPath $auditPatchSource)) { throw 'v1.4.8 audit log fallback patch is missing.' }
+          Copy-Item -LiteralPath $auditPatchSource -Destination $auditPatchPath -Force
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $auditPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Audit log fallback patch does not match the v1.4.8 source.' }
+            & git apply --ignore-space-change --whitespace=nowarn $auditPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply the audit log fallback patch.' }
           } finally { Pop-Location }
 
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
