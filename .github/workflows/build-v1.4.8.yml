@@ -167,7 +167,7 @@ jobs:
           # brittle line-number/context matching against the reconstructed baseline.
           $settingsPath = Join-Path $sourceRoot 'src/Core/SettingsPersistence.cs'
           $settingsText = [IO.File]::ReadAllText($settingsPath)
-          $resolverPattern = '(?s)private static string ResolveWritableLogDirectory\\(string scriptsDirectory, string dataDirectory\\)\\s*\\{.*?(?=\\s*private static bool CanWriteDirectory)'
+          $resolverPattern = '(?s)private static string ResolveWritableLogDirectory\(string scriptsDirectory, string dataDirectory\)\s*\{.*?(?=\s*private static bool CanWriteDirectory)'
           $resolverReplacement = @'
           private static string ResolveWritableLogDirectory(string scriptsDirectory, string dataDirectory)
           {
@@ -207,19 +207,19 @@ jobs:
 
           $testPath = Join-Path $sourceRoot 'tests/test_1_4_7_regressions.py'
           $testText = [IO.File]::ReadAllText($testPath)
-          $oldTestPattern = '(?s)    def test_logs_stay_in_scripts_directory\\(self\\):.*?(?=\\n    def |\\nclass |\\z)'
+          $oldTestPattern = '(?s)    def test_logs_stay_in_scripts_directory\(self\):.*?(?=\n    def |\nclass |\\z)'
           $newTest = @'
-              def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
-                  resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
-                  self.assertIn('Path.Combine(scriptsDirectory, "AvernesSowtware_Logs")', resolver)
-                  self.assertIn("CanWriteDirectory(scriptsLogs)", resolver)
-                  self.assertIn('Path.Combine(dataDirectory, "Logs")', resolver)
-                  self.assertIn("LocalApplicationData", resolver)
-                  self.assertIn("MyDocuments", resolver)
-                  self.assertIn("Path.GetTempPath()", resolver)
-                  writer = body(CORE, "private void AppendLogFile")
-                  self.assertIn("attempt < 3", writer)
-                  self.assertIn("_lastLogWriteFailure", writer)
+    def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
+        resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
+        self.assertIn('Path.Combine(scriptsDirectory, "AvernesSowtware_Logs")', resolver)
+        self.assertIn("CanWriteDirectory(scriptsLogs)", resolver)
+        self.assertIn('Path.Combine(dataDirectory, "Logs")', resolver)
+        self.assertIn("LocalApplicationData", resolver)
+        self.assertIn("MyDocuments", resolver)
+        self.assertIn("Path.GetTempPath()", resolver)
+        writer = body(CORE, "private void AppendLogFile")
+        self.assertIn("attempt < 3", writer)
+        self.assertIn("_lastLogWriteFailure", writer)
 '@
           if ($testText -match 'def test_logs_stay_in_scripts_directory') {
               $testText = [regex]::Replace($testText, $oldTestPattern, $newTest)
