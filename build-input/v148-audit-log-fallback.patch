@@ -1,0 +1,70 @@
+--- a/src/Core/SettingsPersistence.cs
++++ b/src/Core/SettingsPersistence.cs
+@@ -41,8 +41,42 @@
+             return scriptsData;
+         }
+-        private static string ResolveWritableLogDirectory(string scriptsDirectory, string dataDirectory)
+-        {
+-            return Path.Combine(scriptsDirectory, "AvernesSowtware_Logs");
+-        }
++        private static string ResolveWritableLogDirectory(string scriptsDirectory, string dataDirectory)
++        {
++            // Keep the historical Scripts location when it is writable so existing
++            // installations retain their logs. GTA is commonly installed under
++            // Program Files, however, where a non-elevated game process cannot write.
++            string scriptsLogs = Path.Combine(scriptsDirectory, "AvernesSowtware_Logs");
++            if (CanWriteDirectory(scriptsLogs)) return scriptsLogs;
++
++            // ResolveWritableDataDirectory already prefers LocalAppData when the game
++            // directory is protected. Keep logs alongside that per-user data, not in
++            // Program Files, and never let a logging permission failure abort startup.
++            if (!String.IsNullOrEmpty(dataDirectory))
++            {
++                string dataLogs = Path.Combine(dataDirectory, "Logs");
++                if (CanWriteDirectory(dataLogs)) return dataLogs;
++            }
++
++            string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
++            if (!String.IsNullOrEmpty(localData))
++            {
++                string fallback = Path.Combine(localData, "AvernesSowtware", "GTA V Legacy", "Logs");
++                if (CanWriteDirectory(fallback)) return fallback;
++            }
++
++            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
++            if (!String.IsNullOrEmpty(documents))
++            {
++                string fallback = Path.Combine(documents, "AvernesSowtware", "GTA V Legacy", "Logs");
++                if (CanWriteDirectory(fallback)) return fallback;
++            }
++
++            string temporary = Path.Combine(Path.GetTempPath(), "AvernesSowtware", "GTA V Legacy", "Logs");
++            if (CanWriteDirectory(temporary)) return temporary;
++
++            // The final path is retained for diagnostics. AppendLogFile catches and
++            // records write failures rather than propagating them into the game tick.
++            return scriptsLogs;
++        }
+         private static bool CanWriteDirectory(string directory)
+         {
+             string probe = null;
+--- a/tests/test_1_4_7_regressions.py
++++ b/tests/test_1_4_7_regressions.py
+@@ -38,9 +38,12 @@
+         for name in ('"session.log"', '"error.log"', '"crash.log"'):
+             self.assertIn(name, CORE)
+-    def test_logs_stay_in_scripts_directory(self):
++    def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
+         resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
+         self.assertIn('Path.Combine(scriptsDirectory, "AvernesSowtware_Logs")', resolver)
+-        self.assertNotIn("LocalApplicationData", resolver)
+-        self.assertNotIn("MyDocuments", resolver)
++        self.assertIn("CanWriteDirectory(scriptsLogs)", resolver)
++        self.assertIn('Path.Combine(dataDirectory, "Logs")', resolver)
++        self.assertIn("LocalApplicationData", resolver)
++        self.assertIn("MyDocuments", resolver)
++        self.assertIn("Path.GetTempPath()", resolver)
+         writer = body(CORE, "private void AppendLogFile")
+         self.assertIn("attempt < 3", writer)
+-        self.assertNotIn("fallbackDir", writer)
++        self.assertIn("_lastLogWriteFailure", writer)
