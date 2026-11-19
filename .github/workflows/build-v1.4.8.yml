@@ -292,7 +292,7 @@ jobs:
           $incrementalPatchPath = Join-Path $env:RUNNER_TEMP 'v148-post-validation-fixes.patch'
           [IO.File]::WriteAllBytes($incrementalPatchPath,$incrementalBytes)
           $incrementalHash = (Get-FileHash -LiteralPath $incrementalPatchPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($incrementalHash -ne 'db9e8d5ddbaf76d1e1e145b72976e44145f4034c1301a9120995db93c3d78e99') {
+          if ($incrementalHash -ne '3df4d56e6ce22719e4fc069a47d34a2cbfffd1713dadd99f16d23ecfaedd60f9') {
             throw "Incremental v1.4.8 patch checksum mismatch: $incrementalHash"
           }
           Push-Location $sourceRoot
