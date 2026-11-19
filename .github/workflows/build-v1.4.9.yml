@@ -119,11 +119,11 @@ jobs:
           if "bool attackingPlayer =" not in military:
               relationship_marker = "                    if (npcGroup != armyGroup) continue;"
               if relationship_marker not in military: raise SystemExit("Military relationship marker missing.")
-              military = military.replace(relationship_marker, relationship_marker + "\\n                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);", 1)
+              military = military.replace(relationship_marker, relationship_marker + chr(10) + "                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);", 1)
           if "if (!attackingPlayer || aircraft == 0) continue;" not in military:
               vehicle_if = military.index("if (pedInVehicle)")
               vehicle_brace = military.index("{", vehicle_if)
-              military = military[:vehicle_brace + 1] + "\\n                        if (!attackingPlayer || aircraft == 0) continue;" + military[vehicle_brace + 1:]
+              military = military[:vehicle_brace + 1] + chr(10) + "                        if (!attackingPlayer || aircraft == 0) continue;" + military[vehicle_brace + 1:]
           prison_end = core.index("private void ApplyMilitaryIgnore", prison_start)
           prison = core[prison_start:prison_end].replace("if (!attackingPlayer) continue;", "")
           core = core[:military_start] + military + prison + core[prison_end:]
