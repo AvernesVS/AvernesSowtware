@@ -163,19 +163,69 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply the runtime hardening patch.' }
           } finally { Pop-Location }
 
-          # Apply the targeted Program Files logging fallback fix without changing ProductVersion.
-          $auditPatchPath = Join-Path $env:RUNNER_TEMP 'v148-audit-log-fallback.patch'
-          $auditPatchSource = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-audit-log-fallback.patch'
-          if (-not (Test-Path -LiteralPath $auditPatchSource)) { throw 'v1.4.8 audit log fallback patch is missing.' }
-          Copy-Item -LiteralPath $auditPatchSource -Destination $auditPatchPath -Force
-          Push-Location $sourceRoot
-          try {
-            & git apply --check --ignore-space-change --whitespace=nowarn $auditPatchPath
-            if ($LASTEXITCODE -ne 0) { throw 'Audit log fallback patch does not match the v1.4.8 source.' }
-            & git apply --ignore-space-change --whitespace=nowarn $auditPatchPath
-            if ($LASTEXITCODE -ne 0) { throw 'Could not apply the audit log fallback patch.' }
-          } finally { Pop-Location }
+          # Apply the targeted Program Files logging fallback fix without depending on
+          # brittle line-number/context matching against the reconstructed baseline.
+          $settingsPath = Join-Path $sourceRoot 'src/Core/SettingsPersistence.cs'
+          $settingsText = [IO.File]::ReadAllText($settingsPath)
+          $resolverPattern = '(?s)private static string ResolveWritableLogDirectory\\(string scriptsDirectory, string dataDirectory\\)\\s*\\{.*?(?=\\s*private static bool CanWriteDirectory)'
+          $resolverReplacement = @'
+          private static string ResolveWritableLogDirectory(string scriptsDirectory, string dataDirectory)
+          {
+              // Preserve the historical location when writable.
+              string scriptsLogs = Path.Combine(scriptsDirectory, "AvernesSowtware_Logs");
+              if (CanWriteDirectory(scriptsLogs)) return scriptsLogs;
 
+              // Use per-user storage when GTA is installed under Program Files.
+              if (!String.IsNullOrEmpty(dataDirectory))
+              {
+                  string dataLogs = Path.Combine(dataDirectory, "Logs");
+                  if (CanWriteDirectory(dataLogs)) return dataLogs;
+              }
+
+              string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+              if (!String.IsNullOrEmpty(localData))
+              {
+                  string fallback = Path.Combine(localData, "AvernesSowtware", "GTA V Legacy", "Logs");
+                  if (CanWriteDirectory(fallback)) return fallback;
+              }
+
+              string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+              if (!String.IsNullOrEmpty(documents))
+              {
+                  string fallback = Path.Combine(documents, "AvernesSowtware", "GTA V Legacy", "Logs");
+                  if (CanWriteDirectory(fallback)) return fallback;
+              }
+
+              string temporary = Path.Combine(Path.GetTempPath(), "AvernesSowtware", "GTA V Legacy", "Logs");
+              if (CanWriteDirectory(temporary)) return temporary;
+              return scriptsLogs;
+          }
+'@
+          $updatedSettings = [regex]::Replace($settingsText, $resolverPattern, $resolverReplacement)
+          if ($updatedSettings -eq $settingsText) { throw 'Could not locate the log directory resolver in SettingsPersistence.cs.' }
+          [IO.File]::WriteAllText($settingsPath, $updatedSettings, (New-Object Text.UTF8Encoding($false)))
+
+          $testPath = Join-Path $sourceRoot 'tests/test_1_4_7_regressions.py'
+          $testText = [IO.File]::ReadAllText($testPath)
+          $oldTestPattern = '(?s)    def test_logs_stay_in_scripts_directory\\(self\\):.*?(?=\\n    def |\\nclass |\\z)'
+          $newTest = @'
+              def test_logs_use_scripts_when_writable_and_fall_back_outside_program_files(self):
+                  resolver = body(PERSISTENCE, "private static string ResolveWritableLogDirectory")
+                  self.assertIn('Path.Combine(scriptsDirectory, "AvernesSowtware_Logs")', resolver)
+                  self.assertIn("CanWriteDirectory(scriptsLogs)", resolver)
+                  self.assertIn('Path.Combine(dataDirectory, "Logs")', resolver)
+                  self.assertIn("LocalApplicationData", resolver)
+                  self.assertIn("MyDocuments", resolver)
+                  self.assertIn("Path.GetTempPath()", resolver)
+                  writer = body(CORE, "private void AppendLogFile")
+                  self.assertIn("attempt < 3", writer)
+                  self.assertIn("_lastLogWriteFailure", writer)
+'@
+          if ($testText -match 'def test_logs_stay_in_scripts_directory') {
+              $testText = [regex]::Replace($testText, $oldTestPattern, $newTest)
+              [IO.File]::WriteAllText($testPath, $testText, (New-Object Text.UTF8Encoding($false)))
+          }
+          
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
