@@ -79,9 +79,13 @@ jobs:
           edit("src/Managers/VehicleSystems.cs",
                "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 5.0f;",
                "float entitySpeedCap = aircraft ? 320.0f : maximumNitroSpeed + 1.0f;")
-          edit("src/Managers/VehicleSystems.cs",
-               "                if (forwardLength < 0.001f) return;",
-               """                // Keep horizontal nitro available when a land vehicle pitches almost vertically in a jump.
+          vehicle_path = root / "src/Managers/VehicleSystems.cs"
+          vehicle_source = vehicle_path.read_text(encoding="utf-8-sig")
+          nitro_start = vehicle_source.index("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)")
+          nitro_end = vehicle_source.index("private void RestoreNitroSpeedLimit", nitro_start)
+          nitro_method = vehicle_source[nitro_start:nitro_end]
+          nitro_marker = "                if (forwardLength < 0.001f) return;"
+          nitro_replacement = """                // Keep horizontal nitro available when a land vehicle pitches almost vertically in a jump.
                 if (!aircraft && forwardLength < 0.15f)
                 {
                     float heading = Function.Call<float>((Hash)0xE83D4F9BA2A38914UL, vehicleHandle) * (float)(Math.PI / 180.0);
@@ -89,7 +93,11 @@ jobs:
                     forward.Y = (float)Math.Cos(heading);
                     forwardLength = 1.0f;
                 }
-                if (forwardLength < 0.001f) return;""")
+                if (forwardLength < 0.001f) return;"""
+          if nitro_marker not in nitro_method: raise SystemExit("Nitro method marker missing.")
+          nitro_method = nitro_method.replace(nitro_marker, nitro_replacement, 1)
+          vehicle_source = vehicle_source[:nitro_start] + nitro_method + vehicle_source[nitro_end:]
+          vehicle_path.write_text(vehicle_source, encoding="utf-8-sig", newline="")
           edit("src/Managers/VehicleSystems.cs",
                "                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);",
                "                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.033f);")
