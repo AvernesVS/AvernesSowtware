@@ -40,6 +40,7 @@ jobs:
           Expand-Archive -LiteralPath $outer.FullName -DestinationPath $sourceRoot -Force
           if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Source snapshot is incomplete.' }
           $env:SOURCE_ROOT = $sourceRoot
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           @'
           from pathlib import Path
           root = Path(__import__("os").environ["SOURCE_ROOT"])
