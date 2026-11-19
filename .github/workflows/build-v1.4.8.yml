@@ -255,7 +255,7 @@ jobs:
           $userFixPath = Join-Path $env:RUNNER_TEMP 'v148-user-reported-fixes.patch'
           [IO.File]::WriteAllBytes($userFixPath,$userFixBytes)
           $userFixHash = (Get-FileHash -LiteralPath $userFixPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($userFixHash -ne '6fa041639d037fa03d934c8e63a60549bc8bc461406690fb5bb76f9358097e70') {
+          if ($userFixHash -ne '524b6ac4bcaf85fc2c125ec0af6f3735c0626164a6ad772cb7fde1f7a2ac3c66') {
             throw "User-reported fixes patch checksum mismatch: $userFixHash"
           }
           Push-Location $sourceRoot
