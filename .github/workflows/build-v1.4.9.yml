@@ -91,27 +91,23 @@ jobs:
                 }
                 if (forwardLength < 0.001f) return;""")
           edit("src/Managers/VehicleSystems.cs",
-               """                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
-                float acceleration = 32.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 8.0f;""",
-               """                // Clamp long frames tightly: a hitch must not become a large one-frame
-                // impulse that launches the vehicle or destabilizes airborne handling.
-                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.033f);
-                float acceleration = 16.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 3.5f;""")
+               "                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);",
+               "                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.033f);")
+          edit("src/Managers/VehicleSystems.cs",
+               "                float acceleration = 32.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 8.0f;",
+               "                float acceleration = 16.0f + ClampFloat(nitroPower, 0.5f, 8.0f) * 3.5f;")
           edit("src/Core/AvernesSowtwareScript.cs",
                "World.GetNearbyPeds(player, 3200.0f)",
                "World.GetNearbyPeds(player, 5000.0f)")
           edit("src/Core/AvernesSowtwareScript.cs",
-               """                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);
-                    if (!attackingPlayer) continue;
-                    DateTime lastIssued;
-                    if (_prisonNpcFleeIssuedUtc.TryGetValue(npc.Handle, out lastIssued) &&
-                        now < lastIssued.AddSeconds(2.0)) continue;""",
-               """                    // Newer Wanted can leave prison NPCs in an aggressive task even
-                    // before IS_PED_IN_COMBAT reports the player as their target.
-                    // Proactively replace combat/aim tasks while law-ignore is active.
-                    DateTime lastIssued;
-                    if (_prisonNpcFleeIssuedUtc.TryGetValue(npc.Handle, out lastIssued) &&
-                        now < lastIssued.AddSeconds(1.5)) continue;""")
+               "                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);",
+               "")
+          edit("src/Core/AvernesSowtwareScript.cs",
+               "                    if (!attackingPlayer) continue;",
+               "")
+          edit("src/Core/AvernesSowtwareScript.cs",
+               "                        now < lastIssued.AddSeconds(2.0)) continue;",
+               "                        now < lastIssued.AddSeconds(1.5)) continue;")
 
           for rel in ["tests/test_1_4_6_regressions.py", "tests/test_1_4_7_regressions.py",
                       "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_user_reported_fixes.py"]:
