@@ -274,6 +274,35 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply user-reported fixes patch.' }
           } finally { Pop-Location }
 
+          # Apply the focused post-validation corrections (friendly-fire gate and validator contract).
+          $incrementalEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-post-validation-fixes.patch.gz.b64'
+          if (-not (Test-Path -LiteralPath $incrementalEncodedPath)) { throw 'Incremental v1.4.8 fixes patch is missing.' }
+          $incrementalCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($incrementalEncodedPath).Trim()))
+          if ($incrementalCompressed.Length -le 18 -or $incrementalCompressed[0] -ne 0x1f -or $incrementalCompressed[1] -ne 0x8b -or $incrementalCompressed[2] -ne 8) {
+            throw 'Incremental v1.4.8 fixes payload is not a valid gzip/deflate stream.'
+          }
+          $incrementalDeflateBytes = New-Object byte[] ($incrementalCompressed.Length - 18)
+          [Array]::Copy($incrementalCompressed,10,$incrementalDeflateBytes,0,$incrementalDeflateBytes.Length)
+          $incrementalInput = New-Object IO.MemoryStream(,$incrementalDeflateBytes)
+          $incrementalDeflate = New-Object IO.Compression.DeflateStream($incrementalInput,[IO.Compression.CompressionMode]::Decompress)
+          $incrementalOutput = New-Object IO.MemoryStream
+          try { $incrementalDeflate.CopyTo($incrementalOutput) } finally { $incrementalDeflate.Dispose(); $incrementalInput.Dispose() }
+          $incrementalBytes = $incrementalOutput.ToArray()
+          $incrementalOutput.Dispose()
+          $incrementalPatchPath = Join-Path $env:RUNNER_TEMP 'v148-post-validation-fixes.patch'
+          [IO.File]::WriteAllBytes($incrementalPatchPath,$incrementalBytes)
+          $incrementalHash = (Get-FileHash -LiteralPath $incrementalPatchPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($incrementalHash -ne 'db9e8d5ddbaf76d1e1e145b72976e44145f4034c1301a9120995db93c3d78e99') {
+            throw "Incremental v1.4.8 patch checksum mismatch: $incrementalHash"
+          }
+          Push-Location $sourceRoot
+          try {
+            & git apply --check --ignore-space-change --whitespace=nowarn $incrementalPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Incremental v1.4.8 patch does not match the first-stage source.' }
+            & git apply --ignore-space-change --whitespace=nowarn $incrementalPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not apply incremental v1.4.8 patch.' }
+          } finally { Pop-Location }
+
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
