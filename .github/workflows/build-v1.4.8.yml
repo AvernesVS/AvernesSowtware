@@ -303,6 +303,27 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not apply incremental v1.4.8 patch.' }
           } finally { Pop-Location }
 
+          # Replace the legacy release validator with the v1.4.8 regression contract.
+          $validatorEncodedPath = Join-Path $env:GITHUB_WORKSPACE 'build-input/v148-validator-full.gz.b64'
+          if (-not (Test-Path -LiteralPath $validatorEncodedPath)) { throw 'Updated v1.4.8 release validator payload is missing.' }
+          $validatorCompressed = [Convert]::FromBase64String(([IO.File]::ReadAllText($validatorEncodedPath).Trim()))
+          if ($validatorCompressed.Length -le 18 -or $validatorCompressed[0] -ne 0x1f -or $validatorCompressed[1] -ne 0x8b -or $validatorCompressed[2] -ne 8) {
+            throw 'Updated release validator payload is not a valid gzip/deflate stream.'
+          }
+          $validatorDeflateBytes = New-Object byte[] ($validatorCompressed.Length - 18)
+          [Array]::Copy($validatorCompressed,10,$validatorDeflateBytes,0,$validatorDeflateBytes.Length)
+          $validatorInput = New-Object IO.MemoryStream(,$validatorDeflateBytes)
+          $validatorDeflate = New-Object IO.Compression.DeflateStream($validatorInput,[IO.Compression.CompressionMode]::Decompress)
+          $validatorOutput = New-Object IO.MemoryStream
+          try { $validatorDeflate.CopyTo($validatorOutput) } finally { $validatorDeflate.Dispose(); $validatorInput.Dispose() }
+          $validatorBytes = $validatorOutput.ToArray()
+          $validatorOutput.Dispose()
+          $validatorHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($validatorBytes)).ToLowerInvariant()
+          if ($validatorHash -ne 'af04933575b817b12eaa44451f55ca5a937c43bd44fbde11e0b9ec7728be4e58') {
+            throw "Updated release validator checksum mismatch: $validatorHash"
+          }
+          [IO.File]::WriteAllBytes((Join-Path $sourceRoot 'build/ReleaseValidator.cs'),$validatorBytes)
+
           # Preserve the exact patched source used by CI for review/debugging, even when a later validator fails.
           $sourceSnapshot = Join-Path $env:RUNNER_TEMP 'AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip'
           Compress-Archive -Path (Join-Path $sourceRoot '*') -DestinationPath $sourceSnapshot -Force
