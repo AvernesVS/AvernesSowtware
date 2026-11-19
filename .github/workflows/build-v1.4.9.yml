@@ -61,6 +61,7 @@ jobs:
           edit("src/Core/AvernesSowtwareScript.cs", 'ProductVersion = "1.4.8"', 'ProductVersion = "1.4.9"')
           edit("src/Managers/VehicleSystems.cs", "return 190.0f; // 684 km/h", "return 206.94f; // 745 km/h; frame-time-scaled velocity ceiling.")
           edit("build/ReleaseValidator.cs", "return 190.0f", "return 206.94f")
+          edit("build/ReleaseValidator.cs", 'ProductVersion = "1.4.8"', 'ProductVersion = "1.4.9"')
           edit("build/ReleaseValidator.cs",
                '"docs/CHANGELOG_1_4_8_RU.md", "docs/TEST_REPORT_1_4_8_RU.md", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",',
                '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",')
