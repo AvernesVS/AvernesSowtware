@@ -244,3 +244,5 @@ jobs:
             ${{ runner.temp }}/AvernesSowtware_v1.4.8_PATCHED_SOURCE.zip
           if-no-files-found: warn
           retention-days: 30
+
+# Re-run the complete v1.4.8 Windows build after the audit log fallback patch.
