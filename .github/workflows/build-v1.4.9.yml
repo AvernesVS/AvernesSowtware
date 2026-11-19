@@ -55,7 +55,7 @@ jobs:
               s = p.read_text(encoding="utf-8-sig")
               if required and old not in s:
                   raise SystemExit(f"Expected marker missing in {rel}: {old}")
-              s = s.replace(old, new)
+              s = s.replace(old, new, 1)
               p.write_text(s, encoding="utf-8-sig", newline="")
 
           for rel in ["BUILD_RELEASE.bat", "build/Build.bat", "README_RU.md", "START_HERE_RU.txt"]:
@@ -103,8 +103,11 @@ jobs:
                "                    bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, npc.Handle, player.Handle);",
                "")
           edit("src/Core/AvernesSowtwareScript.cs",
-               "                    if (!attackingPlayer) continue;",
-               "")
+               "                    if (!attackingPlayer) continue;\\n                    DateTime lastIssued;",
+               "                    DateTime lastIssued;")
+          edit("src/Core/AvernesSowtwareScript.cs",
+               "                    if (pedInVehicle)\\n                    {\\n                        DateTime lastVehicleResponse;",
+               "                    if (pedInVehicle)\\n                    {\\n                        if (!attackingPlayer || aircraft == 0) continue;\\n                        DateTime lastVehicleResponse;")
           edit("src/Core/AvernesSowtwareScript.cs",
                "                        now < lastIssued.AddSeconds(2.0)) continue;",
                "                        now < lastIssued.AddSeconds(1.5)) continue;")
