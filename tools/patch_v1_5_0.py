@@ -150,6 +150,39 @@ for p in (root / "tests").glob("test_1_4_*.py"):
     s = s.replace("aircraft ? 300.0f", "aircraft ? 333.333f")
     p.write_text(s, encoding="utf-8-sig", newline=newline)
 
+# Release the previous explicit aim target when the player stops aiming; guards resume follow
+# and the separate player-in-combat protection path can reacquire genuinely hostile NPCs.
+replace("src/Core/AvernesSowtwareScript.cs",
+        """            if (target == _lastBodyguardAimTargetHandle) return;
+            _lastBodyguardAimTargetHandle = target;
+            if (target == 0) return;
+
+            for (int i = 0; i < _bodyguards.Count; i++)""",
+        """            if (target == _lastBodyguardAimTargetHandle) return;
+            int previousTarget = _lastBodyguardAimTargetHandle;
+            _lastBodyguardAimTargetHandle = target;
+            if (target == 0)
+            {
+                if (previousTarget != 0)
+                {
+                    for (int i = 0; i < _bodyguards.Count; i++)
+                    {
+                        int guard = _bodyguards[i];
+                        try
+                        {
+                            if (!IsLivingBodyguardHandle(guard)) continue;
+                            Function.Call(Hash.CLEAR_PED_TASKS, guard);
+                            IssueBodyguardFollowTask(guard, player.Handle);
+                        }
+                        catch (Exception ex) { LogException("Release bodyguard aimed target " + guard, ex); }
+                    }
+                    Log("Bodyguards released aimed target " + previousTarget + " and resumed following.");
+                }
+                return;
+            }
+
+            for (int i = 0; i < _bodyguards.Count; i++)""")
+
 (root / "tests/test_1_5_0_regressions.py").write_text('''from pathlib import Path
 import unittest
 ROOT = Path(__file__).resolve().parents[1]
@@ -181,7 +214,8 @@ class Release150Regressions(unittest.TestCase):
                        "ProcessAutomaticParachuteDeployment", "SuppressActiveMilitaryCombat",
                        "SuppressBolingbrokePrisonCombat", "ApplyPoliceIgnore",
                        'GetHash("toreador")', "EnsureFullscreenWindow",
-                       "Animation scenario started: ", 'LogException("StopPlayerAnimation", ex)']:
+                       "Animation scenario started: ", 'LogException("StopPlayerAnimation", ex)',
+                       "Bodyguards released aimed target ", "ApplyBodyguardCombatTactics"]:
             self.assertIn(marker, CORE)
 if __name__ == "__main__": unittest.main()
 ''', encoding="utf-8")
