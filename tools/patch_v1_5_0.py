@@ -171,7 +171,7 @@ class Release150Regressions(unittest.TestCase):
                        "ProcessAutomaticParachuteDeployment", "SuppressActiveMilitaryCombat",
                        "SuppressBolingbrokePrisonCombat", "ApplyPoliceIgnore",
                        'GetHash("toreador")', "EnsureFullscreenWindow",
-                       "Animation scenario started: ", "LogException(\"StopPlayerAnimation\", ex)"]:
+                       "Animation scenario started: ", 'LogException("StopPlayerAnimation", ex)']:
             self.assertIn(marker, CORE)
 if __name__ == "__main__": unittest.main()
 ''', encoding="utf-8")
