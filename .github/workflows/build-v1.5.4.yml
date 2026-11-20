@@ -254,7 +254,7 @@ jobs:
             $testSource = $testSource.Replace($testMarker, $newTest + [Environment]::NewLine + $testMarker)
             [IO.File]::WriteAllText($testPath, $testSource, [Text.UTF8Encoding]::new($false))
 
-            # Apply the final runtime corrections on top of the verified v1.5.4 package source; keep generated test reports owned by the build script.
+            # Apply the final runtime corrections on top of the verified v1.5.4 package source; ReleasePackager writes the authoritative final test report.
             $followupEncoded = (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-followup.patch.gz.b64') -Raw).Trim()
             if (($followupEncoded.Length % 4) -ne 0) { throw 'v1.5.4 follow-up patch base64 length is invalid.' }
             $followupCompressed = [Convert]::FromBase64String($followupEncoded)
@@ -275,7 +275,7 @@ jobs:
               'Статус: Windows CI сборка и автоматические проверки пройдены; игровой прогон GTA V Legacy не выполнялся.',
               '',
               'Результаты проверки:',
-              '- Регрессионные тесты v1.5.3/v1.5.4: 19 passed, 4 deselected (устаревшие проверки прежнего поведения).',
+              '- Регрессионные тесты v1.5.3/v1.5.4: 20 passed, 4 deselected (устаревшие проверки прежнего поведения).',
               '- Статический ReleaseValidator: 0 ошибок, 2 предупреждения по отсутствующим T20/FBI SUV в списке addons.',
               '- Компиляция DLL под ScriptHookVDotNet2 API 2: успешно; 1 предупреждение C# о неиспользуемом поле _nitroBurstApplied.',
               '- Проверка миграции установщика и повторного запуска: успешно.',
