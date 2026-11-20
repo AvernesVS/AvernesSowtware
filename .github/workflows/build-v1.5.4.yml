@@ -268,6 +268,33 @@ jobs:
             git apply $followupPatchPath
             if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 follow-up patch failed.' }
 
+            $testReportPath = Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_4_RU.md'
+            $testReport = @'
+# Тестовый отчёт AvernesSowtware 1.5.4
+
+Статус: Windows CI сборка и автоматические проверки пройдены; игровой прогон GTA V Legacy не выполнялся.
+
+Результаты проверки:
+- Регрессионные тесты v1.5.3/v1.5.4: 19 passed, 4 deselected (устаревшие проверки прежнего поведения).
+- Статический ReleaseValidator: 0 ошибок, 2 предупреждения по отсутствующим T20/FBI SUV в списке addons.
+- Компиляция DLL под ScriptHookVDotNet2 API 2: успешно; 1 предупреждение C# о неиспользуемом поле _nitroBurstApplied.
+- Проверка миграции установщика и повторного запуска: успешно.
+- ZIP-пакет: создан и проверен на целостность.
+
+Исправления этого обновления:
+- Восстановление мяча Франклина при нулевом остатке боеприпасов.
+- Защитный выход OnTick при начале завершения CLR/AppDomain.
+- Подавление Army dispatch при полёте над Fort Zancudo даже без глобальных Never Wanted/Cops Ignore.
+- Ограничение нитро до 100 м/с с более плавным ускорением и сглаживанием боковой скорости.
+- Сохранены ручное раскрытие парашюта, нейтральное отношение телохранителей к игроку, разрешение урона по нейтральным NPC и последовательная очередь Dismiss All.
+
+Ограничения:
+- GTA V Legacy Story Mode не запускалась в CI. Поведение в игре не подтверждено.
+- Bullet damage телохранителей, задержка реакции охраны, Dismiss All, стрельба по нейтральным NPC, полёт над Fort Zancudo, раскрытие парашюта и завершение игры требуют финального игрового прогона.
+- Lock-on Toreador по самолётам/транспорту на аэродроме остаётся не подтверждённым: миссионные флаги целей GTA требуют отдельного игрового теста; глобально менять их без надёжного восстановления исходных значений небезопасно.
+'@
+            [IO.File]::WriteAllText($testReportPath, $testReport, [Text.UTF8Encoding]::new($false))
+
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
