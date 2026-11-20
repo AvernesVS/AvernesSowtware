@@ -1,0 +1,154 @@
+name: AvernesSowtware v1.5.4 Windows Release
+
+on:
+  push:
+    branches:
+      - release/v1.5.4-runtime-fixes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout v1.5.4 patch
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.5.3 release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.3-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44787334559
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base153
+
+      - name: Extract verified v1.5.3 source package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base153') -Filter 'AvernesSowtware_v1.5.3_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $baseZip) { throw 'Verified v1.5.3 release ZIP is missing.' }
+          $releaseRoot = Join-Path $env:RUNNER_TEMP 'release153'
+          Expand-Archive -LiteralPath $baseZip.FullName -DestinationPath $releaseRoot -Force
+          $sourceRoot = Join-Path $releaseRoot 'AvernesSowtware_v1.5.3'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.5.3 source tree is incomplete.' }
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Apply v1.5.4 source patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $normalize = @(
+            'BUILD_RELEASE.bat','BUILD_RELEASE_REPORT_RU.txt','Install_AvernesSowtware.bat',
+            'build/Build.bat','build/ReleaseValidator.cs','build/ReleasePackager.cs',
+            'src/Core/AvernesSowtwareScript.cs','src/Managers/VehicleSystems.cs'
+          )
+          foreach ($relative in $normalize) {
+            $file = Join-Path $env:SOURCE_ROOT $relative
+            $content = [IO.File]::ReadAllText($file).Replace("`r`n","`n")
+            [IO.File]::WriteAllText($file,$content,[Text.UTF8Encoding]::new($false))
+          }
+          Push-Location $env:SOURCE_ROOT
+          try {
+            git init -q
+            git config user.name 'AvernesSowtware CI'
+            git config user.email 'ci@users.noreply.github.com'
+            git add -A
+            git commit -qm 'v1.5.3 verified source base'
+            $encoded = (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-runtime.patch.gz.b64') -Raw).Trim()
+            if (($encoded.Length % 4) -ne 0) { throw 'v1.5.4 patch base64 length is invalid.' }
+            $compressed = [Convert]::FromBase64String($encoded)
+            $compressedPath = Join-Path $env:RUNNER_TEMP 'v154-runtime.patch.gz'
+            $patchPath = Join-Path $env:RUNNER_TEMP 'v154-runtime.patch'
+            [IO.File]::WriteAllBytes($compressedPath,$compressed)
+            python -c "import gzip,pathlib,sys; pathlib.Path(sys.argv[2]).write_bytes(gzip.decompress(pathlib.Path(sys.argv[1]).read_bytes()))" $compressedPath $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not decompress v1.5.4 patch.' }
+            git apply --check $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 patch does not apply cleanly to verified v1.5.3 source.' }
+            git apply $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 source patch failed.' }
+            Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
+          } finally { Pop-Location }
+          foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
+            $file = Join-Path $env:SOURCE_ROOT $relative
+            $content = [IO.File]::ReadAllText($file).Replace("`r`n","`n").Replace("`n","`r`n")
+            [IO.File]::WriteAllText($file,$content,[Text.UTF8Encoding]::new($false))
+          }
+
+      - name: Run focused regression tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try {
+            python -m pytest -q tests/test_1_5_3_regressions.py tests/test_1_5_4_regressions.py `
+              --deselect=tests/test_1_5_3_regressions.py::Release153Regressions::test_bodyguards_are_companions_and_aiming_at_them_is_not_attack_order `
+              --deselect=tests/test_1_5_3_regressions.py::Release153Regressions::test_manual_parachute_only `
+              --deselect=tests/test_1_5_3_regressions.py::Release153Regressions::test_nitro_modifies_top_speed_and_keeps_1200_target `
+              --deselect=tests/test_1_5_3_regressions.py::Release153Regressions::test_version
+            if ($LASTEXITCODE -ne 0) { throw 'Focused v1.5.3/v1.5.4 regression tests failed.' }
+          } finally { Pop-Location }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile DLL and create complete release package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed: $LASTEXITCODE" }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.5.4_RELEASE.zip'
+            if (-not (Test-Path $dll) -or -not (Test-Path $zip)) { throw 'Compiled DLL or full release ZIP is missing.' }
+            Copy-Item -LiteralPath $dll -Destination (Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.5.4.dll') -Force
+            $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
+          } finally { Pop-Location }
+
+      - name: Run installer migration and idempotence checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence regression failed.' }
+
+      - name: Print build diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SOURCE_ROOT -and (Test-Path $env:SOURCE_ROOT)) {
+            if (Test-Path (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE_REPORT_RU.txt')) { Get-Content (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE_REPORT_RU.txt') }
+            if (Test-Path (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.log')) { Get-Content (Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.log') -Tail 180 }
+            if (Test-Path (Join-Path $env:SOURCE_ROOT 'AvernesSowtware_Build.log')) { Get-Content (Join-Path $env:SOURCE_ROOT 'AvernesSowtware_Build.log') -Tail 180 }
+          }
+
+      - name: Upload full v1.5.4 release and build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.4-Windows-Release
+          path: |
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/dist/AvernesSowtware_v1.5.4_RELEASE.zip
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/dist/AvernesSowtware_v1.5.4.dll
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/SHA256SUMS.txt
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/BUILD_RELEASE_REPORT_RU.txt
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/BUILD_RELEASE.log
+            ${{ runner.temp }}/release153/AvernesSowtware_v1.5.3/AvernesSowtware_Build.log
+          if-no-files-found: error
+          retention-days: 30
