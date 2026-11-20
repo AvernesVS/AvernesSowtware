@@ -127,22 +127,15 @@ if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
 # Motorcycle class is checked directly in the target-Z branch; no extra local is required. Trigger patch retry.
 
-old = """                float targetX = position.X + (forward.X / length) * distance;
-                float targetY = position.Y + (forward.Y / length) * distance;
-                float targetZ = position.Z + (aircraft ? forward.Z / length : 0.0f) * distance;"""
-new = """                float targetX = position.X + (forward.X / length) * distance;
-                float targetY = position.Y + (forward.Y / length) * distance;
-                float targetZ;
-                if (aircraft) targetZ = position.Z + (forward.Z / length) * distance;
-                else if (vehicleClass == 8)
-                {
-                    Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
-                    float travelSeconds = distance / Math.Max(speed, 1.0f);
-                    targetZ = position.Z + ClampFloat(velocity.Z * travelSeconds, -120.0f, 120.0f);
-                }
-                else targetZ = position.Z;"""
-if old not in s: raise SystemExit("collision target block not found")
+old = "                float targetZ = position.Z + (aircraft ? forward.Z / length : 0.0f) * distance;"
+new = """                Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
+                float travelSeconds = distance / Math.Max(speed, 1.0f);
+                float targetZ = aircraft
+                    ? position.Z + (forward.Z / length) * distance
+                    : (vehicleClass == 8 ? position.Z + ClampFloat(velocity.Z * travelSeconds, -120.0f, 120.0f) : position.Z);"""
+if old not in s: raise SystemExit("collision target expression not found")
 s = s.replace(old, new, 1)
+
 old = """                if (Math.Abs(forwardSpeed) < 45.0f) return;
                 float lateralX = velocity.X - fx * forwardSpeed;
                 float lateralY = velocity.Y - fy * forwardSpeed;
