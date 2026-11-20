@@ -34,8 +34,8 @@ replace("build/ReleaseValidator.cs",
         '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py",',
         '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py",')
 replace("build/ReleasePackager.cs",
-        '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md",',
-        '''"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md",
+        'archiveRootName + "/docs/CHANGELOG_1_4_9_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_9_RU.md",',
+        '''archiveRootName + "/docs/CHANGELOG_1_4_9_RU.md", archiveRootName + "/docs/TEST_REPORT_1_4_9_RU.md",
                     archiveRootName + "/docs/CHANGELOG_1_5_0_RU.md", archiveRootName + "/docs/TEST_REPORT_1_5_0_RU.md",
                     archiveRootName + "/tests/test_1_5_0_regressions.py",''')
 
