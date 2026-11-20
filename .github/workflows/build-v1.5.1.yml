@@ -81,6 +81,16 @@ jobs:
             "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
           } finally { Pop-Location }
 
+      - name: Print release validation diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          Push-Location $env:SOURCE_ROOT
+          try {
+            if (Test-Path 'BUILD_RELEASE_REPORT_RU.txt') { Get-Content 'BUILD_RELEASE_REPORT_RU.txt' }
+            if (Test-Path 'BUILD_RELEASE.log') { Get-Content 'BUILD_RELEASE.log' -Tail 160 }
+          } finally { Pop-Location }
+
       - name: Run installer migration and idempotence regression
         shell: pwsh
         run: |
