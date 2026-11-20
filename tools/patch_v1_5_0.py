@@ -53,7 +53,7 @@ set "INSTALL_LOG=%PROJECT_DIR%\\AvernesSowtware_Install.log"
 if /i "%~2"=="--elevated" (
   call :log "Installer resumed with elevated permissions."
 ) else (
-  >"%INSTALL_LOG%" echo AvernesSowtware 1.4.9 installation log
+  >"%INSTALL_LOG%" echo AvernesSowtware 1.5.0 installation log
   call :log "Installer started. Project directory: %PROJECT_DIR%"
 )
 set "GTAV_DIR=%~1""",
