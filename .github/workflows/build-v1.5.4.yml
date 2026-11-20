@@ -59,7 +59,7 @@ jobs:
             git config user.email 'ci@users.noreply.github.com'
             git add -A
             git commit -qm 'v1.5.3 verified source base'
-            $encoded = (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-runtime.patch.gz.b64') -Raw).Trim()
+            $encoded = ((Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-runtime.patch.gz.b64') -Raw).Trim() + (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-runtime.patch.part2') -Raw).Trim() + (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-runtime.patch.part3') -Raw).Trim())
             if (($encoded.Length % 4) -ne 0) { throw 'v1.5.4 patch base64 length is invalid.' }
             $compressed = [Convert]::FromBase64String($encoded)
             $compressedPath = Join-Path $env:RUNNER_TEMP 'v154-runtime.patch.gz'
