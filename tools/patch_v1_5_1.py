@@ -153,7 +153,7 @@ for rel in ["Install_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat
     if p.exists():
         text = p.read_text(encoding="utf-8-sig").replace("1.5.0", "1.5.1")
         if rel.lower().endswith(".bat"):
-            text = text.replace("\\n", "\\r\\n")
+            text = text.replace("\n", "\r\n")
         p.write_text(text, encoding="utf-8-sig", newline="")
 
 # Keep CMD label/subroutine parsing reliable: all installer/build batch files use CRLF. Retry build.
