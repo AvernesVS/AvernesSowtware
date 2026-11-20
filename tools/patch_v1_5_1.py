@@ -127,7 +127,7 @@ if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
 # Motorcycle class is checked directly in the target-Z branch; no extra local is required. Trigger patch retry.
 
-# Collision prefetch remains unchanged in this patch; no unverified projection native added.
+# Collision prefetch remains unchanged in this patch; no unverified projection native added. Re-run validation.
 old = """                if (Math.Abs(forwardSpeed) < 45.0f) return;
                 float lateralX = velocity.X - fx * forwardSpeed;
                 float lateralY = velocity.Y - fy * forwardSpeed;
