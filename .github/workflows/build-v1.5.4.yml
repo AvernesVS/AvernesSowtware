@@ -145,6 +145,108 @@ jobs:
             $buildBat = $buildBat.Replace($oldValidation, $newValidation)
             [IO.File]::WriteAllText($buildBatPath, $buildBat, [Text.UTF8Encoding]::new($false))
 
+            $corePath = Join-Path $env:SOURCE_ROOT 'src/Core/AvernesSowtwareScript.cs'
+            $coreSource = [IO.File]::ReadAllText($corePath)
+            $fieldMarker = '        private int _lastBodyguardAimTargetHandle;'
+            $fieldReplacement = $fieldMarker + [Environment]::NewLine + '        private int _lastBodyguardThreatTargetHandle;' + [Environment]::NewLine + '        private DateTime _lastBodyguardThreatScanUtc = DateTime.MinValue;'
+            if ([regex]::Matches($coreSource, [regex]::Escape($fieldMarker)).Count -ne 1) { throw 'Bodyguard field insertion point is ambiguous.' }
+            $coreSource = $coreSource.Replace($fieldMarker, $fieldReplacement)
+
+            $aimMarker = '        private void ProcessBodyguardAim(Ped player, int now)'
+            $threatMethod = @'
+        private void ProcessBodyguardThreats(Ped player)
+        {
+            if (!IsEntityUsable(player) || _bodyguards.Count == 0) return;
+            // Manual aim orders take priority over automatic threat response.
+            if (_lastBodyguardAimTargetHandle != 0)
+            {
+                _lastBodyguardThreatTargetHandle = 0;
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            if (now < _lastBodyguardThreatScanUtc.AddMilliseconds(500)) return;
+            _lastBodyguardThreatScanUtc = now;
+
+            Ped[] nearby;
+            try { nearby = World.GetNearbyPeds(player, 100.0f); }
+            catch (Exception ex) { LogException("Scan bodyguard threats", ex); return; }
+
+            int target = 0;
+            for (int i = 0; i < nearby.Length; i++)
+            {
+                Ped candidate = nearby[i];
+                if (!IsEntityUsable(candidate) || candidate.Handle == player.Handle ||
+                    _bodyguards.Contains(candidate.Handle)) continue;
+
+                bool attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL,
+                    candidate.Handle, player.Handle);
+                for (int guardIndex = 0; !attackingPlayer && guardIndex < _bodyguards.Count; guardIndex++)
+                {
+                    int guard = _bodyguards[guardIndex];
+                    if (!IsLivingBodyguardHandle(guard)) continue;
+                    attackingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL,
+                        candidate.Handle, guard);
+                }
+                if (attackingPlayer)
+                {
+                    target = candidate.Handle;
+                    break;
+                }
+            }
+
+            if (target == 0)
+            {
+                _lastBodyguardThreatTargetHandle = 0;
+                return;
+            }
+
+            bool targetChanged = target != _lastBodyguardThreatTargetHandle;
+            _lastBodyguardThreatTargetHandle = target;
+            for (int i = 0; i < _bodyguards.Count; i++)
+            {
+                int guard = _bodyguards[i];
+                try
+                {
+                    if (!IsLivingBodyguardHandle(guard)) continue;
+                    bool alreadyEngaged = Function.Call<bool>((Hash)0x4859F1FC66A6278EUL, guard, target);
+                    if (targetChanged || !alreadyEngaged)
+                    {
+                        Function.Call((Hash)0xF166E48407BAC484UL, guard, target, 0, 16); // TASK_COMBAT_PED
+                        ApplyBodyguardCombatTactics(guard);
+                        Function.Call((Hash)0x971D38760FBC02EFUL, guard, true); // SET_PED_KEEP_TASK
+                    }
+                }
+                catch (Exception ex) { LogException("Bodyguard threat response " + guard, ex); }
+            }
+            if (targetChanged) Log("Bodyguards counter-attacking NPC threatening player/guard: " + target + ".");
+        }
+
+'@
+            if ([regex]::Matches($coreSource, [regex]::Escape($aimMarker)).Count -ne 1) { throw 'Bodyguard aim method insertion point is ambiguous.' }
+            $coreSource = $coreSource.Replace($aimMarker, $threatMethod + $aimMarker)
+
+            $callMarker = '            ProcessBodyguardAim(player, now);'
+            if ([regex]::Matches($coreSource, [regex]::Escape($callMarker)).Count -ne 1) { throw 'Bodyguard threat call insertion point is ambiguous.' }
+            $coreSource = $coreSource.Replace($callMarker, $callMarker + [Environment]::NewLine + '            ProcessBodyguardThreats(player);')
+            [IO.File]::WriteAllText($corePath, $coreSource, [Text.UTF8Encoding]::new($false))
+
+            $testPath = Join-Path $env:SOURCE_ROOT 'tests/test_1_5_4_regressions.py'
+            $testSource = [IO.File]::ReadAllText($testPath)
+            $testMarker = "if __name__ == '__main__': unittest.main()"
+            $newTest = @'
+    def test_bodyguards_counterattack_npcs_threatening_player_or_guard(self):
+        body = CORE[CORE.index("private void ProcessBodyguardThreats"):CORE.index("private void ProcessBodyguardAim")]
+        self.assertIn("World.GetNearbyPeds(player, 100.0f)", body)
+        self.assertIn("AddMilliseconds(500)", body)
+        self.assertIn("0x4859F1FC66A6278EUL", body)
+        self.assertIn("TASK_COMBAT_PED", body)
+'@
+            if ([regex]::Matches($testSource, [regex]::Escape($testMarker)).Count -ne 1) { throw 'v1.5.4 regression test insertion point is ambiguous.' }
+            $testSource = $testSource.Replace($testMarker, $newTest + [Environment]::NewLine + $testMarker)
+            [IO.File]::WriteAllText($testPath, $testSource, [Text.UTF8Encoding]::new($false))
+
+            Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
