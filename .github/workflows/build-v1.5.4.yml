@@ -269,7 +269,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 follow-up patch failed.' }
 
             $testReportPath = Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_4_RU.md'
-$testReport = @(
+            $testReport = @(
               '# Тестовый отчёт AvernesSowtware 1.5.4',
               '',
               'Статус: Windows CI сборка и автоматические проверки пройдены; игровой прогон GTA V Legacy не выполнялся.',
