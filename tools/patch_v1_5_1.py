@@ -175,6 +175,8 @@ for rel in ["Install_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat
     p = root / rel
     if p.exists():
         p.write_text(p.read_text(encoding="utf-8-sig").replace("1.5.0", "1.5.1"), encoding="utf-8-sig", newline="")
+# Keep the final cleanup cadence based on the tick timestamp.
+s = s.replace("_nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(700);", "_nextBodyguardDismissalUtc = now.AddMilliseconds(700);")
 for p in (root / "tests").glob("test_*.py"):
     p.write_text(p.read_text(encoding="utf-8-sig").replace('ProductVersion = "1.5.0"', 'ProductVersion = "1.5.1"'),
                  encoding="utf-8-sig", newline="")
