@@ -77,9 +77,9 @@ for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat",
             "BUILD_RELEASE.bat", "build/Build.bat"]:
     p = root / rel
     normalized = p.read_text(encoding="utf-8-sig")
-    p.write_text(normalized, encoding="utf-8-sig", newline="\\r\\n")
+    p.write_text(normalized, encoding="utf-8-sig", newline="\r\n")
     raw = p.read_bytes()
-    if b"\\n" in raw.replace(b"\\r\\n", b""):
+    if b"\n" in raw.replace(b"\r\n", b""):
         raise SystemExit(f"{rel}: failed to normalize Windows CRLF line endings")
 
 replace("build/Test-InstallerIdempotence.ps1",
