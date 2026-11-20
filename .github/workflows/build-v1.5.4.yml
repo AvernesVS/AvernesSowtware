@@ -68,7 +68,82 @@ jobs:
             $goodCheck = 'vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED\", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)'
             if (-not $validatorSource.Contains($badCheck)) { throw 'Expected malformed nitro validator check was not found.' }
             $validatorSource = $validatorSource.Replace($badCheck, $goodCheck)
+
+            $rules = @(
+              @{
+                Pattern = '(?s)if \(vehicleSource\.IndexOf\("CalculateNitroMaximumSpeedMetersPerSecond".*?Error\("1\.4\.8 Nitro must use separate safe land/aircraft envelopes and avoid competing stability writes\."\);'
+                Replacement = @'
+        if (vehicleSource.IndexOf("ApplyNitroVelocityAssist", StringComparison.Ordinal) < 0 ||
+            vehicleSource.IndexOf("float entitySpeedCap = 999.0f", StringComparison.Ordinal) < 0 ||
+            vehicleSource.IndexOf("SET_ENTITY_MAX_SPEED", StringComparison.Ordinal) < 0 ||
+            vehicleSource.IndexOf("_settings.VehicleStability && !nitroRequested", StringComparison.Ordinal) < 0 ||
+            vehicleSource.IndexOf("float lateralX", StringComparison.Ordinal) < 0)
+            Error("1.5.4 Nitro acceleration, speed envelope, or lateral-drift damping is incomplete.");
+'@
+              },
+              @{
+                Pattern = '(?s)if \(mainSource\.IndexOf\("ProcessAutomaticParachuteDeployment".*?Error\("1\.4\.8 automatic parachute deployment must remain disabled; manual parachute use is preserved\."\);'
+                Replacement = @'
+        if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
+            Error("1.5.4 parachute must be equipped explicitly and deployment must remain manual.");
+'@
+              },
+              @{
+                Pattern = '(?s)if \(mainSource\.IndexOf\("ApplyMilitaryIgnore".*?Error\("1\.4\.5 Fort Zancudo Army/air dispatch suppression and restoration are incomplete\."\);'
+                Replacement = @'
+        if (mainSource.IndexOf("ApplyMilitaryIgnore", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("_militaryRelationshipOriginalPlayerToArmy", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, armyGroup, playerGroup", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, playerGroup, armyGroup", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("UpdateFortZancudoArmyDispatch", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("RestoreFortZancudoArmyDispatch", StringComparison.Ordinal) < 0)
+            Error("1.5.4 Fort Zancudo neutral relationship and reversible dispatch control are incomplete.");
+'@
+              },
+              @{
+                Pattern = '(?s)string parachuteMethod = mainSource\.Substring\(.*?Error\("1\.4\.8 automatic parachute must be disabled to prevent unintended canopy deployment\."\);'
+                Replacement = @'
+        if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
+            mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
+            Error("1.5.4 parachute auto-deployment must be absent and manual equip/use preserved.");
+'@
+              },
+              @{
+                Pattern = '(?s)string militarySuppression = mainSource\.Substring\(.*?Error\("1\.4\.8 Fort Zancudo must redirect ground troops and suppress active aircraft weapons\."\);'
+                Replacement = @'
+        int militarySuppressionStart = mainSource.IndexOf("private void SuppressActiveMilitaryCombat", StringComparison.Ordinal);
+        string militarySuppression = militarySuppressionStart >= 0
+            ? mainSource.Substring(militarySuppressionStart)
+            : String.Empty;
+        if (militarySuppression.IndexOf("TASK_PLANE_MISSION", StringComparison.Ordinal) < 0 ||
+            militarySuppression.IndexOf("TASK_HELI_MISSION", StringComparison.Ordinal) < 0 ||
+            militarySuppression.IndexOf("DISABLE_VEHICLE_WEAPON", StringComparison.Ordinal) < 0 ||
+            militarySuppression.IndexOf("responseAlreadyIssued", StringComparison.Ordinal) < 0)
+            Error("1.5.4 Fort Zancudo aircraft redirection and weapon suppression are incomplete.");
+'@
+              }
+            )
+            foreach ($rule in $rules) {
+              $count = [regex]::Matches($validatorSource, $rule.Pattern).Count
+              if ($count -ne 1) { throw "Validator correction expected one match, found $count." }
+              $validatorSource = [regex]::Replace($validatorSource, $rule.Pattern, $rule.Replacement, 1)
+            }
             [IO.File]::WriteAllText($validatorPath, $validatorSource, [Text.UTF8Encoding]::new($false))
+
+            $buildBatPath = Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.bat'
+            $buildBat = [IO.File]::ReadAllText($buildBatPath)
+            $oldValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + "\`r\`n" + 'if errorlevel 1 ('
+            $newValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + "\`r\`n" + 'set "VALIDATOR_RC=%ERRORLEVEL%"' + "\`r\`n" + 'if not "%VALIDATOR_RC%"=="0" ('
+            $validationCount = [regex]::Matches($buildBat, [regex]::Escape($oldValidation)).Count
+            if ($validationCount -ne 2) { throw "Expected two validator exit-code checks, found $validationCount." }
+            $buildBat = $buildBat.Replace($oldValidation, $newValidation)
+            [IO.File]::WriteAllText($buildBatPath, $buildBat, [Text.UTF8Encoding]::new($false))
+
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
