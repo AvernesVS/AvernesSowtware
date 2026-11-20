@@ -1,0 +1,95 @@
+name: AvernesSowtware v1.5.0 Windows Release
+
+on:
+  push:
+    branches:
+      - release/v1.5.0-runtime-fixes
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout v1.5.0 patch and workflow
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.4.9 release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.4.9-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44590483503
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base149
+
+      - name: Extract v1.4.9 source package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outer = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base149') -Filter 'AvernesSowtware_v1.4.9_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $outer) { throw 'Verified v1.4.9 release ZIP is missing.' }
+          $releaseRoot = Join-Path $env:RUNNER_TEMP 'release149'
+          Expand-Archive -LiteralPath $outer.FullName -DestinationPath $releaseRoot -Force
+          $sourceRoot = Join-Path $releaseRoot 'AvernesSowtware_v1.4.9'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.4.9 source tree is incomplete.' }
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Apply v1.5.0 source changes
+        shell: pwsh
+        run: |
+          python tools/patch_v1_5_0.py $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'v1.5.0 source patch failed.' }
+
+      - name: Run full regression suite
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try { python -m pytest -q tests; if ($LASTEXITCODE -ne 0) { throw 'Regression suite failed.' } }
+          finally { Pop-Location }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile DLL and package full release ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed: $LASTEXITCODE" }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.5.0_RELEASE.zip'
+            if (-not (Test-Path $dll) -or -not (Test-Path $zip)) { throw 'Compiled DLL or release ZIP is missing.' }
+            $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
+          } finally { Pop-Location }
+
+      - name: Upload full release package and build diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.0-Windows-Release
+          path: |
+            ${{ runner.temp }}/release149/AvernesSowtware_v1.4.9/dist/AvernesSowtware_v1.5.0_RELEASE.zip
+            ${{ runner.temp }}/release149/AvernesSowtware_v1.4.9/BUILD_RELEASE_REPORT_RU.txt
+            ${{ runner.temp }}/release149/AvernesSowtware_v1.4.9/BUILD_RELEASE.log
+            ${{ runner.temp }}/release149/AvernesSowtware_v1.4.9/AvernesSowtware_Build.log
+            ${{ runner.temp }}/release149/AvernesSowtware_v1.4.9/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
