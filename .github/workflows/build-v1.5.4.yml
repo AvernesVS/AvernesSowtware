@@ -254,6 +254,20 @@ jobs:
             $testSource = $testSource.Replace($testMarker, $newTest + [Environment]::NewLine + $testMarker)
             [IO.File]::WriteAllText($testPath, $testSource, [Text.UTF8Encoding]::new($false))
 
+            # Apply the final runtime corrections on top of the verified v1.5.4 package source.
+            $followupEncoded = (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-followup.patch.gz.b64') -Raw).Trim()
+            if (($followupEncoded.Length % 4) -ne 0) { throw 'v1.5.4 follow-up patch base64 length is invalid.' }
+            $followupCompressed = [Convert]::FromBase64String($followupEncoded)
+            $followupCompressedPath = Join-Path $env:RUNNER_TEMP 'v154-followup.patch.gz'
+            $followupPatchPath = Join-Path $env:RUNNER_TEMP 'v154-followup.patch'
+            [IO.File]::WriteAllBytes($followupCompressedPath,$followupCompressed)
+            python -c "import gzip,pathlib,sys; pathlib.Path(sys.argv[2]).write_bytes(gzip.decompress(pathlib.Path(sys.argv[1]).read_bytes()))" $followupCompressedPath $followupPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not decompress v1.5.4 follow-up patch.' }
+            git apply --check $followupPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 follow-up patch does not apply cleanly.' }
+            git apply $followupPatchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 follow-up patch failed.' }
+
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
