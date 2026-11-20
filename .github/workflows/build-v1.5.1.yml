@@ -83,19 +83,11 @@ jobs:
           [IO.File]::WriteAllText($validatorPath, $validatorText, [Text.UTF8Encoding]::new($false))
           $mainPath = Join-Path $env:SOURCE_ROOT 'src/Core/AvernesSowtwareScript.cs'
           $mainText = [IO.File]::ReadAllText($mainPath).Replace("`r`n","`n")
-          $oldBlock = @'
-int previousTarget = _lastPlayerDamageWhitelistTargetHandle;
-                    if (previousTarget != 0 && !_bodyguards.Contains(previousTarget) && IsPedHandleUsable(previousTarget))
-                        Function.Call((Hash)0x6B7A646C242A7059UL, previousTarget, true); // restore SET_PED_CAN_EVASIVE_DIVE
-'@
-          $newBlock = @'
-int staleTarget = _lastPlayerDamageWhitelistTargetHandle;
-                    if (staleTarget != 0 && !_bodyguards.Contains(staleTarget) && IsPedHandleUsable(staleTarget))
-                        Function.Call((Hash)0x6B7A646C242A7059UL, staleTarget, true); // restore SET_PED_CAN_EVASIVE_DIVE
-'@
-          if (-not $mainText.Contains($oldBlock)) { throw 'Expected nested previousTarget declaration was not found.' }
-          $mainText = $mainText.Replace($oldBlock, $newBlock)
-          [IO.File]::WriteAllText($mainPath, $mainText, [Text.UTF8Encoding]::new($false))
+          $pattern = 'int previousTarget = _lastPlayerDamageWhitelistTargetHandle;\s+if \(previousTarget != 0 && !_bodyguards.Contains\(previousTarget\) && IsPedHandleUsable\(previousTarget\)\)\s+Function.Call\(\(Hash\)0x6B7A646C242A7059UL, previousTarget, true\); // restore SET_PED_CAN_EVASIVE_DIVE'
+          $replacementText = 'int staleTarget = _lastPlayerDamageWhitelistTargetHandle;' + "`n                    if (staleTarget != 0 && !_bodyguards.Contains(staleTarget) && IsPedHandleUsable(staleTarget))" + "`n                        Function.Call((Hash)0x6B7A646C242A7059UL, staleTarget, true); // restore SET_PED_CAN_EVASIVE_DIVE"
+          $fixedText = [regex]::Replace($mainText, $pattern, $replacementText, 1)
+          if ($fixedText -eq $mainText) { throw 'Expected nested previousTarget declaration was not found.' }
+          [IO.File]::WriteAllText($mainPath, $fixedText, [Text.UTF8Encoding]::new($false))
 
       - name: Run complete regression suite
         shell: pwsh
