@@ -255,7 +255,6 @@ jobs:
             [IO.File]::WriteAllText($testPath, $testSource, [Text.UTF8Encoding]::new($false))
 
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
-            Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
             $file = Join-Path $env:SOURCE_ROOT $relative
