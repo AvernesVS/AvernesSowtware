@@ -72,6 +72,15 @@ jobs:
               [IO.File]::WriteAllText($file, $content, [Text.UTF8Encoding]::new($false))
             }
           } finally { Pop-Location }
+          New-Item -ItemType Directory -Force (Join-Path $env:SOURCE_ROOT 'docs') | Out-Null
+          New-Item -ItemType Directory -Force (Join-Path $env:SOURCE_ROOT 'tests') | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'docs/CHANGELOG_1_5_2_RU.md') (Join-Path $env:SOURCE_ROOT 'docs/CHANGELOG_1_5_2_RU.md') -Force
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'docs/TEST_REPORT_1_5_2_RU.md') (Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_2_RU.md') -Force
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tests/test_1_5_2_regressions.py') (Join-Path $env:SOURCE_ROOT 'tests/test_1_5_2_regressions.py') -Force
+          $validatorPath = Join-Path $env:SOURCE_ROOT 'build/ReleaseValidator.cs'
+          $validatorText = [IO.File]::ReadAllText($validatorPath)
+          $validatorText = $validatorText.Replace('mainSource.IndexOf("guard.Delete();", StringComparison.Ordinal) < 0', 'mainSource.IndexOf("guard.MarkAsNoLongerNeeded();", StringComparison.Ordinal) < 0')
+          [IO.File]::WriteAllText($validatorPath, $validatorText, [Text.UTF8Encoding]::new($false))
 
       - name: Run complete regression suite
         shell: pwsh
