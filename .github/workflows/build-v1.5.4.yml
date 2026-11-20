@@ -38,7 +38,7 @@ jobs:
           if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.5.3 source tree is incomplete.' }
           "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Apply v1.5.4 source patch
+      - name: Apply v1.5.4 source and runtime follow-up patches
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
