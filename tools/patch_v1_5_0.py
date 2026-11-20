@@ -23,7 +23,7 @@ replace("src/Managers/VehicleSystems.cs",
         "// Common target for land and air vehicles: 1200 km/h.\n            // The frame-time-limited velocity assist remains in place; GTA collision/streaming\n            // stability at this speed still requires in-game validation.\n            return 333.333f; // 1200 km/h; frame-time-scaled velocity ceiling.")
 replace("build/ReleaseValidator.cs", "return 206.94f", "return 333.333f")
 replace("build/ReleaseValidator.cs", "aircraft ? 300.0f", "aircraft ? 333.333f")
-replace("build/ReleaseValidator.cs", 'ProductVersion = "1.4.9"', 'ProductVersion = "1.5.0"')
+replace("build/ReleaseValidator.cs", 'ProductVersion = \\"1.4.9\\"', 'ProductVersion = \\"1.5.0\"')
 \n# Register the new release documentation and regression suite with validator and packager.\nreplace("build/ReleaseValidator.cs", '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py",', '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py",')\nreplace("build/ReleasePackager.cs", '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md",', '"docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md",\n                    archiveRootName + "/docs/CHANGELOG_1_5_0_RU.md", archiveRootName + "/docs/TEST_REPORT_1_5_0_RU.md",\n                    archiveRootName + "/tests/test_1_5_0_regressions.py",')\nreplace("src/Core/AvernesSowtwareScript.cs", 'ProductVersion = "1.4.9"', 'ProductVersion = "1.5.0"')
 
 # Update current release entry points, not historical changelogs.
