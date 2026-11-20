@@ -155,7 +155,7 @@ for rel in ["Install_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat
         p.write_text(p.read_text(encoding="utf-8-sig").replace("1.5.0", "1.5.1"),
                      encoding="utf-8-sig", newline=newline)
 
-# Keep CMD label/subroutine parsing reliable: all installer/build batch files use CRLF.
+# Keep CMD label/subroutine parsing reliable: all installer/build batch files use CRLF. Retry build.
 for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat"]:
     p = root / rel
     if p.exists():
