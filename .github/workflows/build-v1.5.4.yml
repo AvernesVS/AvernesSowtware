@@ -301,9 +301,9 @@ jobs:
               '            File.WriteAllText(testReportPath, testReport, new System.Text.UTF8Encoding(false));',
               '            if (File.Exists(output)) File.Delete(output);'
             ) -join [Environment]::NewLine
-            if (-not $packagerSource.Contains($packagerMarker)) { throw 'ReleasePackager insertion marker is missing.' }
-            if ([regex]::Matches($packagerSource, [regex]::Escape($packagerMarker)).Count -ne 1) { throw 'ReleasePackager insertion marker is ambiguous.' }
-            $packagerSource = $packagerSource.Replace($packagerMarker, $packagerInsert)
+            $packagerIndex = $packagerSource.IndexOf($packagerMarker, [StringComparison]::Ordinal)
+            if ($packagerIndex -lt 0) { throw 'ReleasePackager insertion marker is missing.' }
+            $packagerSource = $packagerSource.Substring(0, $packagerIndex) + $packagerInsert + [Environment]::NewLine + $packagerSource.Substring($packagerIndex + $packagerMarker.Length)
             [IO.File]::WriteAllText($packagerPath, $packagerSource, [Text.UTF8Encoding]::new($false))
 
             $testReportPath = Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_4_RU.md'
