@@ -6,7 +6,7 @@ root = Path(sys.argv[1]).resolve()
 def replace(rel, old, new, count=1):
     path = root / rel
     raw = path.read_bytes()
-    newline = "\\r\\n" if b"\\r\\n" in raw else ""
+    newline = "\r\n" if b"\r\n" in raw else ""
     source = path.read_text(encoding="utf-8-sig")
     found = source.count(old)
     if found < count:
@@ -45,7 +45,7 @@ for rel in ["BUILD_RELEASE.bat", "build/Build.bat", "Install_AvernesSowtware.bat
             "Uninstall_AvernesSowtware.bat", "README_RU.md", "START_HERE_RU.txt",
             "dist/README_RU.txt", "BUILD_RELEASE_REPORT_RU.txt"]:
     p = root / rel
-    newline = "\\r\\n" if b"\\r\\n" in p.read_bytes() else ""
+    newline = "\r\n" if b"\r\n" in p.read_bytes() else ""
     p.write_text(p.read_text(encoding="utf-8-sig").replace("1.4.9", "1.5.0"),
                  encoding="utf-8-sig", newline=newline)
 
@@ -132,10 +132,10 @@ replace("src/Core/AvernesSowtwareScript.cs",
 
 
 for p in (root / "tests").glob("test_1_4_*.py"):
-    newline = "\\r\\n" if b"\\r\\n" in p.read_bytes() else ""
+    newline = "\r\n" if b"\r\n" in p.read_bytes() else ""
     s = p.read_text(encoding="utf-8-sig")
     s = s.replace('ProductVersion = "1.4.9"', 'ProductVersion = "1.5.0"')
-    s = s.replace(r'ProductVersion\\s*=\\s*"1\\.4\\.9"', r'ProductVersion\\s*=\\s*"1\\.5\\.0"')
+    s = s.replace(r'ProductVersion\s*=\s*"1\.4\.9"', r'ProductVersion\s*=\s*"1\.5\.0"')
     s = s.replace("return 206.94f", "return 333.333f")
     s = s.replace("aircraft ? 300.0f", "aircraft ? 333.333f")
     p.write_text(s, encoding="utf-8-sig", newline=newline)
