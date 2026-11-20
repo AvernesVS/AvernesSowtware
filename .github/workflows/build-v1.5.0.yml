@@ -81,6 +81,15 @@ jobs:
             "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
           } finally { Pop-Location }
 
+      - name: Run installer migration and idempotence regression
+        shell: pwsh
+        run: |
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+            if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence regression failed.' }
+          } finally { Pop-Location }
+
       - name: Upload full release package and build diagnostics
         uses: actions/upload-artifact@v4
         with:
