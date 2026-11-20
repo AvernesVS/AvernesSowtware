@@ -125,13 +125,8 @@ new = """Function.Call((Hash)0xB59E4BD37AE292DBUL, handle,
                         motorcycle ? 1.0f : (isToreador ? 1.25f : (aircraft ? 2.0f : 1.35f))); // SET_VEHICLE_CHEAT_POWER_INCREASE"""
 if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
-old = """                bool aircraft = vehicleClass == 15 || vehicleClass == 16;
-                float length = aircraft"""
-new = """                bool aircraft = vehicleClass == 15 || vehicleClass == 16;
-                bool motorcycle = vehicleClass == 8;
-                float length = aircraft"""
-if old not in s: raise SystemExit("collision class block not found")
-s = s.replace(old, new, 1)
+# Motorcycle class is checked directly in the target-Z branch; no extra local is required.
+
 old = """                float targetX = position.X + (forward.X / length) * distance;
                 float targetY = position.Y + (forward.Y / length) * distance;
                 float targetZ = position.Z + (aircraft ? forward.Z / length : 0.0f) * distance;"""
@@ -139,7 +134,7 @@ new = """                float targetX = position.X + (forward.X / length) * dis
                 float targetY = position.Y + (forward.Y / length) * distance;
                 float targetZ;
                 if (aircraft) targetZ = position.Z + (forward.Z / length) * distance;
-                else if (motorcycle)
+                else if (vehicleClass == 8)
                 {
                     Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
                     float travelSeconds = distance / Math.Max(speed, 1.0f);
