@@ -72,6 +72,16 @@ replace("Install_AvernesSowtware.bat", 'if defined FAIL_REASON call :log "ERROR:
 replace("Install_AvernesSowtware.bat", 'if exist "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" del /f /q "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" >>"%INSTALL_LOG%" 2>&1',
         'if defined SCRIPTS_DIR if exist "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" del /f /q "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" >>"%INSTALL_LOG%" 2>&1')
 
+# Windows CMD requires CRLF for reliable batch subroutine label resolution.
+for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat",
+            "BUILD_RELEASE.bat", "build/Build.bat"]:
+    p = root / rel
+    normalized = p.read_text(encoding="utf-8-sig")
+    p.write_text(normalized, encoding="utf-8-sig", newline="\\r\\n")
+    raw = p.read_bytes()
+    if b"\\n" in raw.replace(b"\\r\\n", b""):
+        raise SystemExit(f"{rel}: failed to normalize Windows CRLF line endings")
+
 replace("build/Test-InstallerIdempotence.ps1",
         "$scripts = Join-Path $fakeGame 'scripts'\n    $data = Join-Path $scripts 'AvernesSowtware'",
         "$scripts = Join-Path $fakeGame 'scripts'\n    $logs = Join-Path $scripts 'AvernesSowtware_Logs'\n    $installerLog = Join-Path $logs 'installer.log'\n    if (-not (Test-Path -LiteralPath $installerLog)) { throw 'Installer log was not written under Scripts\\AvernesSowtware_Logs.' }\n    if (Test-Path -LiteralPath (Join-Path $root 'AvernesSowtware_Install.log')) { throw 'Installer wrote a log outside Scripts\\AvernesSowtware_Logs.' }\n    $data = Join-Path $scripts 'AvernesSowtware'")
