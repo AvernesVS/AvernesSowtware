@@ -127,15 +127,14 @@ if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
 # Motorcycle class is checked directly in the target-Z branch; no extra local is required. Trigger patch retry.
 
-old = "                float targetZ = position.Z + (aircraft ? forward.Z / length : 0.0f) * distance;"
-new = """                Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
-                float travelSeconds = distance / Math.Max(speed, 1.0f);
-                float targetZ = aircraft
-                    ? position.Z + (forward.Z / length) * distance
-                    : (vehicleClass == 8 ? position.Z + ClampFloat(velocity.Z * travelSeconds, -120.0f, 120.0f) : position.Z);"""
-if old not in s: raise SystemExit("collision target expression not found")
-s = s.replace(old, new, 1)
-
+pattern = r"(?m)^(\s*)float targetZ = position\.Z \+ \(aircraft \? forward\.Z / length : 0\.0f\) \* distance;$"
+new = """\\1Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
+\\1float travelSeconds = distance / Math.Max(speed, 1.0f);
+\\1float targetZ = aircraft
+\\1    ? position.Z + (forward.Z / length) * distance
+\\1    : (vehicleClass == 8 ? position.Z + ClampFloat(velocity.Z * travelSeconds, -120.0f, 120.0f) : position.Z);"""
+s, n = re.subn(pattern, lambda m: new.replace("\\1", m.group(1)), s, count=1)
+if n != 1: raise SystemExit("collision target expression not found")
 old = """                if (Math.Abs(forwardSpeed) < 45.0f) return;
                 float lateralX = velocity.X - fx * forwardSpeed;
                 float lateralY = velocity.Y - fy * forwardSpeed;
