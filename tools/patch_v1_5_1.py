@@ -222,6 +222,7 @@ p.write_text(s, encoding="utf-8-sig", newline="")
 # Release validator and packager must include 1.5.1 artifacts and validate the new deletion path.
 p = root / "build/ReleaseValidator.cs"
 s = p.read_text(encoding="utf-8-sig").replace('ProductVersion = "1.5.0"', 'ProductVersion = "1.5.1"')
+s = s.replace('ProductVersion = \\"1.5.0\\"', 'ProductVersion = \\"1.5.1\\"')
 s = s.replace('"docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py",',
               '"docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py", "docs/CHANGELOG_1_5_1_RU.md", "docs/TEST_REPORT_1_5_1_RU.md", "tests/test_1_5_1_regressions.py",')
 s = s.replace('mainSource.IndexOf("AddMilliseconds(700)", StringComparison.Ordinal) < 0',
