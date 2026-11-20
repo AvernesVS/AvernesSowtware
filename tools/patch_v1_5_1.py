@@ -120,13 +120,10 @@ new = """                        float entitySpeedCap = maximumNitroSpeed + 1.0f
                         _nitroVehicleHandle = handle;"""
 if old not in s: raise SystemExit("entity speed cap block not found")
 s = s.replace(old, new, 1)
-old = """                    Function.Call((Hash)0xB59E4BD37AE292DBUL, handle, isToreador ? 1.25f : (aircraft ? 1.45f : 1.35f)); // SET_VEHICLE_CHEAT_POWER_INCREASE
-                    RequestNitroAheadCollision(handle);"""
-new = """                    // Stock motorcycle torque avoids triggering GTA's wheelie/flip response.
-                    Function.Call((Hash)0xB59E4BD37AE292DBUL, handle,
-                        motorcycle ? 1.0f : (isToreador ? 1.25f : (aircraft ? 2.0f : 1.35f))); // SET_VEHICLE_CHEAT_POWER_INCREASE
-                    RequestNitroAheadCollision(handle);"""
-if old not in s: raise SystemExit("nitro torque block not found")
+old = "Function.Call((Hash)0xB59E4BD37AE292DBUL, handle, isToreador ? 1.25f : (aircraft ? 1.45f : 1.35f)); // SET_VEHICLE_CHEAT_POWER_INCREASE"
+new = """Function.Call((Hash)0xB59E4BD37AE292DBUL, handle,
+                        motorcycle ? 1.0f : (isToreador ? 1.25f : (aircraft ? 2.0f : 1.35f))); // SET_VEHICLE_CHEAT_POWER_INCREASE"""
+if old not in s: raise SystemExit("nitro torque expression not found")
 s = s.replace(old, new, 1)
 old = """                bool aircraft = vehicleClass == 15 || vehicleClass == 16;
                 float length = aircraft"""
