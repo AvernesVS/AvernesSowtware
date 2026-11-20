@@ -73,59 +73,59 @@ jobs:
               @{
                 Pattern = '(?s)if \(vehicleSource\.IndexOf\("CalculateNitroMaximumSpeedMetersPerSecond".*?Error\("1\.4\.8 Nitro must use separate safe land/aircraft envelopes and avoid competing stability writes\."\);'
                 Replacement = @'
-        if (vehicleSource.IndexOf("ApplyNitroVelocityAssist", StringComparison.Ordinal) < 0 ||
-            vehicleSource.IndexOf("float entitySpeedCap = 999.0f", StringComparison.Ordinal) < 0 ||
-            vehicleSource.IndexOf("SET_ENTITY_MAX_SPEED", StringComparison.Ordinal) < 0 ||
-            vehicleSource.IndexOf("_settings.VehicleStability && !nitroRequested", StringComparison.Ordinal) < 0 ||
-            vehicleSource.IndexOf("float lateralX", StringComparison.Ordinal) < 0)
-            Error("1.5.4 Nitro acceleration, speed envelope, or lateral-drift damping is incomplete.");
-'@
+                  if (vehicleSource.IndexOf("ApplyNitroVelocityAssist", StringComparison.Ordinal) < 0 ||
+                      vehicleSource.IndexOf("float entitySpeedCap = 999.0f", StringComparison.Ordinal) < 0 ||
+                      vehicleSource.IndexOf("SET_ENTITY_MAX_SPEED", StringComparison.Ordinal) < 0 ||
+                      vehicleSource.IndexOf("_settings.VehicleStability && !nitroRequested", StringComparison.Ordinal) < 0 ||
+                      vehicleSource.IndexOf("float lateralX", StringComparison.Ordinal) < 0)
+                      Error("1.5.4 Nitro acceleration, speed envelope, or lateral-drift damping is incomplete.");
+          '@
               },
               @{
                 Pattern = '(?s)if \(mainSource\.IndexOf\("ProcessAutomaticParachuteDeployment".*?Error\("1\.4\.8 automatic parachute deployment must remain disabled; manual parachute use is preserved\."\);'
                 Replacement = @'
-        if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
-            Error("1.5.4 parachute must be equipped explicitly and deployment must remain manual.");
-'@
+                  if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
+                      Error("1.5.4 parachute must be equipped explicitly and deployment must remain manual.");
+          '@
               },
               @{
                 Pattern = '(?s)if \(mainSource\.IndexOf\("ApplyMilitaryIgnore".*?Error\("1\.4\.5 Fort Zancudo Army/air dispatch suppression and restoration are incomplete\."\);'
                 Replacement = @'
-        if (mainSource.IndexOf("ApplyMilitaryIgnore", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("_militaryRelationshipOriginalPlayerToArmy", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, armyGroup, playerGroup", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, playerGroup, armyGroup", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("UpdateFortZancudoArmyDispatch", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("RestoreFortZancudoArmyDispatch", StringComparison.Ordinal) < 0)
-            Error("1.5.4 Fort Zancudo neutral relationship and reversible dispatch control are incomplete.");
-'@
+                  if (mainSource.IndexOf("ApplyMilitaryIgnore", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("_militaryRelationshipOriginalPlayerToArmy", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, armyGroup, playerGroup", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("0xBF25EB89375A37ADUL, 3, playerGroup, armyGroup", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("UpdateFortZancudoArmyDispatch", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("RestoreFortZancudoArmyDispatch", StringComparison.Ordinal) < 0)
+                      Error("1.5.4 Fort Zancudo neutral relationship and reversible dispatch control are incomplete.");
+          '@
               },
               @{
                 Pattern = '(?s)string parachuteMethod = mainSource\.Substring\(.*?Error\("1\.4\.8 automatic parachute must be disabled to prevent unintended canopy deployment\."\);'
                 Replacement = @'
-        if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
-            mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
-            Error("1.5.4 parachute auto-deployment must be absent and manual equip/use preserved.");
-'@
+                  if (mainSource.IndexOf("public bool AutoDeployParachute = false", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("GiveParachuteToPlayer", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("Deployment remains manual", StringComparison.Ordinal) < 0 ||
+                      mainSource.IndexOf("FORCE_PED_TO_OPEN_PARACHUTE", StringComparison.Ordinal) >= 0)
+                      Error("1.5.4 parachute auto-deployment must be absent and manual equip/use preserved.");
+          '@
               },
               @{
                 Pattern = '(?s)string militarySuppression = mainSource\.Substring\(.*?Error\("1\.4\.8 Fort Zancudo must redirect ground troops and suppress active aircraft weapons\."\);'
                 Replacement = @'
-        int militarySuppressionStart = mainSource.IndexOf("private void SuppressActiveMilitaryCombat", StringComparison.Ordinal);
-        string militarySuppression = militarySuppressionStart >= 0
-            ? mainSource.Substring(militarySuppressionStart)
-            : String.Empty;
-        if (militarySuppression.IndexOf("TASK_PLANE_MISSION", StringComparison.Ordinal) < 0 ||
-            militarySuppression.IndexOf("TASK_HELI_MISSION", StringComparison.Ordinal) < 0 ||
-            militarySuppression.IndexOf("DISABLE_VEHICLE_WEAPON", StringComparison.Ordinal) < 0 ||
-            militarySuppression.IndexOf("responseAlreadyIssued", StringComparison.Ordinal) < 0)
-            Error("1.5.4 Fort Zancudo aircraft redirection and weapon suppression are incomplete.");
-'@
+                  int militarySuppressionStart = mainSource.IndexOf("private void SuppressActiveMilitaryCombat", StringComparison.Ordinal);
+                  string militarySuppression = militarySuppressionStart >= 0
+                      ? mainSource.Substring(militarySuppressionStart)
+                      : String.Empty;
+                  if (militarySuppression.IndexOf("TASK_PLANE_MISSION", StringComparison.Ordinal) < 0 ||
+                      militarySuppression.IndexOf("TASK_HELI_MISSION", StringComparison.Ordinal) < 0 ||
+                      militarySuppression.IndexOf("DISABLE_VEHICLE_WEAPON", StringComparison.Ordinal) < 0 ||
+                      militarySuppression.IndexOf("responseAlreadyIssued", StringComparison.Ordinal) < 0)
+                      Error("1.5.4 Fort Zancudo aircraft redirection and weapon suppression are incomplete.");
+          '@
               }
             )
             foreach ($rule in $rules) {
