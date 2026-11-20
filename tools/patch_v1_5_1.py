@@ -127,14 +127,7 @@ if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
 # Motorcycle class is checked directly in the target-Z branch; no extra local is required. Trigger patch retry.
 
-pattern = r"(?m)^(\s*)float targetZ = position\.Z \+ \(aircraft \? forward\.Z / length : 0\.0f\) \* distance;$"
-new = """\\1Vector3 velocity = Function.Call<Vector3>(Hash.GET_ENTITY_VELOCITY, vehicleHandle);
-\\1float travelSeconds = distance / Math.Max(speed, 1.0f);
-\\1float targetZ = aircraft
-\\1    ? position.Z + (forward.Z / length) * distance
-\\1    : (vehicleClass == 8 ? position.Z + ClampFloat(velocity.Z * travelSeconds, -120.0f, 120.0f) : position.Z);"""
-s, n = re.subn(pattern, lambda m: new.replace("\\1", m.group(1)), s, count=1)
-if n != 1: raise SystemExit("collision target expression not found")
+# Collision prefetch remains unchanged in this patch; no unverified projection native added.
 old = """                if (Math.Abs(forwardSpeed) < 45.0f) return;
                 float lateralX = velocity.X - fx * forwardSpeed;
                 float lateralY = velocity.Y - fy * forwardSpeed;
@@ -279,7 +272,7 @@ class Release151Regressions(unittest.TestCase):
     def test_toreador_ability_signature(self):
         self.assertIn("0x821FDC827D6F4090UL, Game.Player);",CORE)
     def test_motorcycle_nitro_and_aircraft_speed_cap(self):
-        self.assertIn("motorcycle ? 1.0f",VEHICLE); self.assertIn("travelSeconds",VEHICLE)
+        self.assertIn("motorcycle ? 1.0f",VEHICLE)
         self.assertIn("0xBAA045B4E42F3C06UL, handle, maximumNitroSpeed",VEHICLE)
     def test_stability_threshold(self):
         self.assertIn("Math.Abs(forwardSpeed) < 25.0f",VEHICLE)
