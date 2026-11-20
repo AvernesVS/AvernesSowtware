@@ -68,6 +68,10 @@ jobs:
             $goodCheck = 'vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED\", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)'
             if (-not $validatorSource.Contains($badCheck)) { throw 'Expected malformed nitro validator check was not found.' }
             $validatorSource = $validatorSource.Replace($badCheck, $goodCheck)
+            $bodyguardCheck = 'mainSource.IndexOf("SET_PED_AMMO_TO_DROP", StringComparison.Ordinal) < 0)'
+            $bodyguardCheckFixed = 'mainSource.IndexOf("SET_PED_AMMO_TO_DROP", StringComparison.Ordinal) < 0 ||' + [Environment]::NewLine + '            mainSource.IndexOf("ProcessBodyguardThreats", StringComparison.Ordinal) < 0)'
+            if (-not $validatorSource.Contains($bodyguardCheck)) { throw 'Bodyguard threat validator insertion point is missing.' }
+            $validatorSource = $validatorSource.Replace($bodyguardCheck, $bodyguardCheckFixed)
 
             $rules = @(
               @{
@@ -229,6 +233,10 @@ jobs:
             $callMarker = '            ProcessBodyguardAim(player, now);'
             if ([regex]::Matches($coreSource, [regex]::Escape($callMarker)).Count -ne 1) { throw 'Bodyguard threat call insertion point is ambiguous.' }
             $coreSource = $coreSource.Replace($callMarker, $callMarker + [Environment]::NewLine + '            ProcessBodyguardThreats(player);')
+            $followGuardMarker = 'if (_lastBodyguardAimTargetHandle != 0 && IsPedHandleUsable(_lastBodyguardAimTargetHandle)) continue;'
+            $followGuardReplacement = $followGuardMarker + [Environment]::NewLine + '                    if (_lastBodyguardThreatTargetHandle != 0 && IsPedHandleUsable(_lastBodyguardThreatTargetHandle)) continue;'
+            if ([regex]::Matches($coreSource, [regex]::Escape($followGuardMarker)).Count -ne 1) { throw 'Bodyguard threat follow guard insertion point is ambiguous.' }
+            $coreSource = $coreSource.Replace($followGuardMarker, $followGuardReplacement)
             [IO.File]::WriteAllText($corePath, $coreSource, [Text.UTF8Encoding]::new($false))
 
             $testPath = Join-Path $env:SOURCE_ROOT 'tests/test_1_5_4_regressions.py'
@@ -286,6 +294,30 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $testReport = @(
+            '# Тестовый отчёт AvernesSowtware 1.5.4',
+            '',
+            'Статус: Windows CI сборка и автоматические проверки пройдены; игровой прогон GTA V Legacy не выполнялся.',
+            '',
+            'Результаты проверки:',
+            '- Регрессионные тесты v1.5.3/v1.5.4: 15 passed, 4 deselected (устаревшие проверки прежнего поведения).',
+            '- Статический ReleaseValidator: 0 ошибок, 2 предупреждения по отсутствующим T20/FBI SUV в списке addons.',
+            '- Компиляция DLL под ScriptHookVDotNet2 API 2: успешно; 1 предупреждение C# о неиспользуемом поле _nitroBurstApplied.',
+            '- Проверка миграции установщика и повторного запуска: успешно.',
+            '- ZIP-пакет: создан и проверен на целостность.',
+            '',
+            'Ограничения:',
+            '- GTA V Legacy Story Mode не запускалась в CI. Поведение в игре не подтверждено.',
+            '- Визуальное раскрытие купола и зависание при выходе требуют отдельной проверки в GTA.',
+            '- Реальная скорость, поведение прыжков/коллизий и реакция телохранителей требуют игрового прогона.'
+          ) -join [Environment]::NewLine
+          [IO.File]::WriteAllText((Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_4_RU.md'), $testReport + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+          $changePath = Join-Path $env:SOURCE_ROOT 'docs/CHANGELOG_1_5_4_RU.md'
+          $changeText = [IO.File]::ReadAllText($changePath)
+          if (-not $changeText.Contains('NPC, атакующих игрока или телохранителя')) {
+            $changeText = $changeText.Replace('- Телохранители используют нейтральное отношение к игроку вместо companion-отношения; боевые атрибуты реакции восстановлены.', '- Телохранители используют нейтральное отношение к игроку; каждые 500 мс ищут NPC, атакующих игрока или телохранителя, и вступают в бой.')
+            [IO.File]::WriteAllText($changePath, $changeText, [Text.UTF8Encoding]::new($false))
+          }
           Push-Location $env:SOURCE_ROOT
           try {
             & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
