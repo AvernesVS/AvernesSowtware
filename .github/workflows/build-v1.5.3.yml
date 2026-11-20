@@ -61,7 +61,11 @@ jobs:
             git config user.email 'ci@users.noreply.github.com'
             git add -A
             git commit -qm 'v1.5.2 verified base'
-            $encoded = ''`n            foreach ($part in @('tools/v1.5.3-patch.part1','tools/v1.5.3-patch.part2','tools/v1.5.3-patch.part3','tools/v1.5.3-patch.part4')) {`n              $encoded += (Get-Content (Join-Path $env:GITHUB_WORKSPACE $part) -Raw).Trim()`n            }`n            if (($encoded.Length % 4) -ne 0) { throw ('Patch base64 length is invalid: ' + $encoded.Length) }
+            $encoded = ''
+            foreach ($part in @('tools/v1.5.3-patch.part1','tools/v1.5.3-patch.part2','tools/v1.5.3-patch.part3','tools/v1.5.3-patch.part4')) {
+              $encoded += (Get-Content (Join-Path $env:GITHUB_WORKSPACE $part) -Raw).Trim()
+            }
+            if (($encoded.Length % 4) -ne 0) { throw ('Patch base64 length is invalid: ' + $encoded.Length) }
             $compressed = [Convert]::FromBase64String($encoded)
             $compressedPath = Join-Path $env:RUNNER_TEMP 'v153-runtime.patch.gz'
             $patchPath = Join-Path $env:RUNNER_TEMP 'v153-runtime.patch'
