@@ -162,7 +162,9 @@ def test_replace(rel, old, new):
     replace(rel, old, new)
 
 test_replace("tests/test_1_4_6_regressions.py", 'self.assertIn("MarkAsNoLongerNeeded", body)', 'self.assertIn("guard.Delete();", body)')
-test_replace("tests/test_1_4_6_regressions.py", r'ProductVersion\\s*=\\s*"1\\.5\\.0"', r'ProductVersion\\s*=\\s*"1\\.5\\.1"')
+p = root / "tests/test_1_4_6_regressions.py"
+s = p.read_text(encoding="utf-8-sig").replace(r"1\.5\.0", r"1\.5\.1")
+p.write_text(s, encoding="utf-8-sig", newline="")
 test_replace("tests/test_1_4_7_regressions.py", 'self.assertIn("REMOVE_PED_FROM_GROUP", dismiss)', 'self.assertIn("guard.Delete();", dismiss)')
 test_replace("tests/test_1_4_7_regressions.py", 'self.assertNotIn("CLEAR_PED_TASKS", dismiss)', 'self.assertIn("CLEAR_PED_TASKS_IMMEDIATELY", dismiss)')
 test_replace("tests/test_1_4_7_regressions.py", 'self.assertIn("AddMilliseconds(650)", dismiss)', 'self.assertIn("AddMilliseconds(700)", dismiss)')
