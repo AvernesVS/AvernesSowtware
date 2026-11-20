@@ -137,8 +137,9 @@ jobs:
 
             $buildBatPath = Join-Path $env:SOURCE_ROOT 'BUILD_RELEASE.bat'
             $buildBat = [IO.File]::ReadAllText($buildBatPath)
-            $oldValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + "\`r\`n" + 'if errorlevel 1 ('
-            $newValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + "\`r\`n" + 'set "VALIDATOR_RC=%ERRORLEVEL%"' + "\`r\`n" + 'if not "%VALIDATOR_RC%"=="0" ('
+            $newline = [Environment]::NewLine
+            $oldValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + $newline + 'if errorlevel 1 ('
+            $newValidation = '"%VALIDATOR%" "%PROJECT_DIR%" >>"%BUILD_LOG%" 2>&1' + $newline + 'set "VALIDATOR_RC=%ERRORLEVEL%"' + $newline + 'if not "%VALIDATOR_RC%"=="0" ('
             $validationCount = [regex]::Matches($buildBat, [regex]::Escape($oldValidation)).Count
             if ($validationCount -ne 2) { throw "Expected two validator exit-code checks, found $validationCount." }
             $buildBat = $buildBat.Replace($oldValidation, $newValidation)
