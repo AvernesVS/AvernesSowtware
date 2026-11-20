@@ -42,16 +42,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $normalize = @(
-            'BUILD_RELEASE.bat','BUILD_RELEASE_REPORT_RU.txt','Install_AvernesSowtware.bat',
-            'build/Build.bat','build/ReleaseValidator.cs','build/ReleasePackager.cs',
-            'src/Core/AvernesSowtwareScript.cs','src/Managers/VehicleSystems.cs'
-          )
-          foreach ($relative in $normalize) {
-            $file = Join-Path $env:SOURCE_ROOT $relative
-            $content = [IO.File]::ReadAllText($file).Replace("`r`n","`n")
-            [IO.File]::WriteAllText($file,$content,[Text.UTF8Encoding]::new($false))
-          }
+          # Preserve the verified package's original line endings until git apply completes.
           Push-Location $env:SOURCE_ROOT
           try {
             git init -q
