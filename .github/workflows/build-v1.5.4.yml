@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   windows-release:
-    runs-on: windows-2025
+    runs-on: windows-latest
     steps:
       - name: Checkout v1.5.4 patch
         uses: actions/checkout@v4
