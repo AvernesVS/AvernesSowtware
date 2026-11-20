@@ -46,6 +46,33 @@ for rel in ["BUILD_RELEASE.bat", "build/Build.bat", "Install_AvernesSowtware.bat
     p.write_text(p.read_text(encoding="utf-8-sig").replace("1.4.9", "1.5.0"),
                  encoding="utf-8-sig", newline="")
 
+# Keep every installer log inside Scripts\\AvernesSowtware_Logs, including startup and failures.
+replace("Install_AvernesSowtware.bat",
+        """set "PROJECT_DIR=%CD%"
+set "INSTALL_LOG=%PROJECT_DIR%\\AvernesSowtware_Install.log"
+if /i "%~2"=="--elevated" (
+  call :log "Installer resumed with elevated permissions."
+) else (
+  >"%INSTALL_LOG%" echo AvernesSowtware 1.4.9 installation log
+  call :log "Installer started. Project directory: %PROJECT_DIR%"
+)
+set "GTAV_DIR=%~1""",
+        """set "PROJECT_DIR=%CD%"
+set "GTAV_DIR=%~1""")
+replace("Install_AvernesSowtware.bat", 'exit 0" >>"%INSTALL_LOG%" 2>&1', 'exit 0"')
+replace("Install_AvernesSowtware.bat",
+        'for %%D in ("%SCRIPTS_DIR%" "%DATA_DIR%" "%VEHICLES_DIR%" "%LOG_DIR%" "%BACKUP_DIR%") do if not exist "%%~fD" mkdir "%%~fD" >>"%INSTALL_LOG%" 2>&1\nif errorlevel 1 goto :request_elevation',
+        'for %%D in ("%SCRIPTS_DIR%" "%DATA_DIR%" "%VEHICLES_DIR%" "%LOG_DIR%" "%BACKUP_DIR%") do if not exist "%%~fD" mkdir "%%~fD"\nif errorlevel 1 goto :request_elevation\nset "INSTALL_LOG=%LOG_DIR%\\installer.log"\nif /i "%~2"=="--elevated" (\n  >>"%INSTALL_LOG%" echo [%DATE% %TIME%] Installer resumed with elevated permissions.\n) else (\n  >"%INSTALL_LOG%" echo AvernesSowtware 1.5.0 installation log\n  call :log "Installer started. Project directory: %PROJECT_DIR%"\n)')
+replace("Install_AvernesSowtware.bat", 'call :log "Requesting administrator approval for GTA V installation folder."', 'rem Logging starts after the Scripts log directory is writable.')
+replace("Install_AvernesSowtware.bat", 'if defined FAIL_REASON call :log "ERROR: %FAIL_REASON%"',
+        'if defined INSTALL_LOG if defined FAIL_REASON call :log "ERROR: %FAIL_REASON%"')
+replace("Install_AvernesSowtware.bat", 'if exist "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" del /f /q "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" >>"%INSTALL_LOG%" 2>&1',
+        'if defined SCRIPTS_DIR if exist "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" del /f /q "%SCRIPTS_DIR%\\AvernesSowtware.dll.new" >>"%INSTALL_LOG%" 2>&1')
+
+replace("build/Test-InstallerIdempotence.ps1",
+        "$scripts = Join-Path $fakeGame 'scripts'\n    $data = Join-Path $scripts 'AvernesSowtware'",
+        "$scripts = Join-Path $fakeGame 'scripts'\n    $logs = Join-Path $scripts 'AvernesSowtware_Logs'\n    $installerLog = Join-Path $logs 'installer.log'\n    if (-not (Test-Path -LiteralPath $installerLog)) { throw 'Installer log was not written under Scripts\\AvernesSowtware_Logs.' }\n    if (Test-Path -LiteralPath (Join-Path $root 'AvernesSowtware_Install.log')) { throw 'Installer wrote a log outside Scripts\\AvernesSowtware_Logs.' }\n    $data = Join-Path $scripts 'AvernesSowtware'")
+
 for p in (root / "tests").glob("test_1_4_*.py"):
     s = p.read_text(encoding="utf-8-sig")
     s = s.replace('ProductVersion = "1.4.9"', 'ProductVersion = "1.5.0"')
