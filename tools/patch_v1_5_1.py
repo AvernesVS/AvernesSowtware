@@ -151,7 +151,15 @@ for rel in ["Install_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat
             "START_HERE_RU.txt", "BUILD_RELEASE_REPORT_RU.txt", "dist/README_RU.txt"]:
     p = root / rel
     if p.exists():
-        p.write_text(p.read_text(encoding="utf-8-sig").replace("1.5.0", "1.5.1"), encoding="utf-8-sig", newline="")
+        newline = "\\r\\n" if rel.lower().endswith(".bat") else ""
+        p.write_text(p.read_text(encoding="utf-8-sig").replace("1.5.0", "1.5.1"),
+                     encoding="utf-8-sig", newline=newline)
+
+# Keep CMD label/subroutine parsing reliable: all installer/build batch files use CRLF.
+for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat"]:
+    p = root / rel
+    if p.exists():
+        p.write_text(p.read_text(encoding="utf-8-sig"), encoding="utf-8-sig", newline="\\r\\n")
 # Keep the final cleanup cadence based on the tick timestamp. (v1.5.1 CI revision)
 s = s.replace("_nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(700);", "_nextBodyguardDismissalUtc = now.AddMilliseconds(700);")
 for p in (root / "tests").glob("test_*.py"):
