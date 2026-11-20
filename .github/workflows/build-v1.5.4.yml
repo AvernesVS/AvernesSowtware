@@ -62,11 +62,13 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 patch does not apply cleanly to verified v1.5.3 source.' }
             git apply $patchPath
             if ($LASTEXITCODE -ne 0) { throw 'v1.5.4 source patch failed.' }
-            $hotfixPath = Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-validator-hotfix.patch'
-            git apply --check $hotfixPath
-            if ($LASTEXITCODE -ne 0) { throw 'Validator hotfix does not apply cleanly.' }
-            git apply $hotfixPath
-            if ($LASTEXITCODE -ne 0) { throw 'Validator hotfix failed.' }
+            $validatorPath = Join-Path $env:SOURCE_ROOT 'build/ReleaseValidator.cs'
+            $validatorSource = [IO.File]::ReadAllText($validatorPath)
+            $badCheck = 'vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)'
+            $goodCheck = 'vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED\", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)'
+            if (-not $validatorSource.Contains($badCheck)) { throw 'Expected malformed nitro validator check was not found.' }
+            $validatorSource = $validatorSource.Replace($badCheck, $goodCheck)
+            [IO.File]::WriteAllText($validatorPath, $validatorSource, [Text.UTF8Encoding]::new($false))
             Remove-Item -LiteralPath (Join-Path $env:SOURCE_ROOT '.git') -Recurse -Force
           } finally { Pop-Location }
           foreach ($relative in @('BUILD_RELEASE.bat','Install_AvernesSowtware.bat','build/Build.bat')) {
