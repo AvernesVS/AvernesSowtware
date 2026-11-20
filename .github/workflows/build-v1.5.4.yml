@@ -254,7 +254,7 @@ jobs:
             $testSource = $testSource.Replace($testMarker, $newTest + [Environment]::NewLine + $testMarker)
             [IO.File]::WriteAllText($testPath, $testSource, [Text.UTF8Encoding]::new($false))
 
-            # Apply the final runtime corrections on top of the verified v1.5.4 package source.
+            # Apply the final runtime corrections on top of the verified v1.5.4 package source; keep generated test reports owned by the build script.
             $followupEncoded = (Get-Content (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.5.4-followup.patch.gz.b64') -Raw).Trim()
             if (($followupEncoded.Length % 4) -ne 0) { throw 'v1.5.4 follow-up patch base64 length is invalid.' }
             $followupCompressed = [Convert]::FromBase64String($followupEncoded)
