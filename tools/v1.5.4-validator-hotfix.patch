@@ -1,0 +1,10 @@
+diff --git a/build/ReleaseValidator.cs b/build/ReleaseValidator.cs
+--- a/build/ReleaseValidator.cs
++++ b/build/ReleaseValidator.cs
+@@ -533,7 +533,7 @@
+         if (vehicleSource.IndexOf("0x0E46A3FCBDE2A1B1UL", StringComparison.Ordinal) < 0 ||
+             vehicleSource.IndexOf("SET_ENTITY_MAX_SPEED", StringComparison.Ordinal) < 0 ||
+             vehicleSource.IndexOf("float entitySpeedCap = 999.0f", StringComparison.Ordinal) < 0 ||
+-            vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)
++            vehicleSource.IndexOf("SET_VEHICLE_MAX_SPEED\", handle, maximumNitroSpeed", StringComparison.Ordinal) >= 0)
+             Error("1.5.4 Nitro must use the 999 entity speed cap without the old vehicle speed ceiling.");
