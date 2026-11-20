@@ -125,7 +125,7 @@ new = """Function.Call((Hash)0xB59E4BD37AE292DBUL, handle,
                         motorcycle ? 1.0f : (isToreador ? 1.25f : (aircraft ? 2.0f : 1.35f))); // SET_VEHICLE_CHEAT_POWER_INCREASE"""
 if old not in s: raise SystemExit("nitro torque expression not found (strict)")
 s = s.replace(old, new, 1)
-# Motorcycle class is checked directly in the target-Z branch; no extra local is required.
+# Motorcycle class is checked directly in the target-Z branch; no extra local is required. Trigger patch retry.
 
 old = """                float targetX = position.X + (forward.X / length) * distance;
                 float targetY = position.Y + (forward.Y / length) * distance;
