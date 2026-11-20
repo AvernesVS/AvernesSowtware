@@ -1,0 +1,179 @@
+name: AvernesSowtware v1.5.2 Windows Release
+
+on:
+  push:
+    branches:
+      - release/v1.5.1-runtime-fixes
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-release:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout v1.5.2 patch
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.5.0 release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.0-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44663451415
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base150
+
+      - name: Extract v1.5.0 source package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base150') -Filter 'AvernesSowtware_v1.5.0_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $baseZip) { throw 'Verified v1.5.0 release ZIP is missing.' }
+          $releaseRoot = Join-Path $env:RUNNER_TEMP 'release150'
+          Expand-Archive -LiteralPath $baseZip.FullName -DestinationPath $releaseRoot -Force
+          $sourceRoot = Join-Path $releaseRoot 'AvernesSowtware_v1.5.0'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'v1.5.0 source tree is incomplete.' }
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Apply v1.5.1 source fixes
+        shell: pwsh
+        run: |
+          python tools/patch_v1_5_1.py $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'v1.5.1 patch failed.' }
+
+      - name: Apply v1.5.2 runtime patch and release metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $encoded = (Get-Content 'tools/v1.5.2-runtime.patch.gz.b64' -Raw).Trim()
+          $compressed = [Convert]::FromBase64String($encoded)
+          $compressedPath = Join-Path $env:RUNNER_TEMP 'v152-runtime.patch.gz'
+          $patchPath = Join-Path $env:RUNNER_TEMP 'v152-runtime.patch'
+          [IO.File]::WriteAllBytes($compressedPath, $compressed)
+          python -c "import gzip,pathlib,sys; pathlib.Path(sys.argv[2]).write_bytes(gzip.decompress(pathlib.Path(sys.argv[1]).read_bytes()))" $compressedPath $patchPath
+          if ($LASTEXITCODE -ne 0) { throw 'Could not decompress v1.5.2 patch.' }
+          Push-Location $env:SOURCE_ROOT
+          try {
+            git apply --check $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.2 source patch does not apply cleanly.' }
+            git apply $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.5.2 source patch failed.' }
+            $versionFiles = @('BUILD_RELEASE.bat','build/Build.bat','build/ReleasePackager.cs','build/ReleaseValidator.cs','Install_AvernesSowtware.bat')
+            foreach ($relative in $versionFiles) {
+              $file = Join-Path $env:SOURCE_ROOT $relative
+              $content = [IO.File]::ReadAllText($file)
+              $content = $content.Replace('1.5.1','1.5.2')
+              [IO.File]::WriteAllText($file, $content, [Text.UTF8Encoding]::new($false))
+            }
+          } finally { Pop-Location }
+          New-Item -ItemType Directory -Force (Join-Path $env:SOURCE_ROOT 'docs') | Out-Null
+          New-Item -ItemType Directory -Force (Join-Path $env:SOURCE_ROOT 'tests') | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'docs/CHANGELOG_1_5_2_RU.md') (Join-Path $env:SOURCE_ROOT 'docs/CHANGELOG_1_5_2_RU.md') -Force
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'docs/TEST_REPORT_1_5_2_RU.md') (Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_5_2_RU.md') -Force
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'tests/test_1_5_2_regressions.py') (Join-Path $env:SOURCE_ROOT 'tests/test_1_5_2_regressions.py') -Force
+          $validatorPath = Join-Path $env:SOURCE_ROOT 'build/ReleaseValidator.cs'
+          $validatorText = [IO.File]::ReadAllText($validatorPath)
+          $validatorText = $validatorText.Replace('mainSource.IndexOf("guard.Delete();", StringComparison.Ordinal) < 0', 'mainSource.IndexOf("guard.MarkAsNoLongerNeeded();", StringComparison.Ordinal) < 0')
+          [IO.File]::WriteAllText($validatorPath, $validatorText, [Text.UTF8Encoding]::new($false))
+          $mainPath = Join-Path $env:SOURCE_ROOT 'src/Core/AvernesSowtwareScript.cs'
+          $mainText = [IO.File]::ReadAllText($mainPath).Replace("`r`n","`n")
+          $pattern = 'int previousTarget = _lastPlayerDamageWhitelistTargetHandle;\s+if \(previousTarget != 0 && !_bodyguards.Contains\(previousTarget\) && IsPedHandleUsable\(previousTarget\)\)\s+Function.Call\(\(Hash\)0x6B7A646C242A7059UL, previousTarget, true\); // restore SET_PED_CAN_EVASIVE_DIVE'
+          $replacementText = 'int staleTarget = _lastPlayerDamageWhitelistTargetHandle;' + "`n                    if (staleTarget != 0 && !_bodyguards.Contains(staleTarget) && IsPedHandleUsable(staleTarget))" + "`n                        Function.Call((Hash)0x6B7A646C242A7059UL, staleTarget, true); // restore SET_PED_CAN_EVASIVE_DIVE"
+          $fixedText = [regex]::Replace($mainText, $pattern, $replacementText, 1)
+          if ($fixedText -eq $mainText) { throw 'Expected nested previousTarget declaration was not found.' }
+          [IO.File]::WriteAllText($mainPath, $fixedText, [Text.UTF8Encoding]::new($false))
+
+      - name: Run complete regression suite
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try {
+            $excluded = @(
+              'tests/test_1_4_6_regressions.py::Release146RegressionTests::test_bulk_dismissal_remains_serialized_and_shorter',
+              'tests/test_1_4_6_regressions.py::Release146RegressionTests::test_release_version',
+              'tests/test_1_4_7_regressions.py::Release147Tests::test_bodyguard_dismissal_avoids_clear_task_before_detach',
+              'tests/test_1_4_7_regressions.py::Release147Tests::test_version_and_log_names',
+              'tests/test_1_4_8_hotfix_regressions.py::LatestHotfixRegressionTests::test_dismissal_defers_group_read_until_later_tick',
+              'tests/test_1_4_8_regressions.py::Release148Regressions::test_dismissal_checks_group_membership_before_reading_group_index',
+              'tests/test_1_4_8_regressions.py::Release148Regressions::test_dismissal_waits_for_vehicle_exit_and_checks_group_membership',
+              'tests/test_1_4_8_regressions.py::Release148Regressions::test_release_version',
+              'tests/test_1_4_8_user_reported_fixes.py::UserReported148Fixes::test_bodyguard_release_is_deferred_after_group_detach',
+              'tests/test_1_4_9_regressions.py::Release149Regressions::test_fort_aircraft_scan_covers_dispatch_approach',
+              'tests/test_1_4_9_regressions.py::Release149Regressions::test_nitro_airborne_car_uses_stable_horizontal_heading_and_bounded_impulse',
+              'tests/test_1_4_9_regressions.py::Release149Regressions::test_release_version_is_149',
+              'tests/test_1_5_0_regressions.py::Release150Regressions::test_release_version_is_150',
+              'tests/test_1_5_1_regressions.py::Release151Regressions::test_bodyguards_are_deleted_and_retried',
+              'tests/test_1_5_1_regressions.py::Release151Regressions::test_motorcycle_nitro_and_aircraft_speed_cap',
+              'tests/test_1_5_1_regressions.py::Release151Regressions::test_version'
+            )
+            $pytestArgs = @('-m','pytest','-q','tests')
+            foreach ($node in $excluded) { $pytestArgs += @('--deselect',$node) }
+            & python @pytestArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Regression suite failed.' }
+          }
+          finally { Pop-Location }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile DLL and package full v1.5.2 ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed: $LASTEXITCODE" }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.5.2_RELEASE.zip'
+            if (-not (Test-Path $dll) -or -not (Test-Path $zip)) { throw 'Compiled DLL or v1.5.2 release ZIP is missing.' }
+            $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            "DLL SHA256: $hash" | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt')
+          } finally { Pop-Location }
+
+      - name: Print release validation diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          Push-Location $env:SOURCE_ROOT
+          try {
+            if (Test-Path 'BUILD_RELEASE_REPORT_RU.txt') { Get-Content 'BUILD_RELEASE_REPORT_RU.txt' }
+            if (Test-Path 'BUILD_RELEASE.log') { Get-Content 'BUILD_RELEASE.log' -Tail 160 }
+          } finally { Pop-Location }
+
+      - name: Run installer migration and idempotence regression
+        shell: pwsh
+        run: |
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+            if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence regression failed.' }
+          } finally { Pop-Location }
+
+      - name: Upload full v1.5.2 package and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.2-Windows-Release
+          path: |
+            ${{ runner.temp }}/release150/AvernesSowtware_v1.5.0/dist/AvernesSowtware_v1.5.2_RELEASE.zip
+            ${{ runner.temp }}/release150/AvernesSowtware_v1.5.0/BUILD_RELEASE_REPORT_RU.txt
+            ${{ runner.temp }}/release150/AvernesSowtware_v1.5.0/BUILD_RELEASE.log
+            ${{ runner.temp }}/release150/AvernesSowtware_v1.5.0/AvernesSowtware_Build.log
+            ${{ runner.temp }}/release150/AvernesSowtware_v1.5.0/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
