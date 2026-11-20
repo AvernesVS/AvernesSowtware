@@ -73,6 +73,61 @@ replace("build/Test-InstallerIdempotence.ps1",
         "$scripts = Join-Path $fakeGame 'scripts'\n    $data = Join-Path $scripts 'AvernesSowtware'",
         "$scripts = Join-Path $fakeGame 'scripts'\n    $logs = Join-Path $scripts 'AvernesSowtware_Logs'\n    $installerLog = Join-Path $logs 'installer.log'\n    if (-not (Test-Path -LiteralPath $installerLog)) { throw 'Installer log was not written under Scripts\\AvernesSowtware_Logs.' }\n    if (Test-Path -LiteralPath (Join-Path $root 'AvernesSowtware_Install.log')) { throw 'Installer wrote a log outside Scripts\\AvernesSowtware_Logs.' }\n    $data = Join-Path $scripts 'AvernesSowtware'")
 
+# Scenario animation failures are isolated and recorded in the trainer's runtime log.
+replace("src/Core/AvernesSowtwareScript.cs",
+        """private void StartPlayerScenario(string scenario)
+        {
+            Ped ped = Game.Player.Character;
+            if (!IsEntityUsable(ped)) return;
+            Function.Call((Hash)0xAAA34F8A7CB32098UL, ped.Handle); // CLEAR_PED_TASKS_IMMEDIATELY
+            Function.Call((Hash)0x142A02425FF02BD9UL, ped.Handle, scenario, 0, true);
+        }
+
+        private void StopPlayerAnimation()
+        {
+            Ped ped = Game.Player.Character;
+            if (IsEntityUsable(ped))
+                Function.Call((Hash)0xAAA34F8A7CB32098UL, ped.Handle); // CLEAR_PED_TASKS_IMMEDIATELY
+        }""",
+        """private void StartPlayerScenario(string scenario)
+        {
+            try
+            {
+                Ped ped = Game.Player.Character;
+                if (!IsEntityUsable(ped))
+                {
+                    LogFailure("Animation", "Player character was not available; scenario was not started: " + scenario);
+                    return;
+                }
+                if (String.IsNullOrWhiteSpace(scenario))
+                {
+                    LogFailure("Animation", "Empty scenario name was rejected.");
+                    return;
+                }
+                Function.Call((Hash)0xAAA34F8A7CB32098UL, ped.Handle); // CLEAR_PED_TASKS_IMMEDIATELY
+                Function.Call((Hash)0x142A02425FF02BD9UL, ped.Handle, scenario, -1, true); // TASK_START_SCENARIO_IN_PLACE
+                Log("Animation scenario started: " + scenario);
+            }
+            catch (Exception ex)
+            {
+                LogException("StartPlayerScenario " + scenario, ex);
+                Notify("Could not start animation. See log.");
+            }
+        }
+
+        private void StopPlayerAnimation()
+        {
+            try
+            {
+                Ped ped = Game.Player.Character;
+                if (!IsEntityUsable(ped)) return;
+                Function.Call((Hash)0xAAA34F8A7CB32098UL, ped.Handle); // CLEAR_PED_TASKS_IMMEDIATELY
+                Log("Player animation stopped.");
+            }
+            catch (Exception ex) { LogException("StopPlayerAnimation", ex); }
+        }""")
+
+
 for p in (root / "tests").glob("test_1_4_*.py"):
     s = p.read_text(encoding="utf-8-sig")
     s = s.replace('ProductVersion = "1.4.9"', 'ProductVersion = "1.5.0"')
@@ -111,7 +166,8 @@ class Release150Regressions(unittest.TestCase):
         for marker in ["ProcessPendingBodyguardDismissals", "ProcessBodyguardFollowing",
                        "ProcessAutomaticParachuteDeployment", "SuppressActiveMilitaryCombat",
                        "SuppressBolingbrokePrisonCombat", "ApplyPoliceIgnore",
-                       'GetHash("toreador")', "EnsureFullscreenWindow"]:
+                       'GetHash("toreador")', "EnsureFullscreenWindow",
+                       "Animation scenario started: ", "LogException(\"StopPlayerAnimation\", ex)"]:
             self.assertIn(marker, CORE)
 if __name__ == "__main__": unittest.main()
 ''', encoding="utf-8")
