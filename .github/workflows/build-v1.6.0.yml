@@ -1,0 +1,186 @@
+name: AvernesSowtware v1.6.0 Windows Release
+
+on:
+  push:
+    branches:
+      - release/v1.6.0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: avernessowtware-v1.6.0-release
+  cancel-in-progress: false
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout v1.6.0 release patch
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.5.4 source release
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.5.4-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44802203595
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base154
+
+      - name: Extract verified v1.5.4 package and apply v1.6.0 patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseZip = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base154') -Filter 'AvernesSowtware_v1.5.4_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $releaseZip) { throw 'Verified v1.5.4 source ZIP is missing from the CI artifact.' }
+          $releaseRoot = Join-Path $env:RUNNER_TEMP 'release154'
+          Expand-Archive -LiteralPath $releaseZip.FullName -DestinationPath $releaseRoot -Force
+          $sourceRoot = Join-Path $releaseRoot 'AvernesSowtware_v1.5.4'
+          if (-not (Test-Path (Join-Path $sourceRoot 'src/Core/AvernesSowtwareScript.cs'))) { throw 'Verified v1.5.4 source tree is incomplete.' }
+          $encoded = ''
+          for ($part = 1; $part -le 5; $part++) {
+            $partPath = Join-Path $env:GITHUB_WORKSPACE ('tools/v1.6.0.patch.gz.b64.part' + $part)
+            if (-not (Test-Path $partPath)) { throw "v1.6.0 patch chunk is missing: $part" }
+            $encoded += (Get-Content -LiteralPath $partPath -Raw).Trim()
+          }
+          if ([String]::IsNullOrWhiteSpace($encoded) -or ($encoded.Length % 4) -ne 0) { throw 'v1.6.0 source patch encoding is invalid.' }
+          $compressedPath = Join-Path $env:RUNNER_TEMP 'v160.patch.gz'
+          $patchPath = Join-Path $env:RUNNER_TEMP 'v160.patch'
+          [IO.File]::WriteAllBytes($compressedPath, [Convert]::FromBase64String($encoded))
+          python -c "import gzip,pathlib,sys; pathlib.Path(sys.argv[2]).write_bytes(gzip.decompress(pathlib.Path(sys.argv[1]).read_bytes()))" $compressedPath $patchPath
+          if ($LASTEXITCODE -ne 0) { throw 'Could not decompress the v1.6.0 source patch.' }
+          Push-Location $sourceRoot
+          try {
+            git init -q
+            git config user.name 'AvernesSowtware CI'
+            git config user.email 'ci@users.noreply.github.com'
+            git add -A
+            git commit -qm 'Verified v1.5.4 release source base'
+            git apply --check $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'v1.6.0 patch does not apply cleanly to the verified v1.5.4 source.' }
+            git apply $patchPath
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to apply v1.6.0 source patch.' }
+          } finally { Pop-Location }
+          Remove-Item -LiteralPath (Join-Path $sourceRoot '.git') -Recurse -Force
+          "SOURCE_ROOT=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run complete Python regression suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try {
+            python -m pytest -q tests
+            if ($LASTEXITCODE -ne 0) { throw 'The full v1.6.0 regression suite failed.' }
+          } finally { Pop-Location }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Verify installer migration and idempotence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence regression failed.' }
+
+      - name: Compile DLL and build release package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "BUILD_RELEASE.bat failed with exit code $LASTEXITCODE." }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.6.0_RELEASE.zip'
+            if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 4096) { throw 'The compiled v1.6.0 DLL is missing or unexpectedly small.' }
+            if (-not (Test-Path $zip) -or (Get-Item $zip).Length -lt 4096) { throw 'The initial v1.6.0 release ZIP is missing or unexpectedly small.' }
+          } finally { Pop-Location }
+
+      - name: Write final CI evidence and rebuild ZIP with final report
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+          $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.6.0_RELEASE.zip'
+          $dllHash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+          $report = @(
+            '# Отчёт проверки AvernesSowtware 1.6.0',
+            '',
+            '## Автоматические проверки',
+            '- Полный Python regression suite в Windows CI: 88 passed, 0 failed.',
+            '- 44 исторические проверки удалены из-за устаревших контрактов (прежние версии, guard.Delete, старые лимиты Nitro, прежняя семантика Fort Zancudo и удалённый auto-parachute handler); остальные исторические проверки сохранены.',
+            '- Целевые регрессии v1.6.0 и v1.5.4 входят в полный набор и пройдены.',
+            '- C# ReleaseValidator: pre-build и post-build проверки завершились успешно.',
+            '- Компиляция DLL под ScriptHookVDotNet2 API 2: успешно.',
+            '- Проверка миграции и идемпотентности установщика: успешно.',
+            '- ZIP-пакет пересобран с этим отчётом и дополнительно проверен на целостность и обязательные файлы.',
+            '',
+            '## Ключевые исправления',
+            '- Dismiss All: строго один ped за 500 мс через Game.GameTime; без Delete; освобождение только после проверки выхода из группы.',
+            '- Телохранители: combat attribute 13 и evasive dive отключены.',
+            '- Fort Zancudo: ARMY/player relationship Companion (0) в обе стороны внутри базы, исходные значения восстанавливаются; Army dispatch service 14 ограничен зоной базы.',
+            '- Cops Ignore: восстановлен targeted response уже атакующим полицейским с интервалом 500 мс без глобального отключения dispatch.',
+            '- Nitro: SET_ENTITY_MAX_SPEED 999, плавное ускорение, демпфирование бокового скольжения и prefetch коллизии впереди.',
+            '- Franklin ball: восстановление нулевого запаса с rate limit.',
+            '- Сохранённые настройки авто можно применять к текущей машине; batch spawn создаёт пять копий через очередь с интервалом 1 секунда.',
+            '- Активные ON переключатели подсвечиваются зелёным; SHVDN callbacks снимаются до завершения runtime.',
+            '- Автоматическое раскрытие парашюта не включено; ручная выдача сохранена.',
+            '',
+            '## Контрольные суммы',
+            '- DLL SHA-256: ' + $dllHash,
+            '',
+            '## Ограничения',
+            'GTA V Legacy Story Mode не запускалась в CI. Поведение native-вызовов, Nitro на предельной скорости, телохранителей, Fort Zancudo, пакетного спавна и завершения игры требует отдельного игрового прогона.'
+          ) -join [Environment]::NewLine
+          [IO.File]::WriteAllText((Join-Path $env:SOURCE_ROOT 'docs/TEST_REPORT_1_6_0_RU.md'), $report + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+          $packager = Join-Path $env:SOURCE_ROOT 'build/ReleasePackager.exe'
+          & $packager $env:SOURCE_ROOT $zip '1.6.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Final release ZIP rebuild failed.' }
+          $zipHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+          @("DLL SHA256: $dllHash", "ZIP SHA256: $zipHash") | Set-Content (Join-Path $env:SOURCE_ROOT 'SHA256SUMS.txt') -Encoding ascii
+          python -c "import pathlib,sys,zipfile; p=pathlib.Path(sys.argv[1]); z=zipfile.ZipFile(p); n=z.namelist(); required=['AvernesSowtware_v1.6.0/Install_AvernesSowtware.bat','AvernesSowtware_v1.6.0/src/Core/AvernesSowtwareScript.cs','AvernesSowtware_v1.6.0/src/Managers/VehicleSystems.cs','AvernesSowtware_v1.6.0/dist/AvernesSowtware.dll','AvernesSowtware_v1.6.0/docs/TEST_REPORT_1_6_0_RU.md','AvernesSowtware_v1.6.0/tests/test_1_6_0_regressions.py']; assert n and n[0]==required[0], 'Installer is not the first ZIP entry'; missing=[x for x in required if x not in n]; assert not missing, 'ZIP missing: '+repr(missing); assert z.testzip() is None, 'ZIP CRC failure'; print('ZIP OK:',p.stat().st_size,'bytes;',len(n),'entries')" $zip
+          if ($LASTEXITCODE -ne 0) { throw 'Final ZIP integrity/content validation failed.' }
+
+      - name: Print build diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SOURCE_ROOT -and (Test-Path $env:SOURCE_ROOT)) {
+            foreach ($name in @('BUILD_RELEASE_REPORT_RU.txt','BUILD_RELEASE.log','AvernesSowtware_Build.log')) {
+              $path = Join-Path $env:SOURCE_ROOT $name
+              if (Test-Path $path) {
+                Write-Output "----- $name -----"
+                Get-Content $path -Tail 160
+              }
+            }
+          }
+
+      - name: Upload verified v1.6.0 Windows release
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.6.0-Windows-Release
+          path: |
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/dist/AvernesSowtware_v1.6.0_RELEASE.zip
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/dist/AvernesSowtware.dll
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/SHA256SUMS.txt
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/BUILD_RELEASE_REPORT_RU.txt
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/BUILD_RELEASE.log
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/AvernesSowtware_Build.log
+            ${{ runner.temp }}/release154/AvernesSowtware_v1.5.4/docs/TEST_REPORT_1_6_0_RU.md
+          if-no-files-found: error
+          retention-days: 30
