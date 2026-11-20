@@ -160,7 +160,7 @@ for rel in ["Install_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat
 for rel in ["Install_AvernesSowtware.bat", "Uninstall_AvernesSowtware.bat", "BUILD_RELEASE.bat", "build/Build.bat"]:
     p = root / rel
     if p.exists():
-        text = p.read_text(encoding="utf-8-sig").replace("\\n", "\\r\\n")
+        text = p.read_text(encoding="utf-8-sig").replace("\n", "\r\n")
         p.write_text(text, encoding="utf-8-sig", newline="")
 # Keep the final cleanup cadence based on the tick timestamp. (v1.5.1 CI revision)
 s = s.replace("_nextBodyguardDismissalUtc = DateTime.UtcNow.AddMilliseconds(700);", "_nextBodyguardDismissalUtc = now.AddMilliseconds(700);")
