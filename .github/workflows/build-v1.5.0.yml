@@ -46,6 +46,8 @@ jobs:
         run: |
           python tools/patch_v1_5_0.py $env:SOURCE_ROOT
           if ($LASTEXITCODE -ne 0) { throw 'v1.5.0 source patch failed.' }
+          python tools/patch_v1_5_0_followup.py $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'v1.5.0 follow-up source patch failed.' }
 
       - name: Run full regression suite
         shell: pwsh
