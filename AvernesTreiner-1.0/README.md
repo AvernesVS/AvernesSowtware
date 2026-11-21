@@ -11,6 +11,7 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 - Corrected the Galileo Observatory roof teleport point and checked other landmark destinations.
 - Added **Save Settings** and **Load Settings** controls in the Settings menu.
 - `Config.ini` is loaded automatically at startup and is created with defaults on first launch.
+- Active Player, Vehicle, Weapons, World and Bodyguard checkbox states are saved to `Config.ini` automatically when changed and restored at startup. The Save/Load buttons are also available in Settings; after using Load Settings, restart the trainer script to apply the reloaded toggle states.
 - The menu hotkey is fixed to **F10**; existing 0.1 configurations are migrated from F4 to F10.
 - Vehicle spawning checks model validity and loading before creating a vehicle. Unsupported or unavailable models produce a “Vehicle not found” notification instead of being passed to the spawn call.
 - Corrected the `proto` vehicle model entry to the game model name `prototipo`.
