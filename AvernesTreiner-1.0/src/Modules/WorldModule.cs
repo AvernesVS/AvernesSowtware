@@ -97,6 +97,10 @@ namespace AvernesTreiner.Modules
                 World.GravityLevel = _moonGravity ? 1 : 0;
             };
             worldMenu.AddItem(moonItem);
+
+            // Apply persisted world toggles on startup.
+            if (_freezeTime) Function.Call(Hash.PAUSE_CLOCK, true);
+            if (_moonGravity) World.GravityLevel = 1;
         }
 
         private void AddBulletTimeOption(UIMenu menu, string label, float scale)
