@@ -1,0 +1,130 @@
+diff --git a/src/Managers/VehicleCatalog.cs b/src/Managers/VehicleCatalog.cs
+index 769c0e8..adbd586 100644
+--- a/src/Managers/VehicleCatalog.cs
++++ b/src/Managers/VehicleCatalog.cs
+@@ -287 +287 @@ namespace AvernesSowtware
+-            if (!(raw is string)) return false;
++            if (!(raw is string)) return !required;
+@@ -350,0 +351,4 @@ namespace AvernesSowtware
++            if (String.IsNullOrWhiteSpace(modelName)) return false;
++            bool cached;
++            if (_vehicleModelAvailabilityCache.TryGetValue(modelName, out cached)) return cached;
++            bool available = false;
+@@ -354 +358 @@ namespace AvernesSowtware
+-                return model.IsValid && model.IsInCdImage && model.IsVehicle;
++                available = model.IsValid && model.IsInCdImage && model.IsVehicle;
+@@ -359 +362,0 @@ namespace AvernesSowtware
+-                return false;
+@@ -360,0 +364,2 @@ namespace AvernesSowtware
++            _vehicleModelAvailabilityCache[modelName] = available;
++            return available;
+@@ -398,0 +404,8 @@ namespace AvernesSowtware
++                if (Char.IsHighSurrogate(c))
++                {
++                    if (i + 1 >= value.Length || !Char.IsLowSurrogate(value[i + 1]) || builder.Length + 2 > maxLength) continue;
++                    builder.Append(c);
++                    builder.Append(value[++i]);
++                    continue;
++                }
++                if (Char.IsLowSurrogate(c)) continue;
+diff --git a/src/Managers/VehicleSystems.cs b/src/Managers/VehicleSystems.cs
+index 6cc6049..dbea52a 100644
+--- a/src/Managers/VehicleSystems.cs
++++ b/src/Managers/VehicleSystems.cs
+@@ -429 +429,5 @@ namespace AvernesSowtware
+-                float damping = lateralSpeed > 15.0f ? 0.90f : 0.96f;
++                float deltaSeconds = Function.Call<float>((Hash)0x15C40837039FFAF7UL); // GET_FRAME_TIME
++                if (Single.IsNaN(deltaSeconds) || Single.IsInfinity(deltaSeconds)) deltaSeconds = 0.016f;
++                deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
++                float perFrameDamping = lateralSpeed > 15.0f ? 0.90f : 0.96f;
++                float damping = (float)Math.Pow(perFrameDamping, deltaSeconds * 60.0f);
+@@ -504,2 +508,3 @@ namespace AvernesSowtware
+-                    nextX = fx * (forwardSpeed + deltaSpeed) + lateralX * 0.72f;
+-                    nextY = fy * (forwardSpeed + deltaSpeed) + lateralY * 0.72f;
++                    float lateralDamping = (float)Math.Pow(0.72f, deltaSeconds * 60.0f);
++                    nextX = fx * (forwardSpeed + deltaSpeed) + lateralX * lateralDamping;
++                    nextY = fy * (forwardSpeed + deltaSpeed) + lateralY * lateralDamping;
+@@ -674,0 +680 @@ namespace AvernesSowtware
++                    neonApplied = true;
+@@ -675,0 +682 @@ namespace AvernesSowtware
++                    {
+@@ -676,0 +684,2 @@ namespace AvernesSowtware
++                        if (!Function.Call<bool>((Hash)0x8C4B92553E4766A5UL, handle, side)) neonApplied = false;
++                    }
+@@ -678 +686,0 @@ namespace AvernesSowtware
+-                    neonApplied = true;
+@@ -686 +693,0 @@ namespace AvernesSowtware
+-                SaveSettings();
+@@ -692 +698,0 @@ namespace AvernesSowtware
+-                    SaveSettings();
+@@ -694,0 +701 @@ namespace AvernesSowtware
++                SaveSettings();
+@@ -1327,0 +1335,2 @@ namespace AvernesSowtware
++            _pendingVehicleDeleteModelHash = Function.Call<uint>(Hash.GET_ENTITY_MODEL, vehicle.Handle);
++            _pendingVehicleDeleteDeadlineUtc = DateTime.UtcNow.AddSeconds(15);
+@@ -1334 +1343,8 @@ namespace AvernesSowtware
+-            if (ped.IsInVehicle() && IsEntityUsable(ped.CurrentVehicle) && ped.CurrentVehicle.Handle == _pendingVehicleDeleteHandle)
++            int handle = _pendingVehicleDeleteHandle;
++            if (DateTime.UtcNow >= _pendingVehicleDeleteDeadlineUtc)
++            {
++                _pendingVehicleDeleteHandle = 0;
++                _pendingVehicleDeleteModelHash = 0;
++                _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
++                LogFailure("DeleteCurrentVehicle", "Vehicle exit/deletion request timed out; entity was not deleted.");
++                Notify("Vehicle deletion cancelled: exit the vehicle and retry.");
++                return;
++            }
+@@ -1335,0 +1352,19 @@ namespace AvernesSowtware
++            }
++            if (!DoesEntityHandleExist(handle))
++            {
++                _pendingVehicleDeleteHandle = 0;
++                _pendingVehicleDeleteModelHash = 0;
++                _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
++                Notify("Vehicle is already gone.");
++                return;
++            }
++            uint currentModelHash = Function.Call<uint>(Hash.GET_ENTITY_MODEL, handle);
++            if (_pendingVehicleDeleteModelHash != 0 && currentModelHash != _pendingVehicleDeleteModelHash)
++            {
++                _pendingVehicleDeleteHandle = 0;
++                _pendingVehicleDeleteModelHash = 0;
++                _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
++                LogFailure("DeleteCurrentVehicle", "Entity handle was reused by another model; deletion was cancelled.");
++                return;
++            }
++            if (ped.IsInVehicle() && IsEntityUsable(ped.CurrentVehicle) && ped.CurrentVehicle.Handle == handle) return;
+@@ -1337 +1371,0 @@ namespace AvernesSowtware
+-            int handle = _pendingVehicleDeleteHandle;
+@@ -1338,0 +1373,2 @@ namespace AvernesSowtware
++            _pendingVehicleDeleteModelHash = 0;
++            _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
+diff --git a/src/UI/MenuRenderer.cs b/src/UI/MenuRenderer.cs
+index 1e25f8e..b7b426a 100644
+--- a/src/UI/MenuRenderer.cs
++++ b/src/UI/MenuRenderer.cs
+@@ -31 +31 @@ namespace AvernesSowtware
+-                headerHeight - 0.004f * scale, 18, 20, 27, 255);
++                headerHeight - 0.004f * scale, 18, 20, 27, alpha);
+@@ -33 +33 @@ namespace AvernesSowtware
+-                0.0015f * scale, 72, 76, 88, 255);
++                0.0015f * scale, 72, 76, 88, alpha);
+@@ -35 +35 @@ namespace AvernesSowtware
+-                accentR, accentG, accentB, 255);
++                accentR, accentG, accentB, alpha);
+@@ -58 +58 @@ namespace AvernesSowtware
+-                    selected ? 255 : 235);
++                    alpha);
+@@ -68 +68,2 @@ namespace AvernesSowtware
+-                string suffix = item.Value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + item.Value() + "]";
++                string value = item.Value == null ? null : item.Value();
++                string suffix = value == null ? (item.ChildPage == null ? String.Empty : "  >") : "  [" + value + "]";
+@@ -71,2 +72 @@ namespace AvernesSowtware
+-                bool activeToggle = item.IsToggle && item.Value != null &&
+-                    String.Equals(item.Value(), "ON", StringComparison.OrdinalIgnoreCase);
++                bool activeToggle = item.IsToggle && String.Equals(value, "ON", StringComparison.OrdinalIgnoreCase);
+@@ -81 +81,3 @@ namespace AvernesSowtware
+-            DrawMenuText("UP/DOWN  ENTER  BACKSPACE  F11",
++            string controls = GetHotkeyLabel("MenuUp") + "/" + GetHotkeyLabel("MenuDown") + "  " +
++                GetHotkeyLabel("MenuSelect") + "  " + GetHotkeyLabel("MenuBack") + "  " + GetHotkeyLabel("MenuToggle");
++            DrawMenuText(FitMenuRowText(String.Empty, controls, String.Empty, width - 0.075f * scale, scale, fontScale),
