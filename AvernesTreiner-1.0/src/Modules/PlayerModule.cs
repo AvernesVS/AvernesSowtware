@@ -17,18 +17,18 @@ namespace AvernesTreiner.Modules
     {
         public string Name { get { return "Player"; } }
 
-        private static bool _isGodModeActive = false;
+        private static bool _isGodModeActive = ConfigManager.GetBool("Player", "GodMode", false);
         public static bool IsGodModeActive { get { return _isGodModeActive; } }
-        private bool _neverWanted = false;
-        private bool _copsIgnore = false;
-        private bool _superJump = false;
-        private bool _fastRun = false;
-        private bool _fastSwim = false;
-        private bool _noRagdoll = false;
-        private bool _unlimitedStamina = false;
-        private bool _unlimitedOxygen = false;
-        private bool _isInvisible = false;
-        private bool _mobileRadio = false;
+        private bool _neverWanted = ConfigManager.GetBool("Player", "NeverWanted", false);
+        private bool _copsIgnore = ConfigManager.GetBool("Player", "CopsIgnore", false);
+        private bool _superJump = ConfigManager.GetBool("Player", "SuperJump", false);
+        private bool _fastRun = ConfigManager.GetBool("Player", "FastRun", false);
+        private bool _fastSwim = ConfigManager.GetBool("Player", "FastSwim", false);
+        private bool _noRagdoll = ConfigManager.GetBool("Player", "NoRagdoll", false);
+        private bool _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
+        private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
+        private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
+        private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -39,6 +39,8 @@ namespace AvernesTreiner.Modules
             godItem.CheckboxEvent += (sender, state) =>
             {
                 _isGodModeActive = state;
+
+                ConfigManager.SetBool("Player", "GodMode", _isGodModeActive);
                 if (Game.Player.Character.Exists())
                 {
                     Game.Player.Character.IsInvincible = _isGodModeActive;
@@ -51,6 +53,8 @@ namespace AvernesTreiner.Modules
             neverWantedItem.CheckboxEvent += (sender, state) =>
             {
                 _neverWanted = state;
+
+                ConfigManager.SetBool("Player", "NeverWanted", _neverWanted);
                 if (_neverWanted) Game.Player.WantedLevel = 0;
             };
             playerMenu.AddItem(neverWantedItem);
@@ -60,6 +64,8 @@ namespace AvernesTreiner.Modules
             copsIgnoreItem.CheckboxEvent += (sender, state) =>
             {
                 _copsIgnore = state;
+
+                ConfigManager.SetBool("Player", "CopsIgnore", _copsIgnore);
                 Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _copsIgnore);
             };
             playerMenu.AddItem(copsIgnoreItem);
@@ -101,6 +107,8 @@ namespace AvernesTreiner.Modules
             radioItem.CheckboxEvent += (sender, state) =>
             {
                 _mobileRadio = state;
+
+                ConfigManager.SetBool("Player", "MobileRadio", _mobileRadio);
                 Function.Call(Hash.SET_MOBILE_RADIO_ENABLED_DURING_GAMEPLAY, _mobileRadio);
                 Function.Call(Hash.SET_USER_RADIO_CONTROL_ENABLED, _mobileRadio);
                 UI.Notify(_mobileRadio ? "~g~Mobile radio enabled!" : "~y~Mobile radio disabled.");
@@ -112,6 +120,8 @@ namespace AvernesTreiner.Modules
             invisItem.CheckboxEvent += (sender, state) =>
             {
                 _isInvisible = state;
+
+                ConfigManager.SetBool("Player", "Invisibility", _isInvisible);
                 if (Game.Player.Character.Exists())
                 {
                     Game.Player.Character.IsVisible = !_isInvisible;
@@ -121,17 +131,20 @@ namespace AvernesTreiner.Modules
 
             // Super Jump
             var jumpItem = new UIMenuCheckboxItem(Localization.Get("Player", "SuperJump", "Super Jump"), _superJump, Localization.Get("Player", "SuperJumpDesc", "Super-sized jumps"));
-            jumpItem.CheckboxEvent += (sender, state) => { _superJump = state; };
+            jumpItem.CheckboxEvent += (sender, state) => { _superJump = state;
+ ConfigManager.SetBool("Player", "SuperJump", _superJump); };
             playerMenu.AddItem(jumpItem);
 
             // Fast Run
             var runItem = new UIMenuCheckboxItem(Localization.Get("Player", "FastRun", "Super Speed"), _fastRun, Localization.Get("Player", "FastRunDesc", "Fast running"));
-            runItem.CheckboxEvent += (sender, state) => { _fastRun = state; };
+            runItem.CheckboxEvent += (sender, state) => { _fastRun = state;
+ ConfigManager.SetBool("Player", "FastRun", _fastRun); };
             playerMenu.AddItem(runItem);
 
             // Fast Swim
             var swimItem = new UIMenuCheckboxItem(Localization.Get("Player", "FastSwim", "Fast Swim"), _fastSwim, Localization.Get("Player", "FastSwimDesc", "Fast swimming"));
-            swimItem.CheckboxEvent += (sender, state) => { _fastSwim = state; };
+            swimItem.CheckboxEvent += (sender, state) => { _fastSwim = state;
+ ConfigManager.SetBool("Player", "FastSwim", _fastSwim); };
             playerMenu.AddItem(swimItem);
 
             // No Ragdoll
@@ -139,6 +152,8 @@ namespace AvernesTreiner.Modules
             ragItem.CheckboxEvent += (sender, state) =>
             {
                 _noRagdoll = state;
+
+                ConfigManager.SetBool("Player", "NoRagdoll", _noRagdoll);
                 if (Game.Player.Character.Exists())
                 {
                     Game.Player.Character.CanRagdoll = !_noRagdoll;
@@ -148,12 +163,14 @@ namespace AvernesTreiner.Modules
 
             // Unlimited Stamina
             var stamItem = new UIMenuCheckboxItem(Localization.Get("Player", "UnlimitedStamina", "Infinite Stamina"), _unlimitedStamina, Localization.Get("Player", "UnlimitedStaminaDesc", "Never get tired"));
-            stamItem.CheckboxEvent += (sender, state) => { _unlimitedStamina = state; };
+            stamItem.CheckboxEvent += (sender, state) => { _unlimitedStamina = state;
+ ConfigManager.SetBool("Player", "UnlimitedStamina", _unlimitedStamina); };
             playerMenu.AddItem(stamItem);
 
             // Unlimited Oxygen
             var oxyItem = new UIMenuCheckboxItem(Localization.Get("Player", "UnlimitedOxygen", "Infinite Oxygen"), _unlimitedOxygen, Localization.Get("Player", "UnlimitedOxygenDesc", "Unlimited breathing"));
-            oxyItem.CheckboxEvent += (sender, state) => { _unlimitedOxygen = state; };
+            oxyItem.CheckboxEvent += (sender, state) => { _unlimitedOxygen = state;
+ ConfigManager.SetBool("Player", "UnlimitedOxygen", _unlimitedOxygen); };
             playerMenu.AddItem(oxyItem);
 
             // Money Submenu
