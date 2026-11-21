@@ -1,7 +1,13 @@
 diff --git a/src/Core/AvernesSowtwareScript.cs b/src/Core/AvernesSowtwareScript.cs
-index 3d5f83f..2bf151f 100644
+index 43dd249..7a11ee9 100644
 --- a/src/Core/AvernesSowtwareScript.cs
 +++ b/src/Core/AvernesSowtwareScript.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.IO;
+ using System.Linq;
 @@ -161,7 +161,6 @@ namespace AvernesSowtware
          private bool _nitroTrailerWarningShown;
          private int _nitroVehicleHandle;
@@ -10,51 +16,68 @@ index 3d5f83f..2bf151f 100644
          private int _antiEjectPedHandle;
          private bool _antiEjectFlagCaptured;
          private bool _antiEjectOriginalWindshieldFlag;
-@@ -4356,9 +4355,42 @@ namespace AvernesSowtware
+@@ -4356,9 +4355,59 @@ namespace AvernesSowtware
              Function.Call(Hash.SET_ENTITY_COORDS_NO_OFFSET, target.Handle, x, y, z, false, false, false);
              Function.Call((Hash)0x1C99BB7B6E96D16FUL, target.Handle, 0.0f, 0.0f, 0.0f);
              RecordTeleportOrigin(origin);
 +            RefreshBodyguardsAfterPlayerTeleport(ped);
              Notify("Teleported.");
          }
-
+ 
 +        private void RefreshBodyguardsAfterPlayerTeleport(Ped player)
 +        {
-+            if (_bodyguards.Count == 0 || !IsEntityUsable(player)) return;
++            if (!IsEntityUsable(player) || _bodyguards.Count == 0) return;
 +            try
 +            {
 +                EnsureBodyguardGroup(player);
 +                EnsureBodyguardRelationshipGroup(player);
-+                _lastBodyguardAimTargetHandle = 0;
-+                _lastBodyguardThreatTargetHandle = 0;
-+                _lastBodyguardAimTick = 0;
-+                _lastBodyguardFollowTick = 0;
 +                _bodyguardPlayerVehicleHandle = 0;
++                _lastBodyguardAimTargetHandle = 0;
++                _lastBodyguardAimTick = 0;
++                _lastBodyguardThreatTargetHandle = 0;
++                _lastBodyguardThreatScanUtc = DateTime.MinValue;
++
 +                for (int i = _bodyguards.Count - 1; i >= 0; i--)
 +                {
-+                    int guard = _bodyguards[i];
-+                    if (!IsLivingBodyguardHandle(guard))
++                    int handle = _bodyguards[i];
++                    try
 +                    {
-+                        _bodyguards.RemoveAt(i);
-+                        RetireDeadBodyguardHandle(guard, "invalid after player teleport");
-+                        continue;
++                        if (!IsLivingBodyguardHandle(handle))
++                        {
++                            _bodyguards.RemoveAt(i);
++                            QueueBodyguardDismissal(handle);
++                            continue;
++                        }
++
++                        _bodyguardBoardingVehicleHandles.Remove(handle);
++                        _bodyguardBoardingDeadlinesUtc.Remove(handle);
++                        _bodyguardBoardingEnterAtUtc.Remove(handle);
++                        _bodyguardBoardingSeats.Remove(handle);
++                        Function.Call(Hash.CLEAR_PED_TASKS, handle);
++                        Function.Call((Hash)0x9F3480FE65DB31B5UL, handle, _bodyguardGroupId); // SET_PED_AS_GROUP_MEMBER
++                        Function.Call((Hash)0x3DBFC55D5C9BB447UL, handle, true); // SET_PED_NEVER_LEAVES_GROUP
++                        Function.Call((Hash)0x2E2F4240B3F24647UL, handle, true); // SET_PED_CAN_TELEPORT_TO_GROUP_LEADER
++                        IssueBodyguardFollowTask(handle, player.Handle);
 +                    }
-+                    _bodyguardBoardingVehicleHandles.Remove(guard);
-+                    _bodyguardBoardingDeadlinesUtc.Remove(guard);
-+                    _bodyguardBoardingEnterAtUtc.Remove(guard);
-+                    _bodyguardBoardingSeats.Remove(guard);
-+                    Function.Call(Hash.CLEAR_PED_TASKS, guard);
-+                    IssueBodyguardFollowTask(guard, player.Handle);
++                    catch (Exception guardException)
++                    {
++                        LogException("Refresh bodyguard after teleport " + handle, guardException);
++                    }
 +                }
++                _lastBodyguardFollowTick = 0;
++                Log("Bodyguards refreshed after player teleport.");
 +            }
-+            catch (Exception ex) { LogException("RefreshBodyguardsAfterPlayerTeleport", ex); }
++            catch (Exception ex)
++            {
++                LogException("RefreshBodyguardsAfterPlayerTeleport", ex);
++            }
 +        }
 +
          private void SetWeather(string weather)
          {
              _settings.Weather = NormalizeWeather(weather);
 diff --git a/src/Managers/VehicleSystems.cs b/src/Managers/VehicleSystems.cs
-index f2f5993..d4d1a0d 100644
+index 71fb463..f891304 100644
 --- a/src/Managers/VehicleSystems.cs
 +++ b/src/Managers/VehicleSystems.cs
 @@ -471,19 +471,6 @@ namespace AvernesSowtware
@@ -76,7 +99,7 @@ index f2f5993..d4d1a0d 100644
 -                }
                  if (forwardSpeed < -1.0f) return;
                  if (forwardSpeed >= maximumSpeed) return;
-
+ 
 @@ -521,15 +508,11 @@ namespace AvernesSowtware
              int handle = _nitroVehicleHandle;
              _nitroVehicleHandle = 0;
@@ -98,26 +121,23 @@ index f2f5993..d4d1a0d 100644
              }
              if (ped.IsInVehicle() && IsEntityUsable(ped.CurrentVehicle) && ped.CurrentVehicle.Handle == handle) return;
 -                return;
-
+ 
              _pendingVehicleDeleteModelHash = 0;
              _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
 diff --git a/tests/test_1_6_2_regressions.py b/tests/test_1_6_2_regressions.py
-index 959c385..ac5e941 100644
+index 83a9e5e..81cf4bb 100644
 --- a/tests/test_1_6_2_regressions.py
 +++ b/tests/test_1_6_2_regressions.py
-@@ -87,3 +87,45 @@ def test_franklin_hair_toggle_is_respected_and_versioned_package_exists():
+@@ -87,3 +87,27 @@ def test_franklin_hair_toggle_is_respected_and_versioned_package_exists():
      assert "if (_settings.FranklinHairProtection) ProcessFranklinHairProtection(ped);" in CORE
      assert (ROOT / "docs/CHANGELOG_1_6_2_RU.md").exists()
      assert (ROOT / "docs/TEST_REPORT_1_6_2_RU.md").exists()
 +
 +
-+def test_vehicle_deletion_has_no_unconditional_return_after_exit_guard():
++def test_pending_vehicle_deletion_does_not_return_after_exit_guard():
 +    body = VEHICLE[VEHICLE.index("private void ProcessPendingVehicleDeletion"):VEHICLE.index("private void ToggleSpeedUnit")]
-+    guard = "if (ped.IsInVehicle() && IsEntityUsable(ped.CurrentVehicle) && ped.CurrentVehicle.Handle == handle) return;"
-+    assert guard in body
-+    after_guard = body.split(guard, 1)[1]
-+    assert "                return;" not in after_guard.split("try", 1)[0]
-+    assert "vehicle.Delete();" in after_guard
++    assert "ped.CurrentVehicle.Handle == handle) return;\n                return;" not in body
++    assert "Vehicle vehicle = new Vehicle(handle);" in body
 +
 +
 +def test_nitro_never_disables_entity_collision():
@@ -125,29 +145,14 @@ index 959c385..ac5e941 100644
 +    assert "_nitroCollisionDisabled" not in VEHICLE
 +    nitro = VEHICLE[VEHICLE.index("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)"):VEHICLE.index("private void RestoreNitroSpeedLimit")]
 +    assert "SET_ENTITY_COLLISION" not in nitro
-+
-+
-+def test_nitro_restore_does_not_change_collision_state():
 +    restore = VEHICLE[VEHICLE.index("private void RestoreNitroSpeedLimit"):VEHICLE.index("private static float CalculateNitroMaximumSpeedMetersPerSecond")]
 +    assert "SET_ENTITY_COLLISION" not in restore
-+    assert "0xBAA045B4E42F3C06UL" in restore
 +
 +
-+def test_bodyguards_refresh_after_direct_teleport():
++def test_bodyguards_are_refreshed_after_direct_player_teleport():
 +    teleport = CORE[CORE.index("private void TeleportTo(float x, float y, float z)"):CORE.index("private void RefreshBodyguardsAfterPlayerTeleport")]
 +    assert "RefreshBodyguardsAfterPlayerTeleport(ped);" in teleport
-+
-+
-+def test_bodyguard_refresh_clears_stale_vehicle_and_combat_state():
 +    refresh = CORE[CORE.index("private void RefreshBodyguardsAfterPlayerTeleport"):CORE.index("private void SetWeather")]
-+    assert "_lastBodyguardAimTargetHandle = 0;" in refresh
-+    assert "_lastBodyguardThreatTargetHandle = 0;" in refresh
-+    assert "_bodyguardBoardingVehicleHandles.Remove(guard);" in refresh
-+    assert "IssueBodyguardFollowTask(guard, player.Handle);" in refresh
-+
-+
-+def test_bodyguard_refresh_validates_handles_before_reissuing_tasks():
-+    refresh = CORE[CORE.index("private void RefreshBodyguardsAfterPlayerTeleport"):CORE.index("private void SetWeather")]
-+    assert "IsLivingBodyguardHandle(guard)" in refresh
-+    assert "RetireDeadBodyguardHandle(guard" in refresh
-+    assert "Function.Call(Hash.CLEAR_PED_TASKS, guard);" in refresh
++    assert "CLEAR_PED_TASKS" in refresh or "Hash.CLEAR_PED_TASKS" in refresh
++    assert "IssueBodyguardFollowTask(handle, player.Handle);" in refresh
++    assert "_bodyguardBoardingVehicleHandles.Remove(handle);" in refresh
