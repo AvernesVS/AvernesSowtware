@@ -79,7 +79,7 @@ jobs:
             if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
             $env:AVERNE_SHVDN_DLL = $refs[0].FullName
             & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
-            if ($LASTEXITCODE -ne 0) { throw "Final release build failed with exit code $LASTEXITCODE." }
+            if ($LASTEXITCODE -ne 0) { if (Test-Path 'AvernesSowtware_Build.log') { Write-Host '--- C# compiler log ---'; Get-Content 'AvernesSowtware_Build.log' -Tail 180 }; if (Test-Path 'BUILD_RELEASE.log') { Write-Host '--- Release builder log ---'; Get-Content 'BUILD_RELEASE.log' -Tail 120 }; throw "Final release build failed with exit code $LASTEXITCODE." }
             $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.6.2_RELEASE.zip'
             if (-not (Test-Path $zip)) { throw 'The complete v1.6.2 release archive was not created.' }
             $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
