@@ -71,6 +71,42 @@ namespace AvernesTreiner.Core
             }
         }
 
+        public static bool GetBool(string section, string key, bool defaultValue)
+        {
+            try
+            {
+                if (_settings == null)
+                {
+                    EnsureConfigFile();
+                    _settings = ScriptSettings.Load(ConfigPath);
+                }
+
+                string value = _settings.GetValue(section, key, defaultValue ? "true" : "false");
+                bool parsed;
+                return bool.TryParse(value, out parsed) ? parsed : defaultValue;
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        public static void SetBool(string section, string key, bool value)
+        {
+            try
+            {
+                EnsureConfigFile();
+                if (_settings == null)
+                {
+                    _settings = ScriptSettings.Load(ConfigPath);
+                }
+
+                _settings.SetValue(section, key, value ? "true" : "false");
+                Save();
+            }
+            catch { }
+        }
+
         public static bool Save()
         {
             try
