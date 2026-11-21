@@ -1,0 +1,115 @@
+name: AvernesSowtware v1.6.2 Final Release
+
+on:
+  push:
+    branches:
+      - release/v1.6.2-final
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avernessowtware-v1.6.2-final-release
+  cancel-in-progress: false
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release patches
+        uses: actions/checkout@v4
+
+      - name: Download verified v1.6.0 source release
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.6.0-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44813186426
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base160
+
+      - name: Reconstruct source and apply all v1.6.2 changes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base160') -Filter 'AvernesSowtware_v1.6.0_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $release) { throw 'The verified v1.6.0 source release ZIP is missing.' }
+          $sourceRoot = Join-Path $env:RUNNER_TEMP 'source160'
+          Expand-Archive -LiteralPath $release.FullName -DestinationPath $sourceRoot -Force
+          $root = Get-ChildItem $sourceRoot -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'src/Core/AvernesSowtwareScript.cs') } | Select-Object -First 1
+          if (-not $root) { throw 'The extracted v1.6.0 source tree is incomplete.' }
+          Push-Location $root.FullName
+          try {
+            git init -q
+            git config user.name 'AvernesSowtware CI'
+            git config user.email 'ci@users.noreply.github.com'
+            git add -A
+            git commit -qm 'Verified v1.6.0 source base'
+            $patches = @(
+              'v1.6.2.patch',
+              'v1.6.2-release-metadata.patch',
+              'v1.6.2-core.patch',
+              'v1.6.2-managers.patch',
+              'v1.6.2-tests.patch'
+            )
+            foreach ($patch in $patches) {
+              $patchPath = Join-Path $env:GITHUB_WORKSPACE ('tools/' + $patch)
+              git apply --check --recount --unidiff-zero --ignore-space-change $patchPath
+              if ($LASTEXITCODE -ne 0) { throw "Patch validation failed: $patch" }
+              git apply --recount --unidiff-zero --ignore-space-change $patchPath
+              if ($LASTEXITCODE -ne 0) { throw "Patch application failed: $patch" }
+            }
+          } finally { Pop-Location }
+          "SOURCE_ROOT=$($root.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build the complete release package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try {
+            python -m pytest -q tests
+            if ($LASTEXITCODE -ne 0) { throw 'Source regression validation failed.' }
+            $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+            $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+            Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+            Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+            $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+            if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+            $env:AVERNE_SHVDN_DLL = $refs[0].FullName
+            & cmd.exe /d /c 'BUILD_RELEASE.bat "" --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "Final release build failed with exit code $LASTEXITCODE." }
+            $zip = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware_v1.6.2_RELEASE.zip'
+            if (-not (Test-Path $zip)) { throw 'The complete v1.6.2 release archive was not created.' }
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+            try {
+              $names = @($archive.Entries | ForEach-Object { $_.FullName })
+              $required = @(
+                'AvernesSowtware_v1.6.2/Install_AvernesSowtware.bat',
+                'AvernesSowtware_v1.6.2/dist/AvernesSowtware.dll',
+                'AvernesSowtware_v1.6.2/docs/CHANGELOG_1_6_2_RU.md',
+                'AvernesSowtware_v1.6.2/docs/TEST_REPORT_1_6_2_RU.md',
+                'AvernesSowtware_v1.6.2/scripts/vehicles.json'
+              )
+              foreach ($entry in $required) {
+                if ($names -notcontains $entry) { throw "Release archive is missing required entry: $entry" }
+              }
+            } finally { $archive.Dispose() }
+            Get-FileHash -LiteralPath $zip -Algorithm SHA256 | Format-List
+          } finally { Pop-Location }
+
+      - name: Verify installer migration and idempotence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence validation failed.' }
+
+      - name: Publish only the complete v1.6.2 release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.6.2-RELEASE
+          path: ${{ runner.temp }}/source160/AvernesSowtware_v1.6.0/dist/AvernesSowtware_v1.6.2_RELEASE.zip
+          if-no-files-found: error
+          retention-days: 90
