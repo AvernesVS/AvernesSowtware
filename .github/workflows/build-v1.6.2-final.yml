@@ -47,10 +47,10 @@ jobs:
             git commit -qm 'Verified v1.6.0 source base'
             $patches = @(
               'v1.6.2.patch',
-              'v1.6.2-release-metadata.patch',
-              'v1.6.2-core.patch',
-              'v1.6.2-managers.patch',
-              'v1.6.2-tests.patch'
+              'v1.6.2-release-metadata-v2.patch',
+              'v1.6.2-core-v2.patch',
+              'v1.6.2-managers-v2.patch',
+              'v1.6.2-tests-v2.patch'
             )
             foreach ($patch in $patches) {
               $patchPath = Join-Path $env:GITHUB_WORKSPACE ('tools/' + $patch)
