@@ -1,15 +1,6 @@
-using AvernesTreiner.Core;
-using AvernesTreiner.Modules;
-using GTA.Math;
-using GTA.Native;
-using GTA;
-using NativeUI;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
 using System;
+using System.IO;
+using GTA;
 
 namespace AvernesTreiner.Core
 {
@@ -19,8 +10,8 @@ namespace AvernesTreiner.Core
         private static ScriptSettings _settings;
 
         private static string _language = "en-US";
-        private static string _menuKey = "F4";
-        private static string _version = "v1.0.0";
+        private static string _menuKey = "F10";
+        private static string _version = "v0.2";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -30,36 +21,82 @@ namespace AvernesTreiner.Core
         public static string Title { get { return _title; } set { _title = value; } }
         public static string SpeedUnit { get { return _speedUnit; } set { _speedUnit = value; } }
 
-        public static void Load()
+        private static void EnsureConfigFile()
         {
-            try
+            string directory = Path.GetDirectoryName(ConfigPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
-                if (File.Exists(ConfigPath))
-                {
-                    _settings = ScriptSettings.Load(ConfigPath);
-                    _language = _settings.GetValue("General", "Language", "en-US");
-                    _menuKey = _settings.GetValue("General", "MenuKey", "F4");
-                    _version = _settings.GetValue("General", "Version", "v1.0.0");
-                    _title = _settings.GetValue("General", "Title", "AvernesTreiner");
-                    _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
-                }
+                Directory.CreateDirectory(directory);
             }
-            catch { }
+
+            if (!File.Exists(ConfigPath))
+            {
+                File.WriteAllText(ConfigPath,
+                    "[General]\r\n" +
+                    "Language=en-US\r\n" +
+                    "MenuKey=F10\r\n" +
+                    "Version=v0.2\r\n" +
+                    "Title=AvernesTreiner\r\n" +
+                    "SpeedUnit=KM/H\r\n");
+            }
         }
 
-        public static void Save()
+        public static bool Load()
         {
             try
             {
-                if (_settings == null) _settings = ScriptSettings.Load(ConfigPath);
+                EnsureConfigFile();
+                _settings = ScriptSettings.Load(ConfigPath);
+
+                _language = _settings.GetValue("General", "Language", "en-US");
+                _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
+
+                // These values are fixed by the AvernesTreiner release contract.
+                // Migrate existing 0.1 configurations from F4 / v1.0.0 to F10 / v0.2.
+                _menuKey = "F10";
+                _version = "v0.2";
+                _title = "AvernesTreiner";
+
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", _menuKey);
                 _settings.SetValue("General", "Version", _version);
                 _settings.SetValue("General", "Title", _title);
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
                 _settings.Save();
+                return true;
             }
-            catch { }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool Save()
+        {
+            try
+            {
+                EnsureConfigFile();
+                if (_settings == null)
+                {
+                    _settings = ScriptSettings.Load(ConfigPath);
+                }
+
+                _settings.SetValue("General", "Language", _language);
+                _settings.SetValue("General", "MenuKey", "F10");
+                _settings.SetValue("General", "Version", "v0.2");
+                _settings.SetValue("General", "Title", "AvernesTreiner");
+                _settings.SetValue("General", "SpeedUnit", _speedUnit);
+                _settings.Save();
+
+                _menuKey = "F10";
+                _version = "v0.2";
+                _title = "AvernesTreiner";
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
