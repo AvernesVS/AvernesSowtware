@@ -50,7 +50,8 @@ jobs:
             "/reference:$(Join-Path $ref 'System.Core.dll')",
             "/reference:$(Join-Path $ref 'System.Drawing.dll')",
             "/reference:$(Join-Path $ref 'System.Windows.Forms.dll')",
-            "/reference:$(Join-Path $ref 'System.Web.Extensions.dll')"
+            "/reference:$(Join-Path $ref 'System.Web.Extensions.dll')",
+            "/reference:$(Join-Path $ref 'Microsoft.CSharp.dll')"
           )
           & $csc /noconfig /nostdlib /target:library /platform:anycpu /optimize+ "/out:$dll" $references $sources
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
