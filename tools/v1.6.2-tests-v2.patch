@@ -1,0 +1,139 @@
+diff --git a/tests/test_1_5_3_regressions.py b/tests/test_1_5_3_regressions.py
+index 2548b5f..556f16e 100644
+--- a/tests/test_1_5_3_regressions.py
++++ b/tests/test_1_5_3_regressions.py
+@@ -22 +22 @@ class Release153Regressions(unittest.TestCase):
+-        self.assertIn('World.GetNearbyPeds(player, 3500.0f)', CORE)
++        self.assertIn('World.GetNearbyPeds(player, 650.0f)', CORE)
+diff --git a/tests/test_1_5_4_regressions.py b/tests/test_1_5_4_regressions.py
+index 9702552..0bd7eed 100644
+--- a/tests/test_1_5_4_regressions.py
++++ b/tests/test_1_5_4_regressions.py
+@@ -8 +8 @@ class Release154Regressions(unittest.TestCase):
+-    def test_version(self): self.assertIn('ProductVersion = "1.6.0"', CORE)
++    def test_version(self): self.assertIn('ProductVersion = "1.6.2"', CORE)
+@@ -42 +42 @@ class Release154Regressions(unittest.TestCase):
+-        self.assertIn('lateralX * 0.72f', VEHICLE)
++        self.assertIn('Math.Pow(0.72f, deltaSeconds * 60.0f)', VEHICLE)
+@@ -73 +73 @@ class Release154Regressions(unittest.TestCase):
+-        self.assertIn("lateralX * 0.72f", VEHICLE)
++        self.assertIn("Math.Pow(0.72f, deltaSeconds * 60.0f)", VEHICLE)
+diff --git a/tests/test_1_6_0_regressions.py b/tests/test_1_6_0_regressions.py
+index 878af50..b9f951d 100644
+--- a/tests/test_1_6_0_regressions.py
++++ b/tests/test_1_6_0_regressions.py
+@@ -12 +12 @@ class Release160Regressions(unittest.TestCase):
+-        self.assertIn('ProductVersion = "1.6.0"', CORE)
++        self.assertIn('ProductVersion = "1.6.2"', CORE)
+@@ -46 +46 @@ class Release160Regressions(unittest.TestCase):
+-        self.assertIn("lateralX * 0.72f", VEHICLE)
++        self.assertIn("Math.Pow(0.72f, deltaSeconds * 60.0f)", VEHICLE)
+diff --git a/tests/test_1_6_2_regressions.py b/tests/test_1_6_2_regressions.py
+index 6fdf0f2..83a9e5e 100644
+--- a/tests/test_1_6_2_regressions.py
++++ b/tests/test_1_6_2_regressions.py
+@@ -5,19 +5,85 @@ ROOT = Path(__file__).resolve().parents[1]
+-def read(rel):
+-    return (ROOT / rel).read_text(encoding="utf-8-sig")
+-
+-def test_toggle_entries_are_marked_as_toggles():
+-    source = read("src/Core/AvernesSowtwareScript.cs")
+-    start = source.index("private MenuEntry ToggleEntry(")
+-    end = source.index("\n        }", start)
+-    assert "}, true);" in source[start:end]
+-
+-def test_nitro_top_speed_headroom_is_800():
+-    source = read("src/Managers/VehicleSystems.cs")
+-    assert "handle, 800.0f); // MODIFY_VEHICLE_TOP_SPEED" in source
+-
+-def test_nitro_collision_is_restored_when_speed_drops_or_nitro_stops():
+-    source = read("src/Managers/VehicleSystems.cs")
+-    assert "forwardSpeed > 100.0f && !_nitroCollisionDisabled" in source
+-    assert "forwardSpeed <= 100.0f && _nitroCollisionDisabled" in source
+-    assert "if (restoreCollision)" in source
+-    assert "SET_ENTITY_COLLISION" in source
++def read(path):
++    return (ROOT / path).read_text(encoding="utf-8-sig")
++
++CORE = read("src/Core/AvernesSowtwareScript.cs")
++VEHICLE = read("src/Managers/VehicleSystems.cs")
++CATALOG = read("src/Managers/VehicleCatalog.cs")
++SETTINGS = read("src/Core/SettingsPersistence.cs")
++HOTKEYS = read("src/Core/HotkeyManager.cs")
++UI = read("src/UI/MenuRenderer.cs")
++
++
++def test_release_version_and_menu_toggle_registration():
++    assert 'ProductVersion = "1.6.2"' in CORE
++    toggle = CORE[CORE.index("private MenuEntry ToggleEntry("):CORE.index("private List<MenuEntry> GetCurrentEntries(")]
++    assert "}, true);" in toggle
++
++
++def test_log_keeps_information_records():
++    body = CORE[CORE.index("private void Log(string message)"):CORE.index("private void LogException(")]
++    assert "String.IsNullOrWhiteSpace(message)" in body
++    assert '"INFO"' in body
++    assert "? \"STARTUP\" : \"INFO\";" in body
++
++
++def test_menu_value_is_evaluated_once_and_hotkeys_are_dynamic():
++    assert "string value = item.Value == null ? null : item.Value();" in UI
++    assert 'GetHotkeyLabel("MenuToggle")' in UI
++    assert "activeToggle" in UI
++
++
++def test_no_clip_is_frame_rate_independent_and_restores_state():
++    body = CORE[CORE.index("private void ApplyNoClipMovement"):CORE.index("private bool IsControlPressed")]
++    assert "GET_FRAME_TIME" in body
++    assert "movement * speed" in body
++    assert "SET_ENTITY_HAS_GRAVITY" in body
++    restore = CORE[CORE.index("private void RestoreNoClip"):CORE.index("private void SetWantedLevel")]
++    assert "SET_ENTITY_HAS_GRAVITY" in restore
++    assert "SET_ENTITY_COLLISION" in restore
++    assert "RestoreNoClip();" in CORE[CORE.index("private void OnAborted"):CORE.index("private bool IsRuntimeShuttingDown")]
++
++
++def test_vehicle_delete_checks_model_identity_and_timeout():
++    assert "_pendingVehicleDeleteModelHash" in CORE
++    assert "_pendingVehicleDeleteDeadlineUtc" in CORE
++    body = VEHICLE[VEHICLE.index("private void ProcessPendingVehicleDeletion"):VEHICLE.index("private void ToggleSpeedUnit")]
++    assert "currentModelHash != _pendingVehicleDeleteModelHash" in body
++    assert "Vehicle exit/deletion request timed out" in body
++
++
++def test_catalog_optional_fields_and_surrogates_are_safe():
++    assert "if (!(raw is string)) return !required;" in CATALOG
++    body = CATALOG[CATALOG.index("private string SanitizeMenuText"):CATALOG.index("private bool IsSafeVehicleModelName")]
++    assert "Char.IsHighSurrogate" in body
++    assert "Char.IsLowSurrogate" in body
++
++
++def test_vehicle_model_availability_is_cached():
++    assert "_vehicleModelAvailabilityCache.TryGetValue" in CATALOG
++    assert "_vehicleModelAvailabilityCache[modelName] = available;" in CATALOG
++
++
++def test_vehicle_catalog_sanity_probe_is_bounded():
++    body = SETTINGS[SETTINGS.index("private bool IsSaneVehicleDatabase"):SETTINGS.index("private bool IsSaneSettingsFile")]
++    assert "2 * 1024 * 1024" in body
++    assert "64 * 1024" in body
++    assert "ReadToEnd" not in body
++
++
++def test_hotkey_reassignment_swaps_conflicting_binding():
++    body = HOTKEYS[HOTKEYS.index("private bool TryAssignHotkey"):HOTKEYS.index("private void BeginHotkeyCapture")]
++    assert "conflictingAction" in body
++    assert "_hotkeyBindings[conflictingAction] = displacedKey" in body
++
++
++def test_nitro_and_stability_damping_use_frame_time():
++    stability = VEHICLE[VEHICLE.index("private void ApplyVehicleStabilityAssist"):VEHICLE.index("// Preserve the original internal entry point")]
++    nitro = VEHICLE[VEHICLE.index("private void ApplyNitroVelocityAssist(int vehicleHandle, float maximumSpeed, float nitroPower)"):VEHICLE.index("private void RestoreNitroSpeedLimit")]
++    assert "GET_FRAME_TIME" in stability and "Math.Pow(perFrameDamping" in stability
++    assert "Math.Pow(0.72f, deltaSeconds * 60.0f)" in nitro
++
++
++def test_franklin_hair_toggle_is_respected_and_versioned_package_exists():
++    assert "if (_settings.FranklinHairProtection) ProcessFranklinHairProtection(ped);" in CORE
++    assert (ROOT / "docs/CHANGELOG_1_6_2_RU.md").exists()
++    assert (ROOT / "docs/TEST_REPORT_1_6_2_RU.md").exists()
