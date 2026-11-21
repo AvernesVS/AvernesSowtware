@@ -54,7 +54,7 @@ namespace AvernesTreiner.Modules
                 if (ConfigManager.Load())
                 {
                     unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                    UI.Notify("~g~Settings loaded from Config.ini.");
+                    UI.Notify("~g~Settings loaded. Restart the trainer script to apply saved toggle states.");
                 }
                 else
                 {
