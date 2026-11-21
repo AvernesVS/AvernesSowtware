@@ -42,7 +42,7 @@ jobs:
           if (-not (Test-Path (Join-Path $ref 'mscorlib.dll'))) { throw ".NET Framework 4.8 reference assemblies not found." }
           $dll = Join-Path $root 'package\scripts\AvernesTreiner.dll'
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
-          if ($sources.Count -ne 1) { throw "Expected the consolidated C# source file, found $($sources.Count)." }
+          if ($sources.Count -ne 15) { throw "Expected 15 separate C# source files, found $($sources.Count)." }
           $references = @(
             "/reference:$(Join-Path $ref 'mscorlib.dll')",
             "/reference:$env:SHVDN2_DLL", "/reference:$env:NATIVEUI_DLL",
