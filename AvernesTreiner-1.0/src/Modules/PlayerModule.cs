@@ -232,6 +232,10 @@ namespace AvernesTreiner.Modules
             {
                 player.IsInvincible = true;
             }
+            if (_isInvisible)
+            {
+                player.IsVisible = false;
+            }
             if (_neverWanted)
             {
                 if (Game.Player.WantedLevel > 0)
