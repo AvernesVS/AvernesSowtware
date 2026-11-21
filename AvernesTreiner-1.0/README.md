@@ -2,6 +2,9 @@
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
+## Source layout
+The original 15 C# files are preserved as separate source modules under `src/Core` and `src/Modules`.
+
 ## Rebrand scope
 - Product, assembly, script class, namespaces, runtime folder and DLL renamed to **AvernesTreiner**.
 - English (en-US) is the only shipped language and the default; Portuguese language assets and the language selector are removed.
