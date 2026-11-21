@@ -1,0 +1,171 @@
+diff --git a/BUILD_RELEASE.bat b/BUILD_RELEASE.bat
+index 0e075fc..651e524 100644
+--- a/BUILD_RELEASE.bat
++++ b/BUILD_RELEASE.bat
+@@ -3 +3 @@ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.6.0 Release Builder
++title AvernesSowtware 1.6.2 Release Builder
+@@ -16 +16 @@ set "PACKAGER=%PROJECT_DIR%\build\ReleasePackager.exe"
+-set "OUTPUT_ZIP=%PROJECT_DIR%\dist\AvernesSowtware_v1.6.0_RELEASE.zip"
++set "OUTPUT_ZIP=%PROJECT_DIR%\dist\AvernesSowtware_v1.6.2_RELEASE.zip"
+@@ -32 +32 @@ if not exist "dist" mkdir "dist" >>"%BUILD_LOG%" 2>&1
+->"%BUILD_LOG%" echo AvernesSowtware 1.6.0 release build
++>"%BUILD_LOG%" echo AvernesSowtware 1.6.2 release build
+@@ -77 +77 @@ call :log "Creating full release ZIP package."
+-"%PACKAGER%" "%PROJECT_DIR%" "%OUTPUT_ZIP%" "1.6.0" >>"%BUILD_LOG%" 2>&1
++"%PACKAGER%" "%PROJECT_DIR%" "%OUTPUT_ZIP%" "1.6.2" >>"%BUILD_LOG%" 2>&1
+@@ -93 +93 @@ echo.
+-echo [SUCCESS] AvernesSowtware 1.6.0 release package created.
++echo [SUCCESS] AvernesSowtware 1.6.2 release package created.
+@@ -105 +105 @@ exit /b 0
+->"%REPORT%" echo AvernesSowtware 1.6.0 - RELEASE BUILD REPORT
++>"%REPORT%" echo AvernesSowtware 1.6.2 - RELEASE BUILD REPORT
+@@ -140 +140 @@ if exist "AvernesSowtware_Build.log" call :log "Trainer compiler diagnostics: %P
+->"%REPORT%" echo AvernesSowtware 1.6.0 - BUILD FAILED
++>"%REPORT%" echo AvernesSowtware 1.6.2 - BUILD FAILED
+diff --git a/BUILD_RELEASE_REPORT_RU.txt b/BUILD_RELEASE_REPORT_RU.txt
+index cf3b8c1..fc39126 100644
+--- a/BUILD_RELEASE_REPORT_RU.txt
++++ b/BUILD_RELEASE_REPORT_RU.txt
+@@ -1 +1 @@
+-AvernesSowtware 1.6.0 - RELEASE BUILD REPORT
++AvernesSowtware 1.6.2 - RELEASE BUILD REPORT
+diff --git a/Install_AvernesSowtware.bat b/Install_AvernesSowtware.bat
+index 950d7cc..2b66486 100644
+--- a/Install_AvernesSowtware.bat
++++ b/Install_AvernesSowtware.bat
+@@ -3 +3 @@ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.6.0 Installer
++title AvernesSowtware 1.6.2 Installer
+@@ -55 +55 @@ if /i "%~2"=="--elevated" (
+-  >"%INSTALL_LOG%" echo AvernesSowtware 1.6.0 installation log
++  >"%INSTALL_LOG%" echo AvernesSowtware 1.6.2 installation log
+@@ -176 +176 @@ call :log "Installation successful. DLL=%CURRENT_DLL%; database=%VEHICLES_DIR%\v
+->>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.6.0 installation completed. Full log: %INSTALL_LOG%
++>>"%LOG_DIR%\install.log" echo [%DATE% %TIME%] AvernesSowtware 1.6.2 installation completed. Full log: %INSTALL_LOG%
+@@ -178 +178 @@ echo.
+-echo [SUCCESS] AvernesSowtware 1.6.0 installed.
++echo [SUCCESS] AvernesSowtware 1.6.2 installed.
+diff --git a/README_RU.md b/README_RU.md
+index 5572b7c..61cec2e 100644
+--- a/README_RU.md
++++ b/README_RU.md
+@@ -1 +1 @@
+-﻿# AvernesSowtware 1.5.1 — GTA V Legacy Trainer
++﻿# AvernesSowtware 1.6.2 — GTA V Legacy Trainer
+@@ -3 +3 @@
+-AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNet2. Версия 1.5.1 содержит исправления урона NPC, безопасного удаления телохранителей, автоматического парашюта и диагностики. Существующие функции, API, GUI, настройки, интеграции и пользовательские данные сохраняются.
++AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNet2. Версия 1.6.2 содержит исправления стабильности меню, навигации, No-Clip, сохранения транспорта, каталога и системного журнала. Существующие функции, API, GUI, настройки, интеграции и пользовательские данные сохраняются.
+@@ -5 +5 @@ AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNe
+-## Изменения 1.5.1
++Подробности: `docs/CHANGELOG_1_6_2_RU.md`. Перед запуском сделай резервную копию `scripts\AvernesSowtware` и `scripts\AvernesSowtware_Logs`. GTA Online не поддерживается.
+@@ -7,12 +6,0 @@ AvernesSowtware — trainer для GTA V Legacy Story Mode на ScriptHookVDotNe
+-- Runtime-логи закреплены в scripts/AvernesSowtware_Logs: install.log, session.log, error.log, crash.log; повторные попытки записи сохранены.
+-- Max Tuning блокируется в воздухе; неподдерживаемый native вторичного цвета исключён.
+-- Телохранители: исправлен eScriptTaskHash для Follow/Combat; задачи больше не переотправляются из-за неверного task ID. Построение — две колонки.
+-- Dismiss All Bodyguards разбит на три безопасных этапа с паузами между операциями.
+-- Fort Zancudo: отключается только DT_ArmyVehicle (service 14); police helicopter service 2 не изменяется.
+-- Автораскрытие парашюта использует GADGET_PARACHUTE перед принудительным раскрытием.
+-- Vehicle God Mode повторно устраняет подтверждённые повреждения, деформацию, грязь и decals.
+-- Nitro: удалён дополнительный native speed cap, способный ограничивать скорость около 333 км/ч; импульс в воздухе отключён, Toreador исключён из Nitro.
+-- Добавлены отдельная мойка автомобиля и переключатель High-Speed Stability.
+-- Franklin Ability в Toreador сохраняет отдельное включение/разблокировку/заполнение индикатора.
+-
+-Игровые тесты GTA V для этой сборки не выполнялись. Оконный режим GTA V задаётся настройками самой игры/лаунчера, а не трейнером.
+diff --git a/START_HERE_RU.txt b/START_HERE_RU.txt
+index f1e922b..62a5bf2 100644
+--- a/START_HERE_RU.txt
++++ b/START_HERE_RU.txt
+@@ -1 +1 @@
+-﻿AVERNESSOWTWARE 1.5.1 — ГОТОВЫЙ УСТАНОВОЧНЫЙ ПАКЕТ
++﻿AVERNESSOWTWARE 1.6.2 — ГОТОВЫЙ УСТАНОВОЧНЫЙ ПАКЕТ
+@@ -15 +15 @@
+-Перед первым запуском сделай резервную копию папки scripts\AvernesSowtware. После установки проверь пункты ручного теста в docs\TEST_REPORT_1_4_6_RU.md.
++Перед первым запуском сделай резервную копию папки scripts\AvernesSowtware. После установки проверь пункты ручного теста в docs\TEST_REPORT_1_6_2_RU.md.
+diff --git a/build/Build.bat b/build/Build.bat
+index 672a0f5..ffd20b5 100644
+--- a/build/Build.bat
++++ b/build/Build.bat
+@@ -3 +3 @@ setlocal EnableExtensions DisableDelayedExpansion
+-title AvernesSowtware 1.6.0 Build
++title AvernesSowtware 1.6.2 Build
+@@ -11 +11 @@ set "BUILD_LOG=%PROJECT_DIR%\AvernesSowtware_Build.log"
+->"%BUILD_LOG%" echo AvernesSowtware 1.6.0 build log
++>"%BUILD_LOG%" echo AvernesSowtware 1.6.2 build log
+@@ -44 +44 @@ echo.
+-echo AvernesSowtware 1.6.0 - source build
++echo AvernesSowtware 1.6.2 - source build
+diff --git a/build/ReleasePackager.cs b/build/ReleasePackager.cs
+index f34be11..1506b80 100644
+--- a/build/ReleasePackager.cs
++++ b/build/ReleasePackager.cs
+@@ -64,2 +64,2 @@ internal static class ReleasePackager
+-            string testReportPath = Path.Combine(packageRoot, "docs", "TEST_REPORT_1_6_0_RU.md");
+-            string sourceTestReportPath = Path.Combine(root, "docs", "TEST_REPORT_1_6_0_RU.md");
++            string testReportPath = Path.Combine(packageRoot, "docs", "TEST_REPORT_1_6_2_RU.md");
++            string sourceTestReportPath = Path.Combine(root, "docs", "TEST_REPORT_1_6_2_RU.md");
+@@ -67 +67 @@ internal static class ReleasePackager
+-                throw new FileNotFoundException("The authoritative v1.6.0 CI test report is missing.", sourceTestReportPath);
++                throw new FileNotFoundException("The authoritative v1.6.2 release report is missing.", sourceTestReportPath);
+@@ -115 +115,2 @@ internal static class ReleasePackager
+-                    archiveRootName + "/tests/test_1_6_0_regressions.py",
++                    archiveRootName + "/docs/CHANGELOG_1_6_2_RU.md", archiveRootName + "/docs/TEST_REPORT_1_6_2_RU.md",
++                    archiveRootName + "/tests/test_1_6_0_regressions.py", archiveRootName + "/tests/test_1_6_2_regressions.py",
+diff --git a/build/ReleaseValidator.cs b/build/ReleaseValidator.cs
+index 010ebfc..e6233f9 100644
+--- a/build/ReleaseValidator.cs
++++ b/build/ReleaseValidator.cs
+@@ -129 +129 @@ internal static class ReleaseValidator
+-            "docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py", "docs/CHANGELOG_1_5_1_RU.md", "docs/TEST_REPORT_1_5_1_RU.md", "tests/test_1_5_1_regressions.py", "docs/CHANGELOG_1_5_2_RU.md", "docs/TEST_REPORT_1_5_2_RU.md", "tests/test_1_5_2_regressions.py", "docs/CHANGELOG_1_5_3_RU.md", "docs/TEST_REPORT_1_5_3_RU.md", "tests/test_1_5_3_regressions.py", "docs/CHANGELOG_1_5_4_RU.md", "docs/TEST_REPORT_1_5_4_RU.md", "tests/test_1_5_4_regressions.py", "docs/CHANGELOG_1_6_0_RU.md", "docs/TEST_REPORT_1_6_0_RU.md", "tests/test_1_6_0_regressions.py", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",
++            "docs/CHANGELOG_1_4_9_RU.md", "docs/TEST_REPORT_1_4_9_RU.md", "tests/test_1_4_9_regressions.py", "docs/CHANGELOG_1_5_0_RU.md", "docs/TEST_REPORT_1_5_0_RU.md", "tests/test_1_5_0_regressions.py", "docs/CHANGELOG_1_5_1_RU.md", "docs/TEST_REPORT_1_5_1_RU.md", "tests/test_1_5_1_regressions.py", "docs/CHANGELOG_1_5_2_RU.md", "docs/TEST_REPORT_1_5_2_RU.md", "tests/test_1_5_2_regressions.py", "docs/CHANGELOG_1_5_3_RU.md", "docs/TEST_REPORT_1_5_3_RU.md", "tests/test_1_5_3_regressions.py", "docs/CHANGELOG_1_5_4_RU.md", "docs/TEST_REPORT_1_5_4_RU.md", "tests/test_1_5_4_regressions.py", "docs/CHANGELOG_1_6_0_RU.md", "docs/TEST_REPORT_1_6_0_RU.md", "tests/test_1_6_0_regressions.py", "docs/CHANGELOG_1_6_2_RU.md", "docs/TEST_REPORT_1_6_2_RU.md", "tests/test_1_6_2_regressions.py", "tests/test_1_4_8_regressions.py", "tests/test_1_4_8_hotfix_regressions.py", "tests/test_1_4_8_user_reported_fixes.py",
+@@ -337 +337 @@ internal static class ReleaseValidator
+-            File.ReadAllText(Path.Combine(root, "src/Core/AvernesSowtwareScript.cs")).IndexOf("ProductVersion = \"1.6.0\"", StringComparison.Ordinal) < 0)
++            File.ReadAllText(Path.Combine(root, "src/Core/AvernesSowtwareScript.cs")).IndexOf("ProductVersion = \"1.6.2\"", StringComparison.Ordinal) < 0)
+diff --git a/docs/CHANGELOG_1_6_2_RU.md b/docs/CHANGELOG_1_6_2_RU.md
+new file mode 100644
+index 0000000..6afd472
+--- /dev/null
++++ b/docs/CHANGELOG_1_6_2_RU.md
+@@ -0,0 +1,29 @@
++# AvernesSowtware 1.6.2 — исправления стабильности
++
++## Исправления
++
++- Исправлена регистрация переключателей меню: состояние ON/OFF корректно определяется для подсветки.
++- Исправлен вывод журнала: информационные сообщения больше не отбрасываются; повторные ошибки остаются ограничены дедупликацией.
++- Устранены лишние повторные вызовы функций отображения значения пункта меню; горячие клавиши в нижней строке меню берутся из пользовательской конфигурации.
++- Восстановлена работа всех пяти сохранённых цветовых тем и применение настройки прозрачности к фону меню.
++- Исправлена навигация при изменении каталога: индекс выбора ограничивается размером страницы, устаревшие страницы не оставляют меню пустым, ESC возвращает из результатов поиска.
++- Переназначение занятой горячей клавиши теперь выполняет атомарный обмен клавишами с откатом при ошибке сохранения.
++- Дополнительные необязательные поля JSON каталога с неверным типом больше не блокируют корректную запись модели.
++- Исправлена обрезка Unicode-строк, чтобы не создавать некорректные суррогатные пары.
++- Проверка доступности моделей кэшируется в пределах сессии, а проверка целостности каталога ограничена 64-КБ префиксом и тем же лимитом размера, что и загрузчик.
++- No-Clip получил движение с учётом времени кадра, нормализацию диагонального перемещения и восстановление гравитации/коллизии при выключении и выгрузке скрипта.
++- Удаление транспорта проверяет исходную модель сущности и имеет тайм-аут, чтобы не удалить другую сущность при повторном использовании handle.
++- Уменьшен радиус поиска армейских NPC Fort Zancudo; изменения уязвимости ограничены ближайшими/атакующими NPC и не снимают глобально mission-owned invincibility/proofs.
++- Демпфирование бокового скольжения Nitro и Vehicle Stability нормализовано по времени кадра.
++- Max Tuning сохраняет связанные настройки одной операцией; включение неона подтверждается чтением фактического состояния сторон.
++- Сохранённые параметры автомобиля нормализуются перед передачей native-вызовам.
++- Franklin Hair Protection теперь действительно учитывает пользовательский переключатель.
++- Обновлены версия продукта, сборочные скрипты, установщик и упаковщик релиза.
++
++## Совместимость и сохранность данных
++
++Сохранены ScriptHookVDotNet2 API 2, C# 4, .NET Framework 4.0 API, существующие команды, страницы меню, форматы настроек и сохранений, JSON-каталоги, слоты транспорта, установщик и старые файлы совместимости. Миграция не должна удалять пользовательские настройки или сохранённые машины.
++
++## Проверка в игре
++
++GTA V Legacy Story Mode не запускается в сборочном окружении. После установки проверь поведение непосредственно в Story Mode, особенно No-Clip, Nitro на высокой скорости, Fort Zancudo, Max Tuning, сохранение/восстановление транспорта и выгрузку скрипта.
+diff --git a/docs/TEST_REPORT_1_6_2_RU.md b/docs/TEST_REPORT_1_6_2_RU.md
+new file mode 100644
+index 0000000..18da500
+--- /dev/null
++++ b/docs/TEST_REPORT_1_6_2_RU.md
+@@ -0,0 +1,7 @@
++# AvernesSowtware 1.6.2 — отчёт сборки релиза
++
++Этот документ относится к релизному пакету 1.6.2. Автоматические проверки, компиляция DLL, проверка установщика и проверка целостности архива выполняются Windows CI при сборке финального пакета.
++
++GTA V Legacy Story Mode не запускалась в сборочном окружении. Проверка native-поведения, совместимости с конкретной установленной сборкой игры и фактического игрового процесса выполняется после установки пользователем.
++
++Релиз сохраняет существующие интерфейсы, конфигурационные ключи, форматы пользовательских данных и структуру установки. В случае обнаружения несовместимости не удаляй старые каталоги данных: они нужны для восстановления и обратной совместимости.
