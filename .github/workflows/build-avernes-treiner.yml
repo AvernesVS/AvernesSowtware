@@ -1,4 +1,4 @@
-name: Build AvernesTreiner 1.0.0 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.2 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['AvernesTreiner-1.0/**', '.github/workflows/build-avernes-treiner.yml']
@@ -42,7 +42,9 @@ jobs:
           if (-not (Test-Path (Join-Path $ref 'mscorlib.dll'))) { throw ".NET Framework 4.8 reference assemblies not found." }
           $dll = Join-Path $root 'package\scripts\AvernesTreiner.dll'
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
-          if ($sources.Count -ne 15) { throw "Expected 15 separate C# source files, found $($sources.Count)." }
+          if ($sources.Count -ne 14) { throw "Expected 14 retained C# source files, found $($sources.Count)." }
+          $removedFeatureHits = Select-String -Path $sources -Pattern 'NoClip|No-Clip|SET_ENTITY_VELOCITY|SET_ENTITY_GRAVITY|SET_ENTITY_HAS_GRAVITY'
+          if ($removedFeatureHits) { throw 'NoClip/Power-Vision code or related entity velocity/gravity calls remain.' }
           $references = @(
             "/reference:$(Join-Path $ref 'mscorlib.dll')",
             "/reference:$env:SHVDN2_DLL", "/reference:$env:NATIVEUI_DLL",
@@ -63,19 +65,24 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $PWD 'AvernesTreiner-1.0'
           $stage = Join-Path $env:RUNNER_TEMP 'AvernesTreiner-install'
-          $zip = Join-Path $PWD 'AvernesTreiner-1.0.0-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.2-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item (Join-Path $root 'package\scripts') -Destination $stage -Recurse
           $required = @('scripts\AvernesTreiner.dll','scripts\AvernesTreiner\Config.ini','scripts\AvernesTreiner\Languages\en-US.ini','scripts\AvernesTreiner\addons.json')
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing package file: $f" } }
           if (Get-ChildItem (Join-Path $stage 'scripts\AvernesTreiner\Languages') -Filter 'pt-BR.ini' -Recurse) { throw 'Portuguese language file found.' }
-          if ((Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Config.ini') -Raw) -notmatch 'Language=en-US') { throw 'English is not default.' }
+          $config = Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Config.ini') -Raw
+          if ($config -notmatch 'Language=en-US') { throw 'English is not default.' }
+          if ($config -notmatch 'MenuKey=F10') { throw 'Menu hotkey must be F10.' }
+          if ($config -notmatch 'Version=v0.2') { throw 'Config version must be v0.2.' }
+          $language = Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Languages\en-US.ini') -Raw
+          if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-1.0.0-GTA5-Legacy
-          path: AvernesTreiner-1.0.0-GTA5-Legacy.zip
+          name: AvernesTreiner-0.2-GTA5-Legacy
+          path: AvernesTreiner-0.2-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
