@@ -18,7 +18,7 @@ namespace AvernesTreiner.Modules
         public string Name { get { return "Bodyguards"; } }
 
         private List<Ped> _bodyguards = new List<Ped>();
-        private bool _godModeSquad = false;
+        private bool _godModeSquad = ConfigManager.GetBool("Bodyguards", "GodModeSquad", false);
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -71,6 +71,8 @@ namespace AvernesTreiner.Modules
             godSquadItem.CheckboxEvent += (sender, state) =>
             {
                 _godModeSquad = state;
+
+                ConfigManager.SetBool("Bodyguards", "GodModeSquad", _godModeSquad);
                 foreach (var bg in _bodyguards)
                 {
                     if (bg != null && bg.Exists())
