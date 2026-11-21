@@ -383,7 +383,7 @@ namespace AvernesTreiner.Modules
             {
                 "adder", "autarch", "banshee2", "bullet", "cheetah", "cyclone", "deveste", "entity2", "entityxf",
                 "emerus", "fmj", "furia", "gp1", "infernus", "italigtb", "italigtb2", "krieger", "le7b", "nero",
-                "nero2", "osiris", "penetrator", "pfister811", "proto", "reaper", "sc1", "sheava", "sultanrs",
+                "nero2", "osiris", "penetrator", "pfister811", "prototipo", "reaper", "sc1", "sheava", "sultanrs",
                 "t20", "taipan", "tempesta", "tezeract", "thrax", "tigon", "turismor", "tyrant", "tyrus",
                 "vacca", "vagner", "visione", "voltic", "xa21", "zentorno", "zorrusso"
             });
@@ -566,47 +566,70 @@ namespace AvernesTreiner.Modules
 
         private void SpawnVehicle(string modelName)
         {
+            if (string.IsNullOrWhiteSpace(modelName))
+            {
+                UI.Notify("~r~Vehicle not found: empty model name.");
+                return;
+            }
+
+            Ped player = Game.Player.Character;
+            if (player == null || !player.Exists())
+            {
+                UI.Notify("~r~Vehicle spawn unavailable: player not found.");
+                return;
+            }
+
+            Model model = new Model(modelName.Trim());
             try
             {
-                Ped player = Game.Player.Character;
-                Model model = new Model(modelName);
-                model.Request(2500);
-                if (model.IsInCdImage && model.IsValid)
+                if (!model.IsInCdImage || !model.IsValid)
                 {
-                    Vector3 spawnPos = player.Position + player.ForwardVector * 4.0f;
-                    Vehicle v = World.CreateVehicle(model, spawnPos, player.Heading);
-                    if (v != null && v.Exists())
-                    {
-                        Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, v.Handle, true, true);
-                        v.IsPersistent = true;
-                        Function.Call(Hash.SET_VEHICLE_HAS_BEEN_OWNED_BY_PLAYER, v.Handle, true);
-                        v.NeedsToBeHotwired = false;
-
-                        if (!Function.Call<bool>(Hash.DECOR_IS_REGISTERED_AS_TYPE, "Player_Vehicle", 3))
-                        {
-                            Function.Call(Hash.DECOR_REGISTER, "Player_Vehicle", 3);
-                        }
-                        Function.Call(Hash.DECOR_SET_INT, v.Handle, "Player_Vehicle", Game.Player.Handle);
-
-                        player.SetIntoVehicle(v, VehicleSeat.Driver);
-                        v.PlaceOnGround();
-                        if (_vehicleGodMode)
-                        {
-                            v.IsInvincible = true;
-                            v.CanBeVisiblyDamaged = false;
-                        }
-                        UI.Notify("~g~Vehicle " + modelName.ToUpper() + " created!");
-                    }
+                    UI.Notify("~r~Vehicle not found: " + modelName);
+                    return;
                 }
-                else
+
+                // A valid model must also finish streaming before CreateVehicle is called.
+                if (!model.Request(2500) || !model.IsLoaded)
                 {
-                    UI.Notify("~r~Invalid or unloaded model: " + modelName);
+                    UI.Notify("~r~Vehicle not found or could not be loaded: " + modelName);
+                    return;
                 }
-                model.MarkAsNoLongerNeeded();
+
+                Vector3 spawnPos = player.Position + player.ForwardVector * 4.0f;
+                Vehicle v = World.CreateVehicle(model, spawnPos, player.Heading);
+                if (v == null || !v.Exists())
+                {
+                    UI.Notify("~r~Vehicle not found or could not be created: " + modelName);
+                    return;
+                }
+
+                Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, v.Handle, true, true);
+                v.IsPersistent = true;
+                Function.Call(Hash.SET_VEHICLE_HAS_BEEN_OWNED_BY_PLAYER, v.Handle, true);
+                v.NeedsToBeHotwired = false;
+
+                if (!Function.Call<bool>(Hash.DECOR_IS_REGISTERED_AS_TYPE, "Player_Vehicle", 3))
+                {
+                    Function.Call(Hash.DECOR_REGISTER, "Player_Vehicle", 3);
+                }
+                Function.Call(Hash.DECOR_SET_INT, v.Handle, "Player_Vehicle", Game.Player.Handle);
+
+                player.SetIntoVehicle(v, VehicleSeat.Driver);
+                v.PlaceOnGround();
+                if (_vehicleGodMode)
+                {
+                    v.IsInvincible = true;
+                    v.CanBeVisiblyDamaged = false;
+                }
+                UI.Notify("~g~Vehicle " + modelName.ToUpper() + " created!");
             }
             catch (Exception ex)
             {
-                UI.Notify("~r~Spawn error: " + ex.Message);
+                UI.Notify("~r~Vehicle not found or spawn failed: " + modelName + " (" + ex.Message + ")");
+            }
+            finally
+            {
+                try { model.MarkAsNoLongerNeeded(); } catch { }
             }
         }
 
