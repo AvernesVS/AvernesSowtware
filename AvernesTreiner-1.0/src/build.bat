@@ -1,6 +1,6 @@
 @echo off
 setlocal
-echo Building AvernesTreiner v1.0.0 for .NET Framework 4.8
+echo Building AvernesTreiner v0.2 for .NET Framework 4.8
 if "%SHVDN2_DLL%"=="" (echo Set SHVDN2_DLL to ScriptHookVDotNet2.dll & exit /b 2)
 if "%NATIVEUI_DLL%"=="" (echo Set NATIVEUI_DLL to NativeUI.dll & exit /b 2)
 set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
