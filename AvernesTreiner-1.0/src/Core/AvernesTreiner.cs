@@ -18,7 +18,7 @@ namespace AvernesTreiner
         private MenuPool _menuPool;
         private UIMenu _mainMenu;
         private List<IAvernesModule> _modules;
-        private Keys _toggleKey = Keys.F4;
+        private Keys _toggleKey = Keys.F10;
         private int _lastToggleTime = 0;
 
         public AvernesTreinerScript()
@@ -34,7 +34,7 @@ namespace AvernesTreiner
                 }
                 catch
                 {
-                    _toggleKey = Keys.F4;
+                    _toggleKey = Keys.F10;
                 }
 
                 _menuPool = new MenuPool();
@@ -42,7 +42,7 @@ namespace AvernesTreiner
                 _menuPool.ResetCursorOnOpen = false;
 
                 string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v1.0.0");
+                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.2");
                 _mainMenu = new UIMenu(title, subtitle);
                 _menuPool.Add(_mainMenu);
 
@@ -53,7 +53,6 @@ namespace AvernesTreiner
                     new VehicleCustomizationModule(),
                     new SkinChangerModule(),
                     new BodyguardModule(),
-                    new MiscPowersModule(),
                     new AnimationModule(),
                     new WeaponModule(),
                     new TeleportModule(),
@@ -77,7 +76,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v1.0.0 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
