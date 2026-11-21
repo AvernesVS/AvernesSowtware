@@ -33,11 +33,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $outer = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base160') -Filter '*.zip' -Recurse | Select-Object -First 1
-          if (-not $outer) { throw 'The verified v1.6.0 CI artifact ZIP is missing.' }
-          $outerRoot = Join-Path $env:RUNNER_TEMP 'outer160'
-          Expand-Archive -LiteralPath $outer.FullName -DestinationPath $outerRoot -Force
-          $release = Get-ChildItem $outerRoot -Filter 'AvernesSowtware_v1.6.0_RELEASE.zip' -Recurse | Select-Object -First 1
+          $release = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base160') -Filter 'AvernesSowtware_v1.6.0_RELEASE.zip' -Recurse | Select-Object -First 1
           if (-not $release) { throw 'The v1.6.0 source release ZIP is missing.' }
           $sourceRoot = Join-Path $env:RUNNER_TEMP 'source160'
           Expand-Archive -LiteralPath $release.FullName -DestinationPath $sourceRoot -Force
