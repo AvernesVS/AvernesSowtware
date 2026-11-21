@@ -44,6 +44,7 @@ jobs:
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
           if ($sources.Count -ne 1) { throw "Expected the consolidated C# source file, found $($sources.Count)." }
           $references = @(
+            "/reference:$(Join-Path $ref 'mscorlib.dll')",
             "/reference:$env:SHVDN2_DLL", "/reference:$env:NATIVEUI_DLL",
             "/reference:$(Join-Path $ref 'System.dll')",
             "/reference:$(Join-Path $ref 'System.Core.dll')",
@@ -51,7 +52,7 @@ jobs:
             "/reference:$(Join-Path $ref 'System.Windows.Forms.dll')",
             "/reference:$(Join-Path $ref 'System.Web.Extensions.dll')"
           )
-          & $csc /noconfig /target:library /platform:anycpu /optimize+ "/sdkpath:$ref" "/out:$dll" $references $sources
+          & $csc /noconfig /nostdlib /target:library /platform:anycpu /optimize+ "/out:$dll" $references $sources
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
