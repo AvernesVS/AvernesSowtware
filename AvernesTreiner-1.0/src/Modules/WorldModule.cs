@@ -17,8 +17,8 @@ namespace AvernesTreiner.Modules
     {
         public string Name { get { return "World"; } }
 
-        private bool _freezeTime = false;
-        private bool _moonGravity = false;
+        private bool _freezeTime = ConfigManager.GetBool("World", "FreezeTime", false);
+        private bool _moonGravity = ConfigManager.GetBool("World", "MoonGravity", false);
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -70,6 +70,8 @@ namespace AvernesTreiner.Modules
             freezeItem.CheckboxEvent += (sender, state) =>
             {
                 _freezeTime = state;
+
+                ConfigManager.SetBool("World", "FreezeTime", _freezeTime);
                 Function.Call(Hash.PAUSE_CLOCK, _freezeTime);
             };
             worldMenu.AddItem(freezeItem);
@@ -90,6 +92,8 @@ namespace AvernesTreiner.Modules
             moonItem.CheckboxEvent += (sender, state) =>
             {
                 _moonGravity = state;
+
+                ConfigManager.SetBool("World", "MoonGravity", _moonGravity);
                 World.GravityLevel = _moonGravity ? 1 : 0;
             };
             worldMenu.AddItem(moonItem);
