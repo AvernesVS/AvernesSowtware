@@ -18,17 +18,17 @@ namespace AvernesTreiner.Modules
         public string Name { get { return "Vehicle"; } }
 
         private MenuPool _pool;
-        private bool _vehicleGodMode = false;
-        private bool _speedBoost = false;
-        private bool _hornJump = false;
-        private bool _vehicleJump = false;
-        private bool _driveOnWater = false;
-        private bool _speedometer = false;
-        private bool _driftMode = false;
-        private bool _seatbelt = true;
-        private bool _autoRepair = false;
-        private bool _superTorque = false;
-        private bool _autoFlip = false;
+        private bool _vehicleGodMode = ConfigManager.GetBool("Vehicle", "VehicleGodMode", false);
+        private bool _speedBoost = ConfigManager.GetBool("Vehicle", "SpeedBoost", false);
+        private bool _hornJump = ConfigManager.GetBool("Vehicle", "HornJump", false);
+        private bool _vehicleJump = ConfigManager.GetBool("Vehicle", "VehicleJump", false);
+        private bool _driveOnWater = ConfigManager.GetBool("Vehicle", "DriveOnWater", false);
+        private bool _speedometer = ConfigManager.GetBool("Vehicle", "Speedometer", false);
+        private bool _driftMode = ConfigManager.GetBool("Vehicle", "DriftMode", false);
+        private bool _seatbelt = ConfigManager.GetBool("Vehicle", "Seatbelt", true);
+        private bool _autoRepair = ConfigManager.GetBool("Vehicle", "AutoRepair", false);
+        private bool _superTorque = ConfigManager.GetBool("Vehicle", "SuperTorque", false);
+        private bool _autoFlip = ConfigManager.GetBool("Vehicle", "AutoFlip", false);
 
         // Autopilot State
         private bool _autopilotActive = false;
@@ -39,7 +39,7 @@ namespace AvernesTreiner.Modules
         private Vector3 _autopilotDestination = Vector3.Zero;
         private int _brakeHoldCounter = 0;
         private int _stuckCounter = 0;
-        private bool _trafficRammer = false;
+        private bool _trafficRammer = ConfigManager.GetBool("Vehicle", "TrafficRammer", false);
         private readonly List<Prop> _spawnedRamps = new List<Prop>();
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
@@ -68,7 +68,8 @@ namespace AvernesTreiner.Modules
 
             // Auto Repair
             var autoRepItem = new UIMenuCheckboxItem("Continuous Auto-Repair", _autoRepair, "Instantly repairs the vehicle whenever it takes damage");
-            autoRepItem.CheckboxEvent += (sender, state) => { _autoRepair = state; };
+            autoRepItem.CheckboxEvent += (sender, state) => { _autoRepair = state;
+ ConfigManager.SetBool("Vehicle", "AutoRepair", _autoRepair); };
             vehMenu.AddItem(autoRepItem);
 
             // Vehicle God Mode
@@ -76,6 +77,8 @@ namespace AvernesTreiner.Modules
             godItem.CheckboxEvent += (sender, state) =>
             {
                 _vehicleGodMode = state;
+
+                ConfigManager.SetBool("Vehicle", "VehicleGodMode", _vehicleGodMode);
                 Ped player = Game.Player.Character;
                 if (player.IsInVehicle())
                 {
@@ -90,6 +93,8 @@ namespace AvernesTreiner.Modules
             seatItem.CheckboxEvent += (sender, state) =>
             {
                 _seatbelt = state;
+
+                ConfigManager.SetBool("Vehicle", "Seatbelt", _seatbelt);
                 Ped player = Game.Player.Character;
                 if (player != null && player.Exists())
                 {
@@ -133,37 +138,44 @@ namespace AvernesTreiner.Modules
 
             // Speed Boost / NOS
             var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold SHIFT or X)", _speedBoost, "Extreme acceleration while holding SHIFT or X");
-            boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state; };
+            boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
+ ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
 
             // Super Torque
             var torqueItem = new UIMenuCheckboxItem("Super Engine (3x Torque)", _superTorque, "Multiplies engine torque for brutal acceleration");
-            torqueItem.CheckboxEvent += (sender, state) => { _superTorque = state; };
+            torqueItem.CheckboxEvent += (sender, state) => { _superTorque = state;
+ ConfigManager.SetBool("Vehicle", "SuperTorque", _superTorque); };
             vehMenu.AddItem(torqueItem);
 
             // Vehicle Jump (Ruiner 2000 style)
             var jumpItem = new UIMenuCheckboxItem("Vehicle Jump (Space)", _vehicleJump, "Press SPACE to jump over obstacles and other cars");
-            jumpItem.CheckboxEvent += (sender, state) => { _vehicleJump = state; };
+            jumpItem.CheckboxEvent += (sender, state) => { _vehicleJump = state;
+ ConfigManager.SetBool("Vehicle", "VehicleJump", _vehicleJump); };
             vehMenu.AddItem(jumpItem);
 
             // Horn Jump
             var hornItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "HornJump", "Horn Jump"), _hornJump, Localization.Get("Vehicle", "HornJumpDesc", "Honk to perform a jump"));
-            hornItem.CheckboxEvent += (sender, state) => { _hornJump = state; };
+            hornItem.CheckboxEvent += (sender, state) => { _hornJump = state;
+ ConfigManager.SetBool("Vehicle", "HornJump", _hornJump); };
             vehMenu.AddItem(hornItem);
 
             // Auto-Flip
             var autoFlipItem = new UIMenuCheckboxItem("Auto-Flip (Anti-Rollover)", _autoFlip, "Automatically rights the vehicle if it rolls over");
-            autoFlipItem.CheckboxEvent += (sender, state) => { _autoFlip = state; };
+            autoFlipItem.CheckboxEvent += (sender, state) => { _autoFlip = state;
+ ConfigManager.SetBool("Vehicle", "AutoFlip", _autoFlip); };
             vehMenu.AddItem(autoFlipItem);
 
             // Drift Mode
             var driftItem = new UIMenuCheckboxItem("Drift Mode", _driftMode, "Reduces rear grip for smooth drifting");
-            driftItem.CheckboxEvent += (sender, state) => { _driftMode = state; };
+            driftItem.CheckboxEvent += (sender, state) => { _driftMode = state;
+ ConfigManager.SetBool("Vehicle", "DriftMode", _driftMode); };
             vehMenu.AddItem(driftItem);
 
             // Drive on Water (Jesus Car)
             var waterItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "DriveOnWater", "Drive on Water (Jesus Car)"), _driveOnWater, Localization.Get("Vehicle", "DriveOnWaterDesc", "The car travels over water without sinking or damaging the engine"));
-            waterItem.CheckboxEvent += (sender, state) => { _driveOnWater = state; };
+            waterItem.CheckboxEvent += (sender, state) => { _driveOnWater = state;
+ ConfigManager.SetBool("Vehicle", "DriveOnWater", _driveOnWater); };
             vehMenu.AddItem(waterItem);
 
             // Spawn Instant Stunt Ramp
@@ -258,7 +270,8 @@ namespace AvernesTreiner.Modules
             autoMenu.AddItem(styleItem);
 
             var rammerItem = new UIMenuCheckboxItem("Ramming Mode (Push Traffic)", _trafficRammer, "Forces a path by pushing vehicles blocking your way");
-            rammerItem.CheckboxEvent += (sender, state) => { _trafficRammer = state; };
+            rammerItem.CheckboxEvent += (sender, state) => { _trafficRammer = state;
+ ConfigManager.SetBool("Vehicle", "TrafficRammer", _trafficRammer); };
             autoMenu.AddItem(rammerItem);
 
             var speedList = new List<dynamic> { "60 KM/H (Cruise)", "90 KM/H (Default)", "130 KM/H (Fast)", "180 KM/H (Maximum)" };
@@ -273,7 +286,8 @@ namespace AvernesTreiner.Modules
 
             // Speedometer Toggle
             var speedoItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "Speedometer", "Digital Speedometer"), _speedometer, Localization.Get("Vehicle", "SpeedometerDesc", "Displays speed and gear on screen"));
-            speedoItem.CheckboxEvent += (sender, state) => { _speedometer = state; };
+            speedoItem.CheckboxEvent += (sender, state) => { _speedometer = state;
+ ConfigManager.SetBool("Vehicle", "Speedometer", _speedometer); };
             vehMenu.AddItem(speedoItem);
 
             // Speedometer Unit Selector (KM/H vs MPH)
