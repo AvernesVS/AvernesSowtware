@@ -90,7 +90,7 @@ jobs:
                 'AvernesSowtware_v1.6.2/dist/AvernesSowtware.dll',
                 'AvernesSowtware_v1.6.2/docs/CHANGELOG_1_6_2_RU.md',
                 'AvernesSowtware_v1.6.2/docs/TEST_REPORT_1_6_2_RU.md',
-                'AvernesSowtware_v1.6.2/scripts/vehicles.json'
+                'AvernesSowtware_v1.6.2/package/AvernesSowtware/Vehicles/vehicles.json'
               )
               foreach ($entry in $required) {
                 if ($names -notcontains $entry) { throw "Release archive is missing required entry: $entry" }
