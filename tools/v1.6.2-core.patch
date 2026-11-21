@@ -1,0 +1,222 @@
+diff --git a/src/Core/AvernesSowtwareScript.cs b/src/Core/AvernesSowtwareScript.cs
+index d7bdf06..0a85506 100644
+--- a/src/Core/AvernesSowtwareScript.cs
++++ b/src/Core/AvernesSowtwareScript.cs
+@@ -19 +19 @@ namespace AvernesSowtware
+-        private const string ProductVersion = "1.6.0";
++        private const string ProductVersion = "1.6.2";
+@@ -53,0 +54 @@ namespace AvernesSowtware
++        private readonly Dictionary<string, bool> _vehicleModelAvailabilityCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+@@ -121,0 +123,2 @@ namespace AvernesSowtware
++        private uint _pendingVehicleDeleteModelHash;
++        private DateTime _pendingVehicleDeleteDeadlineUtc = DateTime.MinValue;
+@@ -156,0 +160 @@ namespace AvernesSowtware
++        private int _noClipPedHandle;
+@@ -574 +578 @@ namespace AvernesSowtware
+-                ProcessFranklinHairProtection(ped);
++                if (_settings.FranklinHairProtection) ProcessFranklinHairProtection(ped);
+@@ -661 +665,7 @@ namespace AvernesSowtware
+-                    // ESC always closes the trainer. It never opens the pause/map screen.
++                    if (String.Equals(_currentPage, "VehicleSearch", StringComparison.OrdinalIgnoreCase) && _pageStack.Count > 0)
++                    {
++                        _currentPage = _pageStack.Pop();
++                        _selectedIndex = 0;
++                        _scrollOffset = 0;
++                        return;
++                    }
+@@ -666,2 +675,0 @@ namespace AvernesSowtware
+-                    // The actual DISABLE_CONTROL_ACTION calls are repeated at the start
+-                    // of the next script tick, where GTA requires them to run.
+@@ -764,0 +773 @@ namespace AvernesSowtware
++                RestoreNoClip();
+@@ -1228 +1237 @@ namespace AvernesSowtware
+-                Ped[] nearbyArmy = World.GetNearbyPeds(player, 3500.0f);
++                Ped[] nearbyArmy = World.GetNearbyPeds(player, 650.0f);
+@@ -1238,4 +1246,0 @@ namespace AvernesSowtware
+-                    // Army NPCs inside Fort Zancudo are redirected by the local base-safety rule.
+-                    // Explicitly permit damage from the player's relationship group before
+-                    // the first shot; waiting until an NPC attacks can make the first hits
+-                    // appear to be ignored by GTA's friendly-fire relationship filtering.
+@@ -1243,5 +1247,0 @@ namespace AvernesSowtware
+-                    if (playerGroup != 0)
+-                    {
+-                        Function.Call((Hash)0x1760FFA8AB074D66UL, npc.Handle, true); // SET_ENTITY_CAN_BE_DAMAGED
+-                        Function.Call((Hash)0xE22D8FDE858B8119UL, npc.Handle, true, unchecked((int)playerGroup)); // allow player-group weapon damage
+-                    }
+@@ -1334,7 +1334,5 @@ namespace AvernesSowtware
+-                    // Inside Fort Zancudo, proactively redirect foot Army troops before
+-                    // RPG soldiers acquire/fire at the player. Restrict the override to
+-                    // the ARMY relationship group and Fort coordinates; police/911 peds
+-                    // and military road traffic retain their own tasks.
+-                    Function.Call(Hash.SET_ENTITY_INVINCIBLE, npc.Handle, false);
+-                    Function.Call((Hash)0xFAEE099C6F890BB8UL, npc.Handle,
+-                        false, false, false, false, false, false, false, false); // SET_ENTITY_PROOFS
++                    if (!closeToPlayer && !attackingPlayer) continue;
++                    // Limit relationship damage permission to nearby/hostile Army NPCs.
++                    // Do not clear mission-owned invincibility or proofs globally.
++                    if (playerGroup != 0)
++                        Function.Call((Hash)0xE22D8FDE858B8119UL, npc.Handle, true, unchecked((int)playerGroup));
+@@ -1889,2 +1887,18 @@ namespace AvernesSowtware
+-            if (String.IsNullOrEmpty(_currentPage) || !_pages.ContainsKey(_currentPage)) return new List<MenuEntry>();
+-            return _pages[_currentPage];
++            List<MenuEntry> entries;
++            if (String.IsNullOrEmpty(_currentPage) || !_pages.TryGetValue(_currentPage, out entries))
++            {
++                _currentPage = _pages.ContainsKey("Main") ? "Main" : (_pages.Count > 0 ? _pages.Keys.First() : String.Empty);
++                _pageStack.Clear();
++                entries = String.IsNullOrEmpty(_currentPage) ? new List<MenuEntry>() : _pages[_currentPage];
++            }
++            if (entries.Count == 0)
++            {
++                _selectedIndex = 0;
++                _scrollOffset = 0;
++            }
++            else
++            {
++                _selectedIndex = ClampInt(_selectedIndex, 0, entries.Count - 1);
++                _scrollOffset = ClampInt(_scrollOffset, 0, Math.Max(0, entries.Count - GetVisibleMenuRows()));
++            }
++            return entries;
+@@ -2134,0 +2149,23 @@ namespace AvernesSowtware
++            item.Slot = ClampInt(item.Slot, 1, 50);
++            item.WheelType = ClampInt(item.WheelType, 0, 12);
++            item.PrimaryColor = ClampInt(item.PrimaryColor, 0, 255);
++            item.SecondaryColor = ClampInt(item.SecondaryColor, 0, 255);
++            item.PearlescentColor = ClampInt(item.PearlescentColor, 0, 255);
++            item.WheelColor = ClampInt(item.WheelColor, 0, 255);
++            item.ModColor1Type = ClampInt(item.ModColor1Type, 0, 5);
++            item.ModColor2Type = ClampInt(item.ModColor2Type, 0, 5);
++            item.ModColor1Index = ClampInt(item.ModColor1Index, 0, 255);
++            item.ModColor2Index = ClampInt(item.ModColor2Index, 0, 255);
++            item.ModColor1Pearlescent = ClampInt(item.ModColor1Pearlescent, 0, 255);
++            item.WindowTint = ClampInt(item.WindowTint, 0, 6);
++            item.XenonColor = ClampInt(item.XenonColor, -1, 13);
++            item.InteriorColor = ClampInt(item.InteriorColor, 0, 255);
++            item.DashboardColor = ClampInt(item.DashboardColor, 0, 255);
++            item.PlateStyle = ClampInt(item.PlateStyle, 0, 5);
++            item.Livery = ClampInt(item.Livery, -1, 255);
++            item.PrimaryRed = ClampInt(item.PrimaryRed, 0, 255); item.PrimaryGreen = ClampInt(item.PrimaryGreen, 0, 255); item.PrimaryBlue = ClampInt(item.PrimaryBlue, 0, 255);
++            item.SecondaryRed = ClampInt(item.SecondaryRed, 0, 255); item.SecondaryGreen = ClampInt(item.SecondaryGreen, 0, 255); item.SecondaryBlue = ClampInt(item.SecondaryBlue, 0, 255);
++            item.NeonRed = ClampInt(item.NeonRed, 0, 255); item.NeonGreen = ClampInt(item.NeonGreen, 0, 255); item.NeonBlue = ClampInt(item.NeonBlue, 0, 255);
++            item.TyreSmokeRed = ClampInt(item.TyreSmokeRed, 0, 255); item.TyreSmokeGreen = ClampInt(item.TyreSmokeGreen, 0, 255); item.TyreSmokeBlue = ClampInt(item.TyreSmokeBlue, 0, 255);
++            for (int i = 0; i < item.Mods.Length; i++) item.Mods[i] = ClampInt(item.Mods[i], -1, 255);
++            item.PlateText = SanitizeMenuText(item.PlateText, 8, String.Empty);
+@@ -2712,5 +2749,8 @@ namespace AvernesSowtware
+-            // 1.3.0 uses the fixed black/red identity; legacy MENU.THEME remains
+-            // read and written for config compatibility but no longer changes palette.
+-            red = 210;
+-            green = 35;
+-            blue = 55;
++            switch (ClampInt(_settings.MenuTheme, 0, 4))
++            {
++                case 1: red = 55; green = 145; blue = 235; break;
++                case 2: red = 155; green = 95; blue = 220; break;
++                case 3: red = 70; green = 190; blue = 115; break;
++                case 4: red = 205; green = 210; blue = 220; break;
++                default: red = 210; green = 35; blue = 55; break;
++            }
+@@ -2818 +2858,8 @@ namespace AvernesSowtware
+-            Function.Call((Hash)0x1A9205C1B9EE827FUL, ped.Handle, false, false);
++            if (_noClipPedHandle != ped.Handle)
++            {
++                RestoreNoClip();
++                _noClipPedHandle = ped.Handle;
++                Function.Call((Hash)0x1A9205C1B9EE827FUL, ped.Handle, false, false); // SET_ENTITY_COLLISION
++                Function.Call((Hash)0x4A4722448F18EEF5UL, ped.Handle, false); // SET_ENTITY_HAS_GRAVITY
++                _noClipWasActive = true;
++            }
+@@ -2821,8 +2868,16 @@ namespace AvernesSowtware
+-            Vector3 position = ped.Position;
+-            float speed = IsControlPressed(21) ? 0.75f : 0.28f;
+-            if (IsControlPressed(32)) position += forward * speed;
+-            if (IsControlPressed(33)) position -= forward * speed;
+-            if (IsControlPressed(34)) position -= right * speed;
+-            if (IsControlPressed(35)) position += right * speed;
+-            if (IsControlPressed(22)) position.Z += speed;
+-            if (IsControlPressed(36)) position.Z -= speed;
++            float rightLength = (float)Math.Sqrt(right.X * right.X + right.Y * right.Y);
++            if (rightLength > 0.001f) { right.X /= rightLength; right.Y /= rightLength; }
++            float deltaSeconds = Function.Call<float>((Hash)0x15C40837039FFAF7UL); // GET_FRAME_TIME
++            if (Single.IsNaN(deltaSeconds) || Single.IsInfinity(deltaSeconds)) deltaSeconds = 0.016f;
++            deltaSeconds = ClampFloat(deltaSeconds, 0.001f, 0.05f);
++            Vector3 movement = new Vector3(0.0f, 0.0f, 0.0f);
++            if (IsControlPressed(32)) movement += forward;
++            if (IsControlPressed(33)) movement -= forward;
++            if (IsControlPressed(34)) movement -= right;
++            if (IsControlPressed(35)) movement += right;
++            if (IsControlPressed(22)) movement.Z += 1.0f;
++            if (IsControlPressed(36)) movement.Z -= 1.0f;
++            float magnitude = (float)Math.Sqrt(movement.X * movement.X + movement.Y * movement.Y + movement.Z * movement.Z);
++            if (magnitude > 1.0f) { movement.X /= magnitude; movement.Y /= magnitude; movement.Z /= magnitude; }
++            float speed = (IsControlPressed(21) ? 0.75f : 0.28f) * deltaSeconds * 60.0f;
++            Vector3 position = ped.Position + movement * speed;
+@@ -2838,0 +2894,2 @@ namespace AvernesSowtware
++            int handle = _noClipPedHandle;
++            _noClipPedHandle = 0;
+@@ -2841,3 +2898,5 @@ namespace AvernesSowtware
+-                Ped ped = Game.Player.Character;
+-                if (IsEntityUsable(ped))
+-                    Function.Call((Hash)0x1A9205C1B9EE827FUL, ped.Handle, true, true);
++                if (handle != 0 && IsPedHandleUsable(handle))
++                {
++                    Function.Call((Hash)0x4A4722448F18EEF5UL, handle, true); // SET_ENTITY_HAS_GRAVITY
++                    Function.Call((Hash)0x1A9205C1B9EE827FUL, handle, true, true); // SET_ENTITY_COLLISION
++                }
+@@ -4234,0 +4294,2 @@ namespace AvernesSowtware
++                        _pendingVehicleDeleteModelHash = Function.Call<uint>(Hash.GET_ENTITY_MODEL, handle);
++                        _pendingVehicleDeleteDeadlineUtc = DateTime.UtcNow.AddSeconds(15);
+@@ -4903,5 +4964,5 @@ namespace AvernesSowtware
+-            // The main log is intentionally quiet: startup, errors, fatal exceptions
+-            // and crash-session markers only. Per-tick/action chatter is not persisted.
+-            if (String.IsNullOrEmpty(message) ||
+-                !message.StartsWith("Startup reached script constructor.", StringComparison.Ordinal)) return;
+-            string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " [STARTUP] " + message + Environment.NewLine;
++            if (String.IsNullOrWhiteSpace(message)) return;
++            string category = message.StartsWith("Startup reached script constructor.", StringComparison.Ordinal)
++                ? "STARTUP" : "INFO";
++            string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) +
++                " [" + category + "] " + message + Environment.NewLine;
+@@ -5004 +5064,0 @@ namespace AvernesSowtware
+-                    if (attempt < 2) Thread.Sleep(40 * (attempt + 1));
+diff --git a/src/Core/HotkeyManager.cs b/src/Core/HotkeyManager.cs
+index 7143a46..1db5c5a 100644
+--- a/src/Core/HotkeyManager.cs
++++ b/src/Core/HotkeyManager.cs
+@@ -1 +1 @@
+-using System;
++﻿using System;
+@@ -160 +160,9 @@ namespace AvernesSowtware
+-            if (HasHotkeyConflict(action, key)) { reason = "This key is already assigned to another action."; return false; }
++            string conflictingAction = null;
++            Keys displacedKey = Keys.None;
++            foreach (KeyValuePair<string, Keys> pair in _hotkeyBindings)
++            {
++                if (String.Equals(pair.Key, action, StringComparison.OrdinalIgnoreCase) || pair.Value != key) continue;
++                conflictingAction = pair.Key;
++                displacedKey = _hotkeyBindings[action];
++                break;
++            }
+@@ -162,0 +162 @@ namespace AvernesSowtware
++            if (conflictingAction != null) _hotkeyBindings[conflictingAction] = displacedKey;
+@@ -165,0 +175 @@ namespace AvernesSowtware
++                if (conflictingAction != null) _hotkeyBindings[conflictingAction] = key;
+@@ -168,0 +179,2 @@ namespace AvernesSowtware
++            if (conflictingAction != null)
++                Log("Hotkey bindings swapped: " + action + "=" + key + "; " + conflictingAction + "=" + displacedKey + ".");
+diff --git a/src/Core/SettingsPersistence.cs b/src/Core/SettingsPersistence.cs
+index 8d0fa74..ed9867a 100644
+--- a/src/Core/SettingsPersistence.cs
++++ b/src/Core/SettingsPersistence.cs
+@@ -1 +1 @@
+-using System;
++﻿using System;
+@@ -339,2 +339,3 @@ namespace AvernesSowtware
+-                if (!info.Exists || info.Length < 32 || info.Length > 64 * 1024 * 1024) return false;
+-                string prefix;
++                if (!info.Exists || info.Length < 32 || info.Length > 2 * 1024 * 1024) return false;
++                char[] buffer = new char[64 * 1024];
++                int read;
+@@ -342 +343,2 @@ namespace AvernesSowtware
+-                    prefix = reader.ReadToEnd();
++                    read = reader.Read(buffer, 0, buffer.Length);
++                string prefix = new string(buffer, 0, read);
