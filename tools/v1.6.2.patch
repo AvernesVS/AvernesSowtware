@@ -1,0 +1,111 @@
+diff --git a/src/Core/AvernesSowtwareScript.cs b/src/Core/AvernesSowtwareScript.cs
+index 19f853d..5f58f61 100644
+--- a/src/Core/AvernesSowtwareScript.cs
++++ b/src/Core/AvernesSowtwareScript.cs
+@@ -1,4 +1,4 @@
+-using System;
++﻿using System;
+ using System.Collections.Generic;
+ using System.IO;
+ using System.Linq;
+@@ -157,6 +157,7 @@ namespace AvernesSowtware
+         private bool _nitroTrailerWarningShown;
+         private int _nitroVehicleHandle;
+         private bool _nitroBurstApplied;
++        private bool _nitroCollisionDisabled;
+         private int _antiEjectPedHandle;
+         private bool _antiEjectFlagCaptured;
+         private bool _antiEjectOriginalWindshieldFlag;
+@@ -1880,7 +1881,7 @@ namespace AvernesSowtware
+                     LogException("Toggle " + key, ex);
+                     NotifyError(title);
+                 }
+-            });
++            }, true);
+         }
+ 
+         private List<MenuEntry> GetCurrentEntries()
+diff --git a/src/Managers/VehicleSystems.cs b/src/Managers/VehicleSystems.cs
+index 4ea343c..3d84946 100644
+--- a/src/Managers/VehicleSystems.cs
++++ b/src/Managers/VehicleSystems.cs
+@@ -1,4 +1,4 @@
+-using System;
++﻿using System;
+ using System.Collections.Generic;
+ using System.Globalization;
+ using System.IO;
+@@ -351,7 +351,7 @@ namespace AvernesSowtware
+                         // Apply the vehicle-level cap to every class, not only aircraft.
+                         // GTA class/handling limits otherwise keep some motorcycles and
+                         // cars near their stock maximum despite the trainer velocity assist.
+-                        Function.Call((Hash)0x93A3996368C94158UL, handle, 250.0f); // MODIFY_VEHICLE_TOP_SPEED: bounded handling headroom
++                        Function.Call((Hash)0x93A3996368C94158UL, handle, 800.0f); // MODIFY_VEHICLE_TOP_SPEED: high-speed Nitro handling headroom
+                         _nitroVehicleHandle = handle;
+                         Log("Nitro acceleration envelope applied: vehicle=" + handle + "; cap=" + maximumNitroSpeed.ToString("0.00", CultureInfo.InvariantCulture) + " m/s.");
+                     }
+@@ -467,6 +467,19 @@ namespace AvernesSowtware
+                 float fy = forward.Y / forwardLength;
+                 float fz = aircraft ? forward.Z / forwardLength : 0.0f;
+                 float forwardSpeed = velocity.X * fx + velocity.Y * fy + (aircraft ? velocity.Z * fz : 0.0f);
++                // At extreme Nitro speeds GTA may fail to stream collision quickly enough.
++                // Temporarily disable collision only above 100 m/s and always restore it
++                // when speed drops or Nitro is stopped (RestoreNitroSpeedLimit).
++                if (forwardSpeed > 100.0f && !_nitroCollisionDisabled)
++                {
++                    Function.Call((Hash)0x1A9205C1B9EE827FUL, vehicleHandle, false, false); // SET_ENTITY_COLLISION
++                    _nitroCollisionDisabled = true;
++                }
++                else if (forwardSpeed <= 100.0f && _nitroCollisionDisabled)
++                {
++                    Function.Call((Hash)0x1A9205C1B9EE827FUL, vehicleHandle, true, true); // SET_ENTITY_COLLISION
++                    _nitroCollisionDisabled = false;
++                }
+                 if (forwardSpeed < -1.0f) return;
+                 if (forwardSpeed >= maximumSpeed) return;
+ 
+@@ -503,11 +516,15 @@ namespace AvernesSowtware
+             int handle = _nitroVehicleHandle;
+             _nitroVehicleHandle = 0;
+             _nitroBurstApplied = false;
++            bool restoreCollision = _nitroCollisionDisabled;
++            _nitroCollisionDisabled = false;
+             if (handle == 0) return;
+             try
+             {
+                 if (DoesEntityHandleExist(handle))
+                 {
++                    if (restoreCollision)
++                        Function.Call((Hash)0x1A9205C1B9EE827FUL, handle, true, true); // SET_ENTITY_COLLISION
+                     Function.Call((Hash)0xBAA045B4E42F3C06UL, handle, 0.0f); // clear any legacy SET_VEHICLE_MAX_SPEED cap
+                     Function.Call((Hash)0x0E46A3FCBDE2A1B1UL, handle, 1000.0f); // Restore the normal effectively-unbounded entity speed cap.
+                     Function.Call((Hash)0x93A3996368C94158UL, handle, 0.0f); // Reset handling/transmission top-speed modification.
+diff --git a/tests/test_1_6_2_regressions.py b/tests/test_1_6_2_regressions.py
+new file mode 100644
+index 0000000..6fdf0f2
+--- /dev/null
++++ b/tests/test_1_6_2_regressions.py
+@@ -0,0 +1,23 @@
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++
++def read(rel):
++    return (ROOT / rel).read_text(encoding="utf-8-sig")
++
++def test_toggle_entries_are_marked_as_toggles():
++    source = read("src/Core/AvernesSowtwareScript.cs")
++    start = source.index("private MenuEntry ToggleEntry(")
++    end = source.index("\n        }", start)
++    assert "}, true);" in source[start:end]
++
++def test_nitro_top_speed_headroom_is_800():
++    source = read("src/Managers/VehicleSystems.cs")
++    assert "handle, 800.0f); // MODIFY_VEHICLE_TOP_SPEED" in source
++
++def test_nitro_collision_is_restored_when_speed_drops_or_nitro_stops():
++    source = read("src/Managers/VehicleSystems.cs")
++    assert "forwardSpeed > 100.0f && !_nitroCollisionDisabled" in source
++    assert "forwardSpeed <= 100.0f && _nitroCollisionDisabled" in source
++    assert "if (restoreCollision)" in source
++    assert "SET_ENTITY_COLLISION" in source

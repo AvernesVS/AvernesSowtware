@@ -1,0 +1,113 @@
+name: AvernesSowtware v1.6.2 Windows Build Validation
+
+on:
+  push:
+    branches:
+      - release/v1.6.2-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avernessowtware-v1.6.2-build
+  cancel-in-progress: false
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout v1.6.2 patch and workflow
+        uses: actions/checkout@v4
+
+      - name: Download v1.6.0 verified base artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AvernesSowtware-v1.6.0-Windows-Release
+          repository: AvernesVS/AvernesSowtware
+          run-id: 44813186426
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/base160
+
+      - name: Extract v1.6.0 source and apply v1.6.2 patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outer = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'base160') -Filter '*.zip' -Recurse | Select-Object -First 1
+          if (-not $outer) { throw 'The verified v1.6.0 CI artifact ZIP is missing.' }
+          $outerRoot = Join-Path $env:RUNNER_TEMP 'outer160'
+          Expand-Archive -LiteralPath $outer.FullName -DestinationPath $outerRoot -Force
+          $release = Get-ChildItem $outerRoot -Filter 'AvernesSowtware_v1.6.0_RELEASE.zip' -Recurse | Select-Object -First 1
+          if (-not $release) { throw 'The v1.6.0 source release ZIP is missing.' }
+          $sourceRoot = Join-Path $env:RUNNER_TEMP 'source160'
+          Expand-Archive -LiteralPath $release.FullName -DestinationPath $sourceRoot -Force
+          $root = Get-ChildItem $sourceRoot -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'src/Core/AvernesSowtwareScript.cs') } | Select-Object -First 1
+          if (-not $root) { throw 'The extracted v1.6.0 source tree is incomplete.' }
+          Push-Location $root.FullName
+          try {
+            git init -q
+            git config user.name 'AvernesSowtware CI'
+            git config user.email 'ci@users.noreply.github.com'
+            git add -A
+            git commit -qm 'Verified v1.6.0 source base'
+            git apply --check --ignore-space-change (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.6.2.patch')
+            if ($LASTEXITCODE -ne 0) { throw 'The v1.6.2 patch does not apply cleanly.' }
+            git apply --ignore-space-change (Join-Path $env:GITHUB_WORKSPACE 'tools/v1.6.2.patch')
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to apply the v1.6.2 patch.' }
+          } finally { Pop-Location }
+          "SOURCE_ROOT=$($root.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run complete Python regression suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pytest
+          Push-Location $env:SOURCE_ROOT
+          try {
+            python -m pytest -q tests
+            if ($LASTEXITCODE -ne 0) { throw 'The full regression suite failed.' }
+          } finally { Pop-Location }
+
+      - name: Restore ScriptHookVDotNet2 API 2 reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'shvdn.nupkg'
+          $out = Join-Path $env:RUNNER_TEMP 'shvdn'
+          Invoke-WebRequest 'https://www.nuget.org/api/v2/package/ScriptHookVDotNet2/2.10.13' -OutFile $pkg
+          Expand-Archive -LiteralPath $pkg -DestinationPath $out -Force
+          $refs = @(Get-ChildItem $out -Filter ScriptHookVDotNet2.dll -Recurse -File)
+          if ($refs.Count -ne 1 -or $refs[0].Length -lt 4096) { throw 'ScriptHookVDotNet2 API 2 reference is invalid.' }
+          "AVERNE_SHVDN_DLL=$($refs[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile C# trainer DLL without installing into GTA V
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location $env:SOURCE_ROOT
+          try {
+            & cmd.exe /d /c 'build\Build.bat "" --build-only --no-pause'
+            if ($LASTEXITCODE -ne 0) { throw "C# build failed with exit code $LASTEXITCODE." }
+            $dll = Join-Path $env:SOURCE_ROOT 'dist/AvernesSowtware.dll'
+            if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 4096) { throw 'Compiled DLL is missing or too small.' }
+            Get-FileHash -LiteralPath $dll -Algorithm SHA256 | Format-List
+          } finally { Pop-Location }
+
+      - name: Verify installer migration and idempotence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:SOURCE_ROOT 'build/Test-InstallerIdempotence.ps1') -ProjectRoot $env:SOURCE_ROOT
+          if ($LASTEXITCODE -ne 0) { throw 'Installer migration/idempotence regression failed.' }
+
+      - name: Upload Windows CI build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AvernesSowtware-v1.6.2-Windows-CI-Build
+          path: |
+            ${{ runner.temp }}/source160/AvernesSowtware_v1.6.0/dist/AvernesSowtware.dll
+            ${{ runner.temp }}/source160/AvernesSowtware_v1.6.0/AvernesSowtware_Build.log
+            ${{ runner.temp }}/source160/AvernesSowtware_v1.6.0/BUILD_RELEASE.log
+            ${{ runner.temp }}/source160/AvernesSowtware_v1.6.0/tests/test_1_6_2_regressions.py
+          if-no-files-found: error
+          retention-days: 30
