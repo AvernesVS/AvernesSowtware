@@ -36,7 +36,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $PWD 'AvernesTreiner-1.0'
           $src = Join-Path $root 'src'
-          $csc = Join-Path $env:WINDIR 'Microsoft\Framework64\v4.0.30319\csc.exe'
+          $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
           $ref = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'
           if (-not (Test-Path $csc)) { throw "C# compiler not found: $csc" }
           if (-not (Test-Path (Join-Path $ref 'mscorlib.dll'))) { throw ".NET Framework 4.8 reference assemblies not found." }
