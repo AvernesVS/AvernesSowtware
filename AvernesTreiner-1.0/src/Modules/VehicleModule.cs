@@ -522,7 +522,9 @@ namespace AvernesTreiner.Modules
             _autopilotDestination = wp;
             _autopilotStartTime = Game.GameTime;
             _brakeHoldCounter = 0;
-            _stuckCounter = 0;
+            _stuckSinceTime = 0;
+            _lastStuckTrafficCheckTime = 0;
+            _lastAutopilotReissueTime = 0;
             _autopilotActive = true;
 
             // Configure AI driver capability
