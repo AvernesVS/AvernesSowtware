@@ -48,7 +48,9 @@ namespace AvernesTreiner.Modules
                     _waypointTeleportPending = true;
                     _waypointFocusActive = true;
                     Function.Call(Hash._SET_FOCUS_AREA, _waypointX, _waypointY, 500.0f, 0.0f, 0.0f, 0.0f);
-                    _waypointLoadSceneStarted = Function.Call<bool>(Hash.NEW_LOAD_SCENE_START, _waypointX, _waypointY, 500.0f);
+                    _waypointLoadSceneStarted = Function.Call<bool>(Hash.NEW_LOAD_SCENE_START,
+                        _waypointX, _waypointY, 500.0f,
+                        0.0f, 0.0f, 0.0f, 300.0f, 0);
                     RequestWaypointCollision();
                     UI.Notify("~b~Loading waypoint area and finding ground...");
                 }
@@ -223,7 +225,7 @@ namespace AvernesTreiner.Modules
             {
                 OutputArgument result = new OutputArgument();
                 bool found = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD,
-                    x, y, probeHeights[i], result, false);
+                    x, y, probeHeights[i], result, false, false);
                 if (!found) continue;
 
                 float z = result.GetResult<float>();
