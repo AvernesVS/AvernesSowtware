@@ -25,6 +25,7 @@ namespace AvernesTreiner.Core
         public static string Title { get { return _title; } set { _title = value; } }
         public static string SpeedUnit { get { return _speedUnit; } set { _speedUnit = value; } }
         public static string LastError { get; private set; }
+        public static string RuntimeDirectoryPath { get { return RuntimeDirectory; } }
         public static string ConfigPath { get { EnsureConfigFile(); return _configPath; } }
         public static string SaveLocationDescription
         {
@@ -216,8 +217,7 @@ namespace AvernesTreiner.Core
         {
             try
             {
-                string configPath = ConfigManager.ConfigPath;
-                string directory = Path.GetDirectoryName(configPath);
+                string directory = ConfigManager.RuntimeDirectoryPath;
                 string path = Path.Combine(directory, "Languages", langCode + ".ini");
                 if (!File.Exists(path))
                     path = Path.Combine(directory, "Languages", "en-US.ini");
