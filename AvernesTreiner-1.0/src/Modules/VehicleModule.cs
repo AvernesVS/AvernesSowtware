@@ -421,10 +421,9 @@ namespace AvernesTreiner.Modules
 
             AddCategoryMenu(origCatsMenu, menuPool, "Sports Classics", new[]
             {
-                "arwing", "casco", "cheetah2", "coquette2", "coquette3", "deluxo", "dynasty", "gt500", "infernusclassic",
-                "jb700", "jb7002", "mamba", "manana", "manana2", "michelli", "monroe", "nebula", "peyote", "peyote2",
+                "casco", "cheetah2", "coquette2", "coquette3", "deluxo", "dynasty", "gt500", "jb700", "jb7002", "mamba", "manana", "manana2", "michelli", "monroe", "nebula", "peyote", "peyote2",
                 "pigalle", "retinue", "retinue2", "savestra", "stinger", "stingergt", "stromberg", "swinger", "torero",
-                "tornadob", "turismo2", "viseris", "ztype", "zion3"
+                "turismo2", "viseris", "ztype", "zion3"
             });
 
             AddCategoryMenu(origCatsMenu, menuPool, "Muscle Cars", new[]
@@ -440,7 +439,7 @@ namespace AvernesTreiner.Modules
             AddCategoryMenu(origCatsMenu, menuPool, "Sedans, Coupes & SUVs", new[]
             {
                 "asea", "asterope", "cog55", "cognoscenti", "emperor", "fugitive", "glendale", "ingot", "intruder",
-                "premier", "primo", "primo2", "regina", "romero", "schafter", "stanier", "stratum", "surge", "tailgater",
+                "premier", "primo", "primo2", "regina", "romero", "stanier", "stratum", "surge", "tailgater",
                 "warrener", "washington", "exemplar", "f620", "felon", "felon2", "jackal", "oracle", "oracle2", "sentinel",
                 "sentinel2", "windsor", "windsor2", "zion", "zion2", "baller", "baller2", "baller3", "baller4", "baller5",
                 "baller6", "bjxl", "cavalcade", "cavalcade2", "contender", "dubsta", "dubsta2", "dubsta3", "fq2", "granger",
@@ -488,6 +487,8 @@ namespace AvernesTreiner.Modules
                 "ambulance", "fbi", "fbi2", "firetruk", "pbus", "police", "police2", "police3", "police4", "policeb",
                 "policet", "pranger", "predator", "riot", "riot2", "sheriff", "sheriff2"
             });
+
+            AddCategoryMenu(origCatsMenu, menuPool, "Additional Vehicles (Build 2245)", VehicleDatabase.AdditionalModels);
         }
 
         private void StartAutopilot()

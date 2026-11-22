@@ -11,7 +11,7 @@ namespace AvernesTreiner.Core
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.3";
+        private static string _version = "v0.4";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -35,7 +35,7 @@ namespace AvernesTreiner.Core
                     "[General]\r\n" +
                     "Language=en-US\r\n" +
                     "MenuKey=F10\r\n" +
-                    "Version=v0.3\r\n" +
+                    "Version=v0.4\r\n" +
                     "Title=AvernesTreiner\r\n" +
                     "SpeedUnit=KM/H\r\n");
             }
@@ -52,9 +52,9 @@ namespace AvernesTreiner.Core
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
 
                 // These values are fixed by the AvernesTreiner release contract.
-                // Migrate existing 0.1 configurations from F4 / v1.0.0 to F10 / v0.3.
+                // Migrate existing 0.1 configurations from F4 / v1.0.0 to F10 / v0.4.
                 _menuKey = "F10";
-                _version = "v0.3";
+                _version = "v0.4";
                 _title = "AvernesTreiner";
 
                 _settings.SetValue("General", "Language", _language);
@@ -119,13 +119,13 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.3");
+                _settings.SetValue("General", "Version", "v0.4");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
                 _settings.Save();
 
                 _menuKey = "F10";
-                _version = "v0.3";
+                _version = "v0.4";
                 _title = "AvernesTreiner";
                 return true;
             }

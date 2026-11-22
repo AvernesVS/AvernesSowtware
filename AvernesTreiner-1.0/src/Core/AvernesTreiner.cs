@@ -53,7 +53,7 @@ namespace AvernesTreiner
                 _menuPool.ControlDisablingEnabled = false;
 
                 string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.3");
+                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.4");
                 _mainMenu = new UIMenu(title, subtitle);
                 _menuPool.Add(_mainMenu);
 
@@ -61,6 +61,7 @@ namespace AvernesTreiner
                 {
                     new PlayerModule(),
                     new VehicleModule(),
+                    new SavedVehiclesModule(),
                     new VehicleCustomizationModule(),
                     new SkinChangerModule(),
                     new BodyguardModule(),
@@ -87,7 +88,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.4 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
