@@ -98,6 +98,12 @@ namespace AvernesTreiner
 
         private void OnTick(object sender, EventArgs e)
         {
+            if (_menuPool != null && _menuPool.IsAnyMenuOpen() && Game.IsKeyPressed(Keys.Escape))
+            {
+                _menuPool.CloseAllMenus();
+                _suppressPauseUntil = Game.GameTime + 500;
+            }
+
             if (_menuPool != null && _menuPool.IsAnyMenuOpen())
             {
                 _menuPool.ProcessControl();
