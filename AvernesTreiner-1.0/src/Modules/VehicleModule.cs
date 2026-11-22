@@ -555,6 +555,9 @@ namespace AvernesTreiner.Modules
             if (!_autopilotActive) return;
             _autopilotActive = false;
             _brakeHoldCounter = 0;
+            _stuckSinceTime = 0;
+            _lastStuckTrafficCheckTime = 0;
+            _lastAutopilotReissueTime = 0;
 
             Ped player = Game.Player.Character;
             if (clearTask && player != null && player.Exists())
