@@ -48,6 +48,8 @@ namespace AvernesTreiner
 
                 _menuPool = new MenuPool();
                 _menuPool.MouseEdgeEnabled = false;
+                // Disable NativeUI's mouse cursor so navigation stays on keyboard arrows.
+                _menuPool.UseCursor = false;
                 _menuPool.ResetCursorOnOpen = false;
                 // Keep gameplay and camera controls active while the menu is open.
                 _menuPool.ControlDisablingEnabled = false;
@@ -110,7 +112,6 @@ namespace AvernesTreiner
                 _menuPool.Draw();
                 DisableMenuNavigationControls();
                 EnableCameraControls();
-                Function.Call(Hash._SHOW_CURSOR_THIS_FRAME, false);
             }
 
             int now = Game.GameTime;
