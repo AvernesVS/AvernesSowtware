@@ -26,7 +26,7 @@ A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carl
 - Optimized per-frame trainer updates: persistent player/vehicle state is refreshed on bounded intervals, while frame-scoped gameplay natives remain per-frame.
 - Limited autopilot nearby-vehicle scans and stuck-traffic checks to timed intervals; the stuck watchdog now uses elapsed time instead of frame counts.
 - Limited vehicle water/auto-flip checks and bodyguard cleanup to periodic updates.
-- Gameplay and camera controls remain available while the menu is open; only NativeUI navigation controls are suppressed after menu input is processed.
+- Gameplay and camera controls remain available while the menu is open; NativeUI's mouse cursor is disabled, menu navigation uses the keyboard arrows, and only menu navigation controls are suppressed after menu input is processed.
 - Pressing **Esc** from any submenu closes the entire trainer menu and returns to gameplay instead of stepping back one menu level.
 
 ## v0.2 changes
