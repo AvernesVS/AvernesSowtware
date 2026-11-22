@@ -42,7 +42,7 @@ jobs:
           if (-not (Test-Path (Join-Path $ref 'mscorlib.dll'))) { throw ".NET Framework 4.8 reference assemblies not found." }
           $dll = Join-Path $root 'package\scripts\AvernesTreiner.dll'
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
-          if ($sources.Count -ne 15) { throw "Expected 15 retained C# source files, found $($sources.Count)." }
+          if ($sources.Count -ne 16) { throw "Expected 16 retained C# source files, found $($sources.Count)." }
           $removedFeatureHits = Select-String -Path $sources -Pattern 'NoClip|No-Clip|SET_ENTITY_VELOCITY|SET_ENTITY_GRAVITY|SET_ENTITY_HAS_GRAVITY'
           if ($removedFeatureHits) { throw 'NoClip/Power-Vision code or related entity velocity/gravity calls remain.' }
           $references = @(
@@ -68,7 +68,7 @@ jobs:
           $zip = Join-Path $PWD 'AvernesTreiner-0.4-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item (Join-Path $root 'package\scripts') -Destination $stage -Recurse
-          $required = @('scripts\AvernesTreiner.dll','scripts\AvernesTreiner\Config.ini','scripts\AvernesTreiner\Languages\en-US.ini','scripts\AvernesTreiner\addons.json')
+          $required = @('scripts\AvernesTreiner.dll','scripts\AvernesTreiner\Config.ini','scripts\AvernesTreiner\Languages\en-US.ini','scripts\AvernesTreiner\addons.json','scripts\AvernesTreiner\SavedVehicles.json')
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing package file: $f" } }
           if (Get-ChildItem (Join-Path $stage 'scripts\AvernesTreiner\Languages') -Filter 'pt-BR.ini' -Recurse) { throw 'Portuguese language file found.' }
           $config = Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Config.ini') -Raw
