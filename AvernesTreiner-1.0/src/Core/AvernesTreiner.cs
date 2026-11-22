@@ -61,6 +61,7 @@ namespace AvernesTreiner
                 {
                     new PlayerModule(),
                     new VehicleModule(),
+                    new SavedVehiclesModule(),
                     new VehicleCustomizationModule(),
                     new SkinChangerModule(),
                     new BodyguardModule(),
