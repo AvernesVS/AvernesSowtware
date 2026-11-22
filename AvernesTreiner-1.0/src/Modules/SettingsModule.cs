@@ -40,9 +40,10 @@ namespace AvernesTreiner.Modules
                 "Writes the current settings to Config.ini");
             saveItem.Activated += (sender, selected) =>
             {
-                UI.Notify(ConfigManager.Save()
+                bool saved = ConfigManager.Save();
+                UI.Notify(saved
                     ? "~g~Settings saved to Config.ini."
-                    : "~r~Could not save Config.ini.");
+                    : "~r~Could not save Config.ini: " + ConfigManager.LastError);
             };
             settingsMenu.AddItem(saveItem);
 
@@ -58,7 +59,7 @@ namespace AvernesTreiner.Modules
                 }
                 else
                 {
-                    UI.Notify("~r~Could not load Config.ini.");
+                    UI.Notify("~r~Could not load Config.ini: " + ConfigManager.LastError);
                 }
             };
             settingsMenu.AddItem(loadItem);
@@ -74,7 +75,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.4"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.5"),
                 "Official AvernesTreiner version");
             settingsMenu.AddItem(verItem);
 
