@@ -103,6 +103,7 @@ namespace AvernesTreiner
                 _menuPool.ProcessControl();
                 _menuPool.Draw();
                 DisableMenuNavigationControls();
+                EnableCameraControls();
                 Function.Call(Hash._SHOW_CURSOR_THIS_FRAME, false);
             }
 
@@ -135,12 +136,27 @@ namespace AvernesTreiner
             }
         }
 
+        private void EnableCameraControls()
+        {
+            // NativeUI can suppress look input even when ControlDisablingEnabled is false.
+            // Re-enable the two camera axes in all gameplay input groups after menu processing.
+            int[] cameraControls = new int[] { 1, 2 };
+            int[] inputGroups = new int[] { 0, 1, 2 };
+            for (int g = 0; g < inputGroups.Length; g++)
+            {
+                for (int c = 0; c < cameraControls.Length; c++)
+                {
+                    Function.Call(Hash.ENABLE_CONTROL_ACTION, inputGroups[g], cameraControls[c]);
+                }
+            }
+        }
+
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape && _menuPool != null && _menuPool.IsAnyMenuOpen())
             {
                 _menuPool.CloseAllMenus();
-                _suppressPauseUntil = Game.GameTime + 300;
+                _suppressPauseUntil = Game.GameTime + 500;
                 e.Handled = true;
                 e.SuppressKeyPress = true;
                 return;
