@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Chevrolet Camaro ZL1 2012",
+    "model": "12camarozl1",
+    "category": "Muscle"
+  },
+  {
+    "name": "BMW M4 DTM 2020",
+    "model": "xkm4dtm",
+    "category": "Sports"
+  }
+]
