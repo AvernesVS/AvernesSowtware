@@ -649,10 +649,7 @@ namespace AvernesTreiner.Modules
                 player.SetIntoVehicle(v, VehicleSeat.Driver);
                 v.PlaceOnGround();
                 if (_vehicleGodMode)
-                {
-                    v.IsInvincible = true;
-                    v.CanBeVisiblyDamaged = false;
-                }
+                    ApplyVehicleGodMode(v, true);
                 UI.Notify("~g~Vehicle " + modelName.ToUpper() + " created!");
             }
             catch (Exception ex)
