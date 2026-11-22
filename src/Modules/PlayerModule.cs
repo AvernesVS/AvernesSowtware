@@ -30,6 +30,8 @@ namespace AvernesTreiner.Modules
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
         private int _lastMaintenanceTime = 0;
+        private int _originalMaxWantedLevel = 5;
+        private bool _neverWantedApplied = false;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -56,9 +58,11 @@ namespace AvernesTreiner.Modules
                 _neverWanted = state;
 
                 ConfigManager.SetBool("Player", "NeverWanted", _neverWanted);
-                if (_neverWanted) Game.Player.WantedLevel = 0;
+                if (_neverWanted) EnableNeverWanted();
+                else DisableNeverWanted();
             };
             playerMenu.AddItem(neverWantedItem);
+            if (_neverWanted) EnableNeverWanted();
 
             // Cops Ignore Player
             var copsIgnoreItem = new UIMenuCheckboxItem(Localization.Get("Player", "CopsIgnore", "Cops Ignore Player"), _copsIgnore, Localization.Get("Player", "CopsIgnoreDesc", "Police ignore your crimes"));
@@ -224,6 +228,33 @@ namespace AvernesTreiner.Modules
             menu.AddItem(item);
         }
 
+        private void EnableNeverWanted()
+        {
+            if (!_neverWantedApplied)
+            {
+                _originalMaxWantedLevel = Function.Call<int>(Hash.GET_MAX_WANTED_LEVEL);
+                if (_originalMaxWantedLevel < 1 || _originalMaxWantedLevel > 5)
+                    _originalMaxWantedLevel = 5;
+                _neverWantedApplied = true;
+            }
+
+            Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
+            Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player, 0, false);
+            Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player, false);
+            Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, Game.Player);
+        }
+
+        private void DisableNeverWanted()
+        {
+            if (_neverWantedApplied)
+            {
+                Function.Call(Hash.SET_MAX_WANTED_LEVEL, _originalMaxWantedLevel);
+                _neverWantedApplied = false;
+            }
+            Game.Player.WantedLevel = 0;
+            Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, Game.Player);
+        }
+
         public void OnTick()
         {
             Ped player = Game.Player.Character;
@@ -233,6 +264,18 @@ namespace AvernesTreiner.Modules
             if (_superJump) Game.Player.SetSuperJumpThisFrame();
             if (_fastRun) Game.Player.SetRunSpeedMultThisFrame(1.49f);
 
+            // Never Wanted is enforced every frame to prevent transient stars and
+            // the wanted-level flash between slower maintenance checks.
+            if (_neverWanted)
+            {
+                Function.Call(Hash.SET_MAX_WANTED_LEVEL, 0);
+                if (Game.Player.WantedLevel > 0)
+                {
+                    Game.Player.WantedLevel = 0;
+                    Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, Game.Player);
+                }
+            }
+
             // Persistent states and maintenance do not need per-frame native calls.
             int now = Game.GameTime;
             if (now - _lastMaintenanceTime < 250) return;
@@ -240,7 +283,6 @@ namespace AvernesTreiner.Modules
 
             if (IsGodModeActive) player.IsInvincible = true;
             if (_isInvisible) player.IsVisible = false;
-            if (_neverWanted && Game.Player.WantedLevel > 0) Game.Player.WantedLevel = 0;
             if (_copsIgnore) Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
             if (_fastSwim) Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.49f);
             if (_noRagdoll) player.CanRagdoll = false;

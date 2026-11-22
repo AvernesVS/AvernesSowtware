@@ -24,14 +24,8 @@ namespace AvernesTreiner.Modules
             unitItem.OnListChanged += (sender, index) =>
             {
                 ConfigManager.SpeedUnit = (index == 1) ? "MPH" : "KM/H";
-                if (ConfigManager.Save())
-                {
-                    UI.Notify("~g~Speedometer: " + ConfigManager.SpeedUnit);
-                }
-                else
-                {
-                    UI.Notify("~r~Could not save settings.");
-                }
+                UI.Notify("~b~Speedometer unit changed to " + ConfigManager.SpeedUnit +
+                    ". Press Save Settings to keep this change.");
             };
             settingsMenu.AddItem(unitItem);
 
@@ -42,7 +36,7 @@ namespace AvernesTreiner.Modules
             {
                 bool saved = ConfigManager.Save();
                 UI.Notify(saved
-                    ? "~g~Settings saved to Config.ini."
+                    ? "~g~Settings saved (" + ConfigManager.SaveLocationDescription + ")."
                     : "~r~Could not save Config.ini: " + ConfigManager.LastError);
             };
             settingsMenu.AddItem(saveItem);
@@ -75,7 +69,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.5"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.6"),
                 "Official AvernesTreiner version");
             settingsMenu.AddItem(verItem);
 

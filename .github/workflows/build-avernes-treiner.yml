@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.5 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.6 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -67,7 +67,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = $PWD
           $stage = Join-Path $env:RUNNER_TEMP 'AvernesTreiner-install'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.5-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.6-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           $runtime = Join-Path $stage 'scripts\AvernesTreiner'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
@@ -79,19 +79,23 @@ jobs:
           $config = Get-Content (Join-Path $runtime 'Config.ini') -Raw
           if ($config -notmatch 'Language=en-US') { throw 'English is not default.' }
           if ($config -notmatch 'MenuKey=F10') { throw 'Menu hotkey must be F10.' }
-          if ($config -notmatch 'Version=v0.5') { throw 'Config version must be v0.5.' }
+          if ($config -notmatch 'Version=v0.6') { throw 'Config version must be v0.6.' }
           $language = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
           if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
-          if ($core -notmatch 'UseCursor = false' -or $core -match '_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must be disabled while keyboard menu navigation remains active.' }
+          if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI mouse controls/cursor must be disabled while keyboard menu navigation remains active.' }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION') { throw 'Menu navigation controls are not isolated from gameplay.' }
           if ($core -notmatch 'EnableCameraControls' -or $core -notmatch 'ENABLE_CONTROL_ACTION') { throw 'Camera controls are not explicitly restored while the menu is open.' }
           $settingsSource = Get-Content (Join-Path $root 'src\Modules\SettingsModule.cs') -Raw
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($settingsSource -notmatch 'ConfigManager.Save' -or $configSource -notmatch 'AppDomain.CurrentDomain.BaseDirectory' -or $configSource -notmatch 'LastError') { throw 'Settings persistence hardening is missing.' }
           $teleportSource = Get-Content (Join-Path $root 'src\Modules\TeleportModule.cs') -Raw
-          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD') { throw 'Waypoint ground resolution is missing.' }
+          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed') { throw 'Waypoint streaming or safe ground resolution is missing.' }
+          $playerSource = Get-Content (Join-Path $root 'src\Modules\PlayerModule.cs') -Raw
+          if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted') { throw 'Never Wanted must block wanted stars instead of clearing them after a delay.' }
+          $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
+          if ($configSource -notmatch 'ResolveRuntimeDirectory' -or $configSource -notmatch 'SpecialFolder.ApplicationData' -or $configSource -notmatch 'Save Settings') { throw 'Config path resolution and writable fallback are missing.' }
           $vehicleSource = Get-Content (Join-Path $root 'src\Modules\VehicleModule.cs') -Raw
           foreach ($required in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','Auto Repair on Entry')) { if ($vehicleSource -notmatch [regex]::Escape($required)) { throw "Vehicle fix missing: $required" } }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
@@ -113,7 +117,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.5-GTA5-Legacy
-          path: AvernesTreiner-0.5-GTA5-Legacy.zip
+          name: AvernesTreiner-0.6-GTA5-Legacy
+          path: AvernesTreiner-0.6-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30

@@ -1,18 +1,21 @@
 using System;
 using System.IO;
+using System.Text;
 using GTA;
 
 namespace AvernesTreiner.Core
 {
     public static class ConfigManager
     {
-        private static readonly string ConfigPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "scripts", "AvernesTreiner", "Config.ini");
+        private static readonly string RuntimeDirectory = ResolveRuntimeDirectory();
+        private static readonly string UserConfigDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AvernesTreiner");
+        private static string _configPath;
         private static ScriptSettings _settings;
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.5";
+        private static string _version = "v0.6";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -22,22 +25,96 @@ namespace AvernesTreiner.Core
         public static string Title { get { return _title; } set { _title = value; } }
         public static string SpeedUnit { get { return _speedUnit; } set { _speedUnit = value; } }
         public static string LastError { get; private set; }
+        public static string RuntimeDirectoryPath { get { return RuntimeDirectory; } }
+        public static string ConfigPath { get { EnsureConfigFile(); return _configPath; } }
+        public static string SaveLocationDescription
+        {
+            get
+            {
+                return !string.IsNullOrEmpty(_configPath) &&
+                    _configPath.StartsWith(UserConfigDirectory, StringComparison.OrdinalIgnoreCase)
+                    ? "Windows user profile"
+                    : "GTA V scripts folder";
+            }
+        }
+
+        private static string ResolveRuntimeDirectory()
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string trimmed = baseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string leaf = Path.GetFileName(trimmed);
+
+            // ScriptHookVDotNet can expose the game root, scripts folder,
+            // or this trainer's runtime folder as the AppDomain base directory.
+            if (string.Equals(leaf, "AvernesTreiner", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            if (string.Equals(leaf, "scripts", StringComparison.OrdinalIgnoreCase))
+                return Path.Combine(trimmed, "AvernesTreiner");
+            return Path.Combine(trimmed, "scripts", "AvernesTreiner");
+        }
+
+        private static string DefaultConfig()
+        {
+            return "[General]\r\n" +
+                "Language=en-US\r\n" +
+                "MenuKey=F10\r\n" +
+                "Version=v0.6\r\n" +
+                "Title=AvernesTreiner\r\n" +
+                "SpeedUnit=KM/H\r\n";
+        }
+
+        private static bool TryPrepareWritablePath(string path)
+        {
+            try
+            {
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                using (FileStream stream = new FileStream(path, FileMode.OpenOrCreate,
+                    FileAccess.Write, FileShare.ReadWrite))
+                {
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         private static void EnsureConfigFile()
         {
-            string directory = Path.GetDirectoryName(ConfigPath);
-            if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+            if (!string.IsNullOrEmpty(_configPath) && File.Exists(_configPath))
+                return;
 
-            if (!File.Exists(ConfigPath))
+            string primaryPath = Path.Combine(RuntimeDirectory, "Config.ini");
+            if (TryPrepareWritablePath(primaryPath))
             {
-                File.WriteAllText(ConfigPath,
-                    "[General]\r\n" +
-                    "Language=en-US\r\n" +
-                    "MenuKey=F10\r\n" +
-                    "Version=v0.5\r\n" +
-                    "Title=AvernesTreiner\r\n" +
-                    "SpeedUnit=KM/H\r\n");
+                _configPath = primaryPath;
             }
+            else
+            {
+                string fallbackPath = Path.Combine(UserConfigDirectory, "Config.ini");
+                string fallbackDirectory = Path.GetDirectoryName(fallbackPath);
+                if (!Directory.Exists(fallbackDirectory))
+                    Directory.CreateDirectory(fallbackDirectory);
+
+                if (!File.Exists(fallbackPath))
+                {
+                    if (File.Exists(primaryPath))
+                        File.Copy(primaryPath, fallbackPath);
+                    else
+                        File.WriteAllText(fallbackPath, DefaultConfig(), Encoding.UTF8);
+                }
+
+                if (!TryPrepareWritablePath(fallbackPath))
+                    throw new UnauthorizedAccessException("Neither the GTA scripts folder nor the Windows user config folder is writable.");
+
+                _configPath = fallbackPath;
+            }
+
+            FileInfo configInfo = new FileInfo(_configPath);
+            if (!configInfo.Exists || configInfo.Length == 0)
+                File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
         }
 
         public static bool Load()
@@ -45,20 +122,13 @@ namespace AvernesTreiner.Core
             try
             {
                 EnsureConfigFile();
-                _settings = ScriptSettings.Load(ConfigPath);
+                _settings = ScriptSettings.Load(_configPath);
                 _language = _settings.GetValue("General", "Language", "en-US");
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
-
-                // These values are fixed by the release contract.
                 _menuKey = "F10";
-                _version = "v0.5";
+                _version = "v0.6";
                 _title = "AvernesTreiner";
-                _settings.SetValue("General", "Language", _language);
-                _settings.SetValue("General", "MenuKey", _menuKey);
-                _settings.SetValue("General", "Version", _version);
-                _settings.SetValue("General", "Title", _title);
-                _settings.SetValue("General", "SpeedUnit", _speedUnit);
-                _settings.Save();
+                // Loading must not write the file; saving is explicit through Settings.
                 LastError = null;
                 return true;
             }
@@ -76,14 +146,15 @@ namespace AvernesTreiner.Core
                 if (_settings == null)
                 {
                     EnsureConfigFile();
-                    _settings = ScriptSettings.Load(ConfigPath);
+                    _settings = ScriptSettings.Load(_configPath);
                 }
                 string value = _settings.GetValue(section, key, defaultValue ? "true" : "false");
                 bool parsed;
                 return bool.TryParse(value, out parsed) ? parsed : defaultValue;
             }
-            catch
+            catch (Exception ex)
             {
+                LastError = ex.Message;
                 return defaultValue;
             }
         }
@@ -92,10 +163,13 @@ namespace AvernesTreiner.Core
         {
             try
             {
-                EnsureConfigFile();
-                if (_settings == null) _settings = ScriptSettings.Load(ConfigPath);
+                if (_settings == null)
+                {
+                    EnsureConfigFile();
+                    _settings = ScriptSettings.Load(_configPath);
+                }
+                // Keep changes in memory until the user presses Save Settings.
                 _settings.SetValue(section, key, value ? "true" : "false");
-                Save();
             }
             catch (Exception ex)
             {
@@ -108,21 +182,21 @@ namespace AvernesTreiner.Core
             try
             {
                 EnsureConfigFile();
-                if (_settings == null) _settings = ScriptSettings.Load(ConfigPath);
+                if (_settings == null)
+                    _settings = ScriptSettings.Load(_configPath);
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.5");
+                _settings.SetValue("General", "Version", "v0.6");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
-
-                // SetBool stores feature states in this same ScriptSettings instance.
-                // Saving here flushes General and every feature section together.
                 _settings.Save();
-                if (!File.Exists(ConfigPath))
+
+                if (!File.Exists(_configPath))
                     throw new IOException("Config.ini was not created.");
+
                 _menuKey = "F10";
-                _version = "v0.5";
+                _version = "v0.6";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
@@ -143,12 +217,12 @@ namespace AvernesTreiner.Core
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts",
-                    "AvernesTreiner", "Languages", langCode + ".ini");
+                string directory = ConfigManager.RuntimeDirectoryPath;
+                string path = Path.Combine(directory, "Languages", langCode + ".ini");
                 if (!File.Exists(path))
-                    path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts",
-                        "AvernesTreiner", "Languages", "en-US.ini");
-                if (File.Exists(path)) _langSettings = ScriptSettings.Load(path);
+                    path = Path.Combine(directory, "Languages", "en-US.ini");
+                if (File.Exists(path))
+                    _langSettings = ScriptSettings.Load(path);
             }
             catch { }
         }
@@ -157,7 +231,8 @@ namespace AvernesTreiner.Core
         {
             try
             {
-                if (_langSettings != null) return _langSettings.GetValue(section, key, fallback);
+                if (_langSettings != null)
+                    return _langSettings.GetValue(section, key, fallback);
             }
             catch { }
             return fallback;

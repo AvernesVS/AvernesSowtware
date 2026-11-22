@@ -48,14 +48,13 @@ namespace AvernesTreiner
 
                 _menuPool = new MenuPool();
                 _menuPool.MouseEdgeEnabled = false;
-                // Disable NativeUI's mouse cursor so navigation stays on keyboard arrows.
-                _menuPool.UseCursor = false;
+                // NativeUI 1.9.0 exposes cursor control on each UIMenu, not MenuPool.
                 _menuPool.ResetCursorOnOpen = false;
                 // Keep gameplay and camera controls active while the menu is open.
                 _menuPool.ControlDisablingEnabled = false;
 
                 string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.5");
+                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.6");
                 _mainMenu = new UIMenu(title, subtitle);
                 _menuPool.Add(_mainMenu);
 
@@ -83,6 +82,14 @@ namespace AvernesTreiner
                     catch { }
                 }
 
+                // Disable the NativeUI cursor on the main menu and every submenu.
+                foreach (UIMenu menu in _menuPool.ToList())
+                {
+                    menu.MouseControlsEnabled = false;
+                    menu.MouseEdgeEnabled = false;
+                    menu.ResetCursorOnOpen = false;
+                }
+
                 _menuPool.RefreshIndex();
 
                 Tick += OnTick;
@@ -90,7 +97,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.5 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.6 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
