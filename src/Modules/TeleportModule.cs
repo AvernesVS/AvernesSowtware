@@ -17,6 +17,12 @@ namespace AvernesTreiner.Modules
     {
         public string Name { get { return "Teleport"; } }
 
+        private bool _waypointTeleportPending;
+        private float _waypointX;
+        private float _waypointY;
+        private int _waypointStartTime;
+        private int _waypointAttempts;
+
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
             var teleMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuTeleport", "Teleport"));
@@ -26,14 +32,14 @@ namespace AvernesTreiner.Modules
             wpItem.Activated += (sender, selected) =>
             {
                 Vector3 wp = World.GetWaypointPosition();
-                if (wp != Vector3.Zero)
+                if (Game.IsWaypointActive && wp != Vector3.Zero)
                 {
-                    float gz = World.GetGroundHeight(new Vector2(wp.X, wp.Y));
-                    if (gz <= 0.0f) gz = wp.Z;
-                    if (gz <= 0.0f) gz = 40.0f;
-                    Vector3 dest = new Vector3(wp.X, wp.Y, gz + 1.2f);
-                    Teleport(dest);
-                    UI.Notify("~g~Teleported to Waypoint!");
+                    _waypointX = wp.X;
+                    _waypointY = wp.Y;
+                    _waypointStartTime = Game.GameTime;
+                    _waypointAttempts = 0;
+                    _waypointTeleportPending = true;
+                    UI.Notify("~b~Finding safe ground at waypoint...");
                 }
                 else
                 {
@@ -93,6 +99,61 @@ namespace AvernesTreiner.Modules
             }
         }
 
-        public void OnTick() { }
+        public void OnTick()
+        {
+            if (!_waypointTeleportPending) return;
+
+            _waypointAttempts++;
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 1000.0f);
+
+            float groundZ;
+            if (TryGetGroundHeight(_waypointX, _waypointY, out groundZ))
+            {
+                _waypointTeleportPending = false;
+                Teleport(new Vector3(_waypointX, _waypointY, groundZ + 1.0f));
+                UI.Notify("~g~Teleported to waypoint at ground level.");
+                return;
+            }
+
+            // Water waypoints have no terrain ground; use the actual water surface.
+            OutputArgument waterHeight = new OutputArgument();
+            if (Function.Call<bool>(Hash.GET_WATER_HEIGHT, _waypointX, _waypointY, 1000.0f, waterHeight))
+            {
+                float z = waterHeight.GetResult<float>();
+                if (!float.IsNaN(z) && !float.IsInfinity(z))
+                {
+                    _waypointTeleportPending = false;
+                    Teleport(new Vector3(_waypointX, _waypointY, z + 1.0f));
+                    UI.Notify("~g~Teleported to waypoint at water level.");
+                    return;
+                }
+            }
+
+            if (Game.GameTime - _waypointStartTime > 5000 || _waypointAttempts > 180)
+            {
+                _waypointTeleportPending = false;
+                UI.Notify("~r~Could not find safe ground at this waypoint. You were not teleported.");
+            }
+        }
+
+        private bool TryGetGroundHeight(float x, float y, out float groundZ)
+        {
+            float[] probeHeights = new float[] { 1000.0f, 750.0f, 500.0f, 250.0f, 100.0f, 50.0f, 20.0f, 0.0f };
+            for (int i = 0; i < probeHeights.Length; i++)
+            {
+                OutputArgument result = new OutputArgument();
+                bool found = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD,
+                    x, y, probeHeights[i], result, false);
+                if (!found) continue;
+
+                float z = result.GetResult<float>();
+                if (float.IsNaN(z) || float.IsInfinity(z)) continue;
+                if (z > probeHeights[i] + 1.0f || z < -200.0f) continue;
+                groundZ = z;
+                return true;
+            }
+            groundZ = 0.0f;
+            return false;
+        }
     }
 }

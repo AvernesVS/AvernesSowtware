@@ -1,18 +1,22 @@
-# AvernesTreiner v0.4
+# AvernesTreiner v0.5
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
-## Source layout
-The retained C# modules are kept as separate source files under `src/Core` and `src/Modules`.
+## Repository layout
+- `src/Core` — trainer core and configuration.
+- `src/Modules` — gameplay and menu modules.
+- `resources/` — default runtime configuration, language and JSON data copied into the installer.
+- `.github/workflows/build-avernes-treiner.yml` — the single active build and packaging workflow.
+- `build/` — local compiler output (generated, not committed).
 
-## v0.4 changes
+## v0.4 changes (retained)
 - Added 246 additional built-in vehicle model names missing from the original trainer categories, including DLC, service, utility, industrial, aircraft and watercraft models.
 - Added a dedicated **Additional Vehicles (Build 2245)** submenu; the existing nine categories and add-on JSON/manual model input remain available.
 - Removed four invalid model-name entries from the old built-in list.
 - The catalog targets GTA V Legacy **1.0.2245.0** (PC build 2245 / Online 1.54). It is reconstructed from the public DurtyFree GTA V data dump at build 2545 / Online 1.58, with vehicles introduced by Los Santos Tuners and The Contract excluded because those updates post-date build 2245. This is a filtered public-data reconstruction, not a direct extraction from the user's local game files.
 - Every spawn still passes the existing runtime checks (`IsInCdImage`, `IsValid`, and model streaming); unavailable models are rejected gracefully.
 
-## v0.4 saved vehicle catalog
+## v0.4 saved vehicle catalog (retained)
 - Added a separate **Saved Vehicles** menu and `SavedVehicles.json` storage file.
 - Players can save the vehicle they are currently driving under a chosen name and spawn it later with stored model hash, mod slots and variations, toggle mods, standard paint and wheel colors, wheel type, window tint, plate, livery, neon setup, tire smoke, extras, and tire burst setting.
 - Saving is manual; no per-frame disk writes or automatic save loop is introduced.
@@ -22,7 +26,7 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 - Optimized per-frame trainer updates: persistent player/vehicle state is refreshed on bounded intervals, while frame-scoped gameplay natives remain per-frame.
 - Limited autopilot nearby-vehicle scans and stuck-traffic checks to timed intervals; the stuck watchdog now uses elapsed time instead of frame counts.
 - Limited vehicle water/auto-flip checks and bodyguard cleanup to periodic updates.
-- Gameplay and camera controls remain available while the menu is open; only NativeUI navigation controls are suppressed after menu input is processed.
+- Gameplay and camera controls remain available while the menu is open; NativeUI's mouse cursor is disabled, menu navigation uses the keyboard arrows, and only menu navigation controls are suppressed after menu input is processed.
 - Pressing **Esc** from any submenu closes the entire trainer menu and returns to gameplay instead of stepping back one menu level.
 
 ## v0.2 changes
@@ -52,18 +56,29 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 ScriptHookVDotNet and NativeUI are external build/runtime dependencies and are not bundled in the install ZIP. Keep their DLLs installed according to their own instructions.
 
 ## Build
-The GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml` restores pinned NuGet references, compiles on Windows against .NET Framework 4.8 reference assemblies, creates an installable ZIP and uploads it as an Actions artifact.
+The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml` restores pinned NuGet references, compiles on Windows against .NET Framework 4.8 reference assemblies, assembles the installable ZIP from `resources/`, and uploads it as an Actions artifact.
 
-For a local build from `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`.
+For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.4-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.5-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
 - `scripts/AvernesTreiner/addons.json`
+- `scripts/AvernesTreiner/SavedVehicles.json`
 
 Default menu key: **F10**.
 
-This release is version **0.4**. It includes only the requested fixes and removals; in-game runtime testing is still required.
+## v0.5 fixes
+- Settings persistence now uses an absolute GTA installation path for Config.ini; Save Settings flushes the current settings and reports the underlying error if saving fails.
+- Camera look axes are explicitly re-enabled after NativeUI processes menu navigation.
+- Escape closes the entire trainer and suppresses the pause/map action.
+- Waypoint teleport streams collision and retries ground-height detection at multiple probe heights. If safe ground cannot be found, teleport is cancelled instead of using an unsafe waypoint Z value. Water waypoints use the detected water surface.
+- Drift Mode restores normal grip when disabled, when changing vehicles, and when leaving a vehicle.
+- Vehicle God Mode applies invincibility, entity damage proofs, hidden visible damage and burst-proof tires; normal damage behavior is restored when disabled or leaving/changing vehicles.
+- Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
+- Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
+
+This release is version **0.5**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
