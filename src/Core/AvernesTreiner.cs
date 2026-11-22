@@ -85,7 +85,7 @@ namespace AvernesTreiner
                 // Disable the NativeUI cursor on the main menu and every submenu.
                 foreach (UIMenu menu in _menuPool.ToList())
                 {
-                    menu.UseCursor = false;
+                    menu.MouseControlsEnabled = false;
                     menu.MouseEdgeEnabled = false;
                     menu.ResetCursorOnOpen = false;
                 }
