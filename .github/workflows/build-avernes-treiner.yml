@@ -81,7 +81,7 @@ jobs:
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION') { throw 'Menu navigation controls are not isolated from gameplay.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
-          $databaseModels = [regex]::Matches($vehicleDatabase, '^\s*"[a-z0-9_]+"[,]?\s*$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+          $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
           if ($databaseModels.Count -ne 246) { throw "Expected 246 additional vehicle models, found $($databaseModels.Count)." }
           foreach ($model in @('calico','dominator7','dominator8','euros','remus','zr350','jester4','rt3000','vectre','futo2','previon','sultan3','tailgater2','comet6','growler','cypher','warrener2','astron','buffalo4','champion','cinquemila','deity','ignus','jubilee','zeno','baller7','patriot3','comet7','shinobi','iwagen','granger2','reever','mule5')) { if ($vehicleDatabase -match ('"' + $model + '"')) { throw "Post-1.0.2245.0 model found in catalog: $model" } }
           $vehicleSource = Get-Content (Join-Path $root 'src\Modules\VehicleModule.cs') -Raw
