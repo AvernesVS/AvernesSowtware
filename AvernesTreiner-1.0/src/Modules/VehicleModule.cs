@@ -27,6 +27,9 @@ namespace AvernesTreiner.Modules
         private bool _driftMode = ConfigManager.GetBool("Vehicle", "DriftMode", false);
         private bool _seatbelt = ConfigManager.GetBool("Vehicle", "Seatbelt", true);
         private bool _autoRepair = ConfigManager.GetBool("Vehicle", "AutoRepair", false);
+        private Vehicle _driftVehicle;
+        private Vehicle _godModeVehicle;
+        private int _lastEnteredVehicleHandle;
         private bool _superTorque = ConfigManager.GetBool("Vehicle", "SuperTorque", false);
         private bool _autoFlip = ConfigManager.GetBool("Vehicle", "AutoFlip", false);
 
@@ -73,7 +76,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(fixItem);
 
             // Auto Repair
-            var autoRepItem = new UIMenuCheckboxItem("Continuous Auto-Repair", _autoRepair, "Instantly repairs the vehicle whenever it takes damage");
+            var autoRepItem = new UIMenuCheckboxItem("Auto Repair on Entry", _autoRepair, "Repairs a damaged vehicle once when you enter it");
             autoRepItem.CheckboxEvent += (sender, state) => { _autoRepair = state;
  ConfigManager.SetBool("Vehicle", "AutoRepair", _autoRepair); };
             vehMenu.AddItem(autoRepItem);
@@ -86,11 +89,8 @@ namespace AvernesTreiner.Modules
 
                 ConfigManager.SetBool("Vehicle", "VehicleGodMode", _vehicleGodMode);
                 Ped player = Game.Player.Character;
-                if (player.IsInVehicle())
-                {
-                    player.CurrentVehicle.IsInvincible = _vehicleGodMode;
-                    player.CurrentVehicle.CanBeVisiblyDamaged = !_vehicleGodMode;
-                }
+                if (_vehicleGodMode && player.IsInVehicle()) ApplyVehicleGodMode(player.CurrentVehicle, true);
+                else RestoreVehicleGodMode();
             };
             vehMenu.AddItem(godItem);
 
@@ -174,8 +174,14 @@ namespace AvernesTreiner.Modules
 
             // Drift Mode
             var driftItem = new UIMenuCheckboxItem("Drift Mode", _driftMode, "Reduces rear grip for smooth drifting");
-            driftItem.CheckboxEvent += (sender, state) => { _driftMode = state;
- ConfigManager.SetBool("Vehicle", "DriftMode", _driftMode); };
+            driftItem.CheckboxEvent += (sender, state) =>
+            {
+                _driftMode = state;
+                ConfigManager.SetBool("Vehicle", "DriftMode", _driftMode);
+                if (!_driftMode) RestoreDriftMode();
+                else if (Game.Player.Character != null && Game.Player.Character.Exists() && Game.Player.Character.IsInVehicle())
+                    ApplyDriftMode(Game.Player.Character.CurrentVehicle);
+            };
             vehMenu.AddItem(driftItem);
 
             // Drive on Water (Jesus Car)
@@ -659,6 +665,49 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        private void ApplyVehicleGodMode(Vehicle vehicle, bool enabled)
+        {
+            if (vehicle == null || !vehicle.Exists()) return;
+            if (_godModeVehicle != null && _godModeVehicle.Exists() && _godModeVehicle.Handle != vehicle.Handle)
+                RestoreVehicleGodMode();
+
+            vehicle.IsInvincible = enabled;
+            vehicle.CanBeVisiblyDamaged = !enabled;
+            Function.Call(Hash.SET_ENTITY_PROOFS, vehicle.Handle,
+                enabled, enabled, enabled, enabled, enabled, enabled, enabled, enabled);
+            Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, vehicle.Handle, !enabled);
+            _godModeVehicle = enabled ? vehicle : null;
+        }
+
+        private void RestoreVehicleGodMode()
+        {
+            if (_godModeVehicle != null && _godModeVehicle.Exists())
+            {
+                _godModeVehicle.IsInvincible = false;
+                _godModeVehicle.CanBeVisiblyDamaged = true;
+                Function.Call(Hash.SET_ENTITY_PROOFS, _godModeVehicle.Handle,
+                    false, false, false, false, false, false, false, false);
+                Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, _godModeVehicle.Handle, true);
+            }
+            _godModeVehicle = null;
+        }
+
+        private void ApplyDriftMode(Vehicle vehicle)
+        {
+            if (vehicle == null || !vehicle.Exists()) return;
+            if (_driftVehicle != null && _driftVehicle.Exists() && _driftVehicle.Handle != vehicle.Handle)
+                RestoreDriftMode();
+            Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, vehicle.Handle, true);
+            _driftVehicle = vehicle;
+        }
+
+        private void RestoreDriftMode()
+        {
+            if (_driftVehicle != null && _driftVehicle.Exists())
+                Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, _driftVehicle.Handle, false);
+            _driftVehicle = null;
+        }
+
         public void OnTick()
         {
             Ped player = Game.Player.Character;
@@ -681,15 +730,19 @@ namespace AvernesTreiner.Modules
                 if (v != null && v.Exists())
                 {
                     if (_vehicleGodMode && maintenanceTick)
-                    {
-                        v.IsInvincible = true;
-                        v.CanBeVisiblyDamaged = false;
-                        v.Health = 1000;
-                    }
+                        ApplyVehicleGodMode(v, true);
+                    else if (!_vehicleGodMode && _godModeVehicle != null)
+                        RestoreVehicleGodMode();
 
-                    if (_autoRepair && maintenanceTick && (v.Health < 1000 || v.EngineHealth < 1000))
+                    // Auto repair runs once per vehicle entry, never as a continuous repair loop.
+                    if (_autoRepair && v.Handle != _lastEnteredVehicleHandle)
                     {
-                        v.Repair();
+                        _lastEnteredVehicleHandle = v.Handle;
+                        if (v.Health < 1000 || v.EngineHealth < 1000 || v.BodyHealth < 1000)
+                        {
+                            v.Repair();
+                            UI.Notify("~g~Damaged vehicle repaired on entry.");
+                        }
                     }
 
                     // Nitro Boost / NOS (SHIFT or X)
@@ -705,9 +758,9 @@ namespace AvernesTreiner.Modules
                     }
 
                     if (_driftMode && maintenanceTick)
-                    {
-                        Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, v.Handle, true);
-                    }
+                        ApplyDriftMode(v);
+                    else if (!_driftMode && _driftVehicle != null)
+                        RestoreDriftMode();
 
                     // Horn Jump
                     if (_hornJump && Game.IsControlJustPressed(0, GTA.Control.VehicleHorn))
@@ -899,6 +952,9 @@ namespace AvernesTreiner.Modules
             }
             else
             {
+                _lastEnteredVehicleHandle = 0;
+                if (_driftVehicle != null) RestoreDriftMode();
+                if (_godModeVehicle != null) RestoreVehicleGodMode();
                 if (_autopilotActive)
                 {
                     CancelAutopilot(false);
