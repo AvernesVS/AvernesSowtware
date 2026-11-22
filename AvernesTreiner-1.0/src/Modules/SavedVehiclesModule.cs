@@ -195,11 +195,11 @@ namespace AvernesTreiner.Modules
 
             data.NeonEnabled = new bool[4];
             for (int i = 0; i < 4; i++)
-                data.NeonEnabled[i] = Function.Call<bool>(Hash.IS_VEHICLE_NEON_LIGHT_ENABLED, handle, i);
+                data.NeonEnabled[i] = Function.Call<bool>(Hash._IS_VEHICLE_NEON_LIGHT_ENABLED, handle, i);
             OutputArgument neonR = new OutputArgument();
             OutputArgument neonG = new OutputArgument();
             OutputArgument neonB = new OutputArgument();
-            Function.Call(Hash.GET_VEHICLE_NEON_COLOUR, handle, neonR, neonG, neonB);
+            Function.Call(Hash._GET_VEHICLE_NEON_LIGHTS_COLOUR, handle, neonR, neonG, neonB);
             data.NeonR = neonR.GetResult<int>();
             data.NeonG = neonG.GetResult<int>();
             data.NeonB = neonB.GetResult<int>();
@@ -312,11 +312,11 @@ namespace AvernesTreiner.Modules
             for (int i = 0; i < toggleSlots.Length; i++)
                 Function.Call(Hash.TOGGLE_VEHICLE_MOD, handle, toggleSlots[i], data.ToggleMods != null && i < data.ToggleMods.Length ? data.ToggleMods[i] : false);
 
-            Function.Call(Hash.SET_VEHICLE_NEON_COLOUR, handle, data.NeonR, data.NeonG, data.NeonB);
+            Function.Call(Hash._SET_VEHICLE_NEON_LIGHTS_COLOUR, handle, data.NeonR, data.NeonG, data.NeonB);
             if (data.NeonEnabled != null)
             {
                 for (int i = 0; i < Math.Min(4, data.NeonEnabled.Length); i++)
-                    Function.Call(Hash.SET_VEHICLE_NEON_LIGHT_ENABLED, handle, i, data.NeonEnabled[i]);
+                    Function.Call(Hash._SET_VEHICLE_NEON_LIGHT_ENABLED, handle, i, data.NeonEnabled[i]);
             }
             Function.Call(Hash.SET_VEHICLE_TYRE_SMOKE_COLOR, handle, data.SmokeR, data.SmokeG, data.SmokeB);
 
