@@ -84,7 +84,7 @@ jobs:
           if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
-          if ($core -notmatch 'UseCursor = false' -or $core -match '_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must be disabled while keyboard menu navigation remains active.' }
+          if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI mouse controls/cursor must be disabled while keyboard menu navigation remains active.' }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION') { throw 'Menu navigation controls are not isolated from gameplay.' }
           if ($core -notmatch 'EnableCameraControls' -or $core -notmatch 'ENABLE_CONTROL_ACTION') { throw 'Camera controls are not explicitly restored while the menu is open.' }
           $settingsSource = Get-Content (Join-Path $root 'src\Modules\SettingsModule.cs') -Raw
