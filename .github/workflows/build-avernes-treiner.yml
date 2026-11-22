@@ -80,6 +80,16 @@ jobs:
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION') { throw 'Menu navigation controls are not isolated from gameplay.' }
+          if ($core -notmatch 'EnableCameraControls' -or $core -notmatch 'ENABLE_CONTROL_ACTION') { throw 'Camera controls are not explicitly restored while the menu is open.' }
+          $settingsSource = Get-Content (Join-Path $root 'src\\Modules\\SettingsModule.cs') -Raw
+          $configSource = Get-Content (Join-Path $root 'src\\Core\\ConfigManager.cs') -Raw
+          if ($settingsSource -notmatch 'ConfigManager.Save' -or $configSource -notmatch 'AppDomain.CurrentDomain.BaseDirectory' -or $configSource -notmatch 'LastError') { throw 'Settings persistence hardening is missing.' }
+          $teleportSource = Get-Content (Join-Path $root 'src\\Modules\\TeleportModule.cs') -Raw
+          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD') { throw 'Waypoint ground resolution is missing.' }
+          $vehicleSource = Get-Content (Join-Path $root 'src\\Modules\\VehicleModule.cs') -Raw
+          foreach ($required in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','Auto Repair on Entry')) { if ($vehicleSource -notmatch [regex]::Escape($required)) { throw "Vehicle fix missing: $required" } }
+          $weaponSource = Get-Content (Join-Path $root 'src\\Modules\\WeaponModule.cs') -Raw
+          if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Compatible weapon attachments are not granted.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
           $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
           if ($databaseModels.Count -ne 246) { throw "Expected 246 additional vehicle models, found $($databaseModels.Count)." }
