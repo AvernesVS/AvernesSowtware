@@ -24,6 +24,8 @@ namespace AvernesTreiner.Modules
         private int _waypointAttempts;
         private bool _waypointLoadSceneStarted;
         private bool _waypointFocusActive;
+        private int _waypointLastCollisionRequestTime;
+        private int _waypointLastProbeTime;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -36,6 +38,9 @@ namespace AvernesTreiner.Modules
                 Vector3 wp = World.GetWaypointPosition();
                 if (Game.IsWaypointActive && wp != Vector3.Zero)
                 {
+                    if (_waypointTeleportPending) CancelWaypointTeleport();
+                    _waypointLastCollisionRequestTime = 0;
+                    _waypointLastProbeTime = 0;
                     _waypointX = wp.X;
                     _waypointY = wp.Y;
                     _waypointStartTime = Game.GameTime;
@@ -110,16 +115,25 @@ namespace AvernesTreiner.Modules
             if (!_waypointTeleportPending) return;
 
             _waypointAttempts++;
-            Function.Call(Hash._SET_FOCUS_AREA, _waypointX, _waypointY, 500.0f, 0.0f, 0.0f, 0.0f);
-            RequestWaypointCollision();
+            int now = Game.GameTime;
+            if (now - _waypointLastCollisionRequestTime >= 250)
+            {
+                _waypointLastCollisionRequestTime = now;
+                Function.Call(Hash._SET_FOCUS_AREA, _waypointX, _waypointY, 500.0f, 0.0f, 0.0f, 0.0f);
+                RequestWaypointCollision();
+            }
 
-            int elapsed = Game.GameTime - _waypointStartTime;
+            int elapsed = now - _waypointStartTime;
             bool sceneLoaded = _waypointLoadSceneStarted &&
                 Function.Call<bool>(Hash.IS_NEW_LOAD_SCENE_LOADED);
 
             // Give the distant map area time to stream before querying its collision.
-            if (elapsed >= 1200 || sceneLoaded)
+            bool mayProbe = elapsed >= 1200 &&
+                (sceneLoaded || elapsed >= 2500) &&
+                now - _waypointLastProbeTime >= 150;
+            if (mayProbe)
             {
+                _waypointLastProbeTime = now;
                 float groundZ;
                 if (TryGetGroundHeight(_waypointX, _waypointY, out groundZ))
                 {
