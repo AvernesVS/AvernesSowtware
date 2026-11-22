@@ -25,6 +25,7 @@ namespace AvernesTreiner.Modules
         private bool _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
         private bool _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
         private bool _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
+        private int _lastAmmoRefreshTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -72,6 +73,12 @@ namespace AvernesTreiner.Modules
                 }
             };
             weapMenu.AddItem(clipItem);
+            if (_infiniteClip)
+            {
+                Ped currentPlayer = Game.Player.Character;
+                if (currentPlayer != null && currentPlayer.Exists())
+                    Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, currentPlayer.Handle, true);
+            }
 
             // Teleport Gun
             var teleGunItem = new UIMenuCheckboxItem("Teleport Gun", _teleportGun, "Teleports the player to wherever the shot hits");
@@ -105,44 +112,41 @@ namespace AvernesTreiner.Modules
 
             // Super Damage
             var superDmg = new UIMenuCheckboxItem(Localization.Get("Weapons", "SuperDamage", "Super Damage (One-Hit Kill)"), _superDamage, Localization.Get("Weapons", "SuperDamageDesc", "Kills in one shot"));
-            superDmg.CheckboxEvent += (sender, state) => { _superDamage = state;
- ConfigManager.SetBool("Weapons", "SuperDamage", _superDamage); };
+            superDmg.CheckboxEvent += (sender, state) =>
+            {
+                _superDamage = state;
+                ConfigManager.SetBool("Weapons", "SuperDamage", _superDamage);
+                Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, _superDamage ? 100.0f : 1.0f);
+            };
             weapMenu.AddItem(superDmg);
+            if (_superDamage)
+                Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
         }
 
         public void OnTick()
         {
+            bool needsUpdate = _infiniteAmmo || _explosiveAmmo || _fireAmmo || _superDamage ||
+                               _teleportGun || _forceGun || _rpgAmmo;
+            if (!needsUpdate) return;
+
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
 
-            if (_infiniteAmmo && player.Weapons.Current != null)
+            int now = Game.GameTime;
+            if (_infiniteAmmo && now - _lastAmmoRefreshTime >= 150)
             {
-                player.Weapons.Current.Ammo = player.Weapons.Current.MaxAmmo;
+                _lastAmmoRefreshTime = now;
+                if (player.Weapons.Current != null)
+                    player.Weapons.Current.Ammo = player.Weapons.Current.MaxAmmo;
             }
 
-            if (_infiniteClip)
-            {
-                Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, player.Handle, true);
-            }
+            // These natives are frame-scoped and must remain in the frame tick.
+            if (_explosiveAmmo) Game.Player.SetExplosiveAmmoThisFrame();
+            if (_fireAmmo) Game.Player.SetFireAmmoThisFrame();
+            if (_superDamage) Game.Player.SetSuperJumpThisFrame();
 
-            if (_explosiveAmmo)
-            {
-                Game.Player.SetExplosiveAmmoThisFrame();
-            }
-
-            if (_fireAmmo)
-            {
-                Game.Player.SetFireAmmoThisFrame();
-            }
-
-            if (_superDamage)
-            {
-                Game.Player.SetSuperJumpThisFrame();
-                Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
-            }
-
-            // Shooting event checks
-            if (player.IsShooting)
+            // Avoid querying the impact coordinate unless a shot-triggered feature is enabled.
+            if ((_teleportGun || _forceGun || _rpgAmmo) && player.IsShooting)
             {
                 OutputArgument outCoord = new OutputArgument();
                 bool hit = Function.Call<bool>(Hash.GET_PED_LAST_WEAPON_IMPACT_COORD, player.Handle, outCoord);
@@ -151,18 +155,9 @@ namespace AvernesTreiner.Modules
                     Vector3 hitPos = outCoord.GetResult<Vector3>();
                     if (hitPos != Vector3.Zero)
                     {
-                        if (_teleportGun)
-                        {
-                            player.Position = hitPos + new Vector3(0, 0, 1.0f);
-                        }
-                        if (_forceGun)
-                        {
-                            World.AddExplosion(hitPos, ExplosionType.Extinguisher, 6.0f, 0.0f, false, true);
-                        }
-                        if (_rpgAmmo)
-                        {
-                            World.AddExplosion(hitPos, ExplosionType.GrenadeL, 3.5f, 1.0f, true, false);
-                        }
+                        if (_teleportGun) player.Position = hitPos + new Vector3(0, 0, 1.0f);
+                        if (_forceGun) World.AddExplosion(hitPos, ExplosionType.Extinguisher, 6.0f, 0.0f, false, true);
+                        if (_rpgAmmo) World.AddExplosion(hitPos, ExplosionType.GrenadeL, 3.5f, 1.0f, true, false);
                     }
                 }
             }

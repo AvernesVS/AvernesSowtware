@@ -20,6 +20,15 @@ namespace AvernesTreiner
         private List<IAvernesModule> _modules;
         private Keys _toggleKey = Keys.F10;
         private int _lastToggleTime = 0;
+        private int _suppressPauseUntil = 0;
+
+        // Menu navigation inputs are read first, then suppressed from gameplay.
+        private static readonly GTA.Control[] MenuNavigationControls = new GTA.Control[]
+        {
+            GTA.Control.PhoneUp, GTA.Control.PhoneDown, GTA.Control.PhoneLeft, GTA.Control.PhoneRight,
+            GTA.Control.CursorScrollUp, GTA.Control.CursorScrollDown,
+            GTA.Control.FrontendAccept, GTA.Control.PhoneCancel, GTA.Control.FrontendPause
+        };
 
         public AvernesTreinerScript()
         {
@@ -40,9 +49,11 @@ namespace AvernesTreiner
                 _menuPool = new MenuPool();
                 _menuPool.MouseEdgeEnabled = false;
                 _menuPool.ResetCursorOnOpen = false;
+                // Keep gameplay and camera controls active while the menu is open.
+                _menuPool.ControlDisablingEnabled = false;
 
                 string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.2");
+                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.3");
                 _mainMenu = new UIMenu(title, subtitle);
                 _menuPool.Add(_mainMenu);
 
@@ -86,32 +97,53 @@ namespace AvernesTreiner
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (_menuPool != null)
+            if (_menuPool != null && _menuPool.IsAnyMenuOpen())
             {
                 _menuPool.ProcessControl();
                 _menuPool.Draw();
+                DisableMenuNavigationControls();
+                Function.Call(Hash._SHOW_CURSOR_THIS_FRAME, false);
+            }
 
-                if (_menuPool.IsAnyMenuOpen())
-                {
-                    Function.Call(Hash._SHOW_CURSOR_THIS_FRAME, false);
-                }
+            int now = Game.GameTime;
+            if (_suppressPauseUntil != 0)
+            {
+                if (now <= _suppressPauseUntil)
+                    Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.FrontendPause);
+                else
+                    _suppressPauseUntil = 0;
             }
 
             if (_modules != null)
             {
                 for (int i = 0; i < _modules.Count; i++)
                 {
-                    try
-                    {
-                        _modules[i].OnTick();
-                    }
+                    try { _modules[i].OnTick(); }
                     catch { }
                 }
             }
         }
 
+        private void DisableMenuNavigationControls()
+        {
+            for (int i = 0; i < MenuNavigationControls.Length; i++)
+            {
+                int control = (int)MenuNavigationControls[i];
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, control);
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 2, control);
+            }
+        }
+
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.KeyCode == Keys.Escape && _menuPool != null && _menuPool.IsAnyMenuOpen())
+            {
+                _menuPool.CloseAllMenus();
+                _suppressPauseUntil = Game.GameTime + 300;
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
             if (e.KeyCode == _toggleKey)
             {
                 int currentTime = Game.GameTime;

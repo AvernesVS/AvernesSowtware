@@ -38,7 +38,13 @@ namespace AvernesTreiner.Modules
         private float _autopilotSpeed = 28.0f; // ~100 km/h
         private Vector3 _autopilotDestination = Vector3.Zero;
         private int _brakeHoldCounter = 0;
-        private int _stuckCounter = 0;
+        private int _lastMaintenanceTime = 0;
+        private int _lastAutoFlipTime = 0;
+        private int _lastWaterCheckTime = 0;
+        private int _lastTrafficRammerCheckTime = 0;
+        private int _stuckSinceTime = 0;
+        private int _lastStuckTrafficCheckTime = 0;
+        private int _lastAutopilotReissueTime = 0;
         private bool _trafficRammer = ConfigManager.GetBool("Vehicle", "TrafficRammer", false);
         private readonly List<Prop> _spawnedRamps = new List<Prop>();
 
@@ -652,8 +658,12 @@ namespace AvernesTreiner.Modules
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
 
+            int currentTime = Game.GameTime;
+            bool maintenanceTick = currentTime - _lastMaintenanceTime >= 250;
+            if (maintenanceTick) _lastMaintenanceTime = currentTime;
+
             // Seatbelt
-            if (_seatbelt)
+            if (_seatbelt && maintenanceTick)
             {
                 Function.Call(Hash.SET_PED_CONFIG_FLAG, player.Handle, 32, false);
                 Function.Call(Hash.SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE, player.Handle, 1);
@@ -664,14 +674,14 @@ namespace AvernesTreiner.Modules
                 Vehicle v = player.CurrentVehicle;
                 if (v != null && v.Exists())
                 {
-                    if (_vehicleGodMode)
+                    if (_vehicleGodMode && maintenanceTick)
                     {
                         v.IsInvincible = true;
                         v.CanBeVisiblyDamaged = false;
                         v.Health = 1000;
                     }
 
-                    if (_autoRepair && (v.Health < 1000 || v.EngineHealth < 1000))
+                    if (_autoRepair && maintenanceTick && (v.Health < 1000 || v.EngineHealth < 1000))
                     {
                         v.Repair();
                     }
@@ -688,7 +698,7 @@ namespace AvernesTreiner.Modules
                         v.EnginePowerMultiplier = 2.5f;
                     }
 
-                    if (_driftMode)
+                    if (_driftMode && maintenanceTick)
                     {
                         Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, v.Handle, true);
                     }
@@ -709,8 +719,9 @@ namespace AvernesTreiner.Modules
                     }
 
                     // Auto-Flip (if upside down)
-                    if (_autoFlip)
+                    if (_autoFlip && currentTime - _lastAutoFlipTime >= 100)
                     {
+                        _lastAutoFlipTime = currentTime;
                         if (v.UpVector.Z < -0.1f || Math.Abs(v.Rotation.Y) > 75.0f || Math.Abs(v.Rotation.X) > 75.0f)
                         {
                             v.Rotation = new Vector3(0f, 0f, v.Rotation.Z);
@@ -719,8 +730,9 @@ namespace AvernesTreiner.Modules
                     }
 
                     // Drive on Water (Jesus Car)
-                    if (_driveOnWater)
+                    if (_driveOnWater && currentTime - _lastWaterCheckTime >= 100)
                     {
+                        _lastWaterCheckTime = currentTime;
                         OutputArgument outHeight = new OutputArgument();
                         bool hasWater = Function.Call<bool>(Hash.GET_WATER_HEIGHT, v.Position.X, v.Position.Y, v.Position.Z, outHeight);
                         if (hasWater)
@@ -774,8 +786,10 @@ namespace AvernesTreiner.Modules
                         float currentKmh = v.Speed * 3.6f;
 
                         // Traffic Rammer (Plow through blocking traffic)
-                        if (_trafficRammer || _autopilotAggressiveness >= 1.0f)
+                        if ((_trafficRammer || _autopilotAggressiveness >= 1.0f) &&
+                            currentTime - _lastTrafficRammerCheckTime >= 350)
                         {
+                            _lastTrafficRammerCheckTime = currentTime;
                             Vehicle[] ahead = World.GetNearbyVehicles(v.Position + v.ForwardVector * 4.5f, 3.5f);
                             foreach (var b in ahead)
                             {
@@ -787,17 +801,18 @@ namespace AvernesTreiner.Modules
                             }
                         }
 
-                        // Anti-Stuck & Overtake Watchdog
-                        if (currentKmh < 3.0f && (Game.GameTime - _autopilotStartTime > 2000))
+                        // Anti-Stuck & Overtake Watchdog (time-based, not frame-count based)
+                        if (currentKmh < 3.0f && (currentTime - _autopilotStartTime > 2000))
                         {
-                            _stuckCounter++;
+                            if (_stuckSinceTime == 0) _stuckSinceTime = currentTime;
+                            int stuckDuration = currentTime - _stuckSinceTime;
 
-                            // If in Fast or Aggressive mode and blocked by traffic:
                             if (_autopilotAggressiveness > 0.3f)
                             {
-                                // Step 1: Honk and scare blocking drivers ahead (~1s stuck)
-                                if (_stuckCounter > 30)
+                                // Nearby traffic scans are limited to once per second.
+                                if (stuckDuration > 1000 && currentTime - _lastStuckTrafficCheckTime >= 1000)
                                 {
+                                    _lastStuckTrafficCheckTime = currentTime;
                                     v.SoundHorn(800);
 
                                     Vehicle[] blockingVehs = World.GetNearbyVehicles(v.Position + v.ForwardVector * 8.0f, 7.0f);
@@ -807,18 +822,16 @@ namespace AvernesTreiner.Modules
                                         {
                                             Ped d = b.GetPedOnSeat(VehicleSeat.Driver);
                                             if (d != null && d.Exists() && !d.IsPlayer)
-                                            {
-                                                d.Task.FleeFrom(player); // Panics and steers out of the way!
-                                            }
+                                                d.Task.FleeFrom(player);
                                         }
                                     }
                                 }
 
-                                // Step 2: Push forward & re-issue overtake (~2.5s stuck)
-                                if (_stuckCounter > 90)
+                                // Re-issue the driving task at a bounded interval.
+                                if (stuckDuration > 2500 && currentTime - _lastAutopilotReissueTime >= 2500)
                                 {
-                                    _stuckCounter = 30; // reset
-                                    v.Speed = 8.0f; // Break out of dead stop
+                                    _lastAutopilotReissueTime = currentTime;
+                                    v.Speed = 8.0f;
                                     v.ApplyForce(v.ForwardVector * 2.0f);
 
                                     Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, player.Handle, 1.0f);
@@ -836,7 +849,7 @@ namespace AvernesTreiner.Modules
                         }
                         else
                         {
-                            _stuckCounter = 0;
+                            _stuckSinceTime = 0;
                         }
 
                         // Draw Autopilot HUD status

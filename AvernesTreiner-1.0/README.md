@@ -1,9 +1,16 @@
-# AvernesTreiner v0.2
+# AvernesTreiner v0.3
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
 ## Source layout
 The retained C# modules are kept as separate source files under `src/Core` and `src/Modules`.
+
+## v0.3 changes
+- Optimized per-frame trainer updates: persistent player/vehicle state is refreshed on bounded intervals, while frame-scoped gameplay natives remain per-frame.
+- Limited autopilot nearby-vehicle scans and stuck-traffic checks to timed intervals; the stuck watchdog now uses elapsed time instead of frame counts.
+- Limited vehicle water/auto-flip checks and bodyguard cleanup to periodic updates.
+- Gameplay and camera controls remain available while the menu is open; only NativeUI navigation controls are suppressed after menu input is processed.
+- Pressing **Esc** from any submenu closes the entire trainer menu and returns to gameplay instead of stepping back one menu level.
 
 ## v0.2 changes
 - Removed the complete Power & Vision menu section and its NoClip implementation.
@@ -37,7 +44,7 @@ The GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml` restor
 For a local build from `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`.
 
 ## Install
-Extract `AvernesTreiner-0.2-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.3-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
@@ -45,5 +52,5 @@ Extract `AvernesTreiner-0.2-GTA5-Legacy.zip` into the GTA V Legacy directory. It
 
 Default menu key: **F10**.
 
-This release is version **0.2**. It includes only the requested fixes and removals; in-game runtime testing is still required.
+This release is version **0.3**. It includes only the requested fixes and removals; in-game runtime testing is still required.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer

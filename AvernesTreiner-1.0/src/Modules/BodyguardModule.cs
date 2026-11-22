@@ -16,6 +16,7 @@ namespace AvernesTreiner.Modules
     public class BodyguardModule : IAvernesModule
     {
         public string Name { get { return "Bodyguards"; } }
+        private int _lastCleanupTime = 0;
 
         private List<Ped> _bodyguards = new List<Ped>();
         private bool _godModeSquad = ConfigManager.GetBool("Bodyguards", "GodModeSquad", false);
@@ -318,6 +319,10 @@ namespace AvernesTreiner.Modules
 
         public void OnTick()
         {
+            int now = Game.GameTime;
+            if (now - _lastCleanupTime < 1000) return;
+            _lastCleanupTime = now;
+
             for (int i = _bodyguards.Count - 1; i >= 0; i--)
             {
                 if (_bodyguards[i] == null || !_bodyguards[i].Exists() || _bodyguards[i].IsDead)

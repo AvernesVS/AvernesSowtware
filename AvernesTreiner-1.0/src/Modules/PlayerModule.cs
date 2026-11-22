@@ -29,6 +29,7 @@ namespace AvernesTreiner.Modules
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
+        private int _lastMaintenanceTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -228,53 +229,24 @@ namespace AvernesTreiner.Modules
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
 
-            if (IsGodModeActive)
-            {
-                player.IsInvincible = true;
-            }
-            if (_isInvisible)
-            {
-                player.IsVisible = false;
-            }
-            if (_neverWanted)
-            {
-                if (Game.Player.WantedLevel > 0)
-                {
-                    Game.Player.WantedLevel = 0;
-                }
-            }
-            if (_copsIgnore)
-            {
-                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
-            }
-            if (_superJump)
-            {
-                Game.Player.SetSuperJumpThisFrame();
-            }
-            if (_fastRun)
-            {
-                Game.Player.SetRunSpeedMultThisFrame(1.49f);
-            }
-            if (_fastSwim)
-            {
-                Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.49f);
-            }
-            if (_noRagdoll)
-            {
-                player.CanRagdoll = false;
-            }
-            if (_unlimitedStamina)
-            {
-                Function.Call(Hash.RESET_PLAYER_STAMINA, Game.Player);
-            }
-            if (_unlimitedOxygen)
-            {
-                Function.Call(Hash.SET_PED_MAX_TIME_UNDERWATER, player, 9999.0f);
-            }
-            if (_mobileRadio)
-            {
-                Function.Call(Hash.SET_MOBILE_RADIO_ENABLED_DURING_GAMEPLAY, true);
-            }
+            // These natives are explicitly frame-scoped and must run every frame.
+            if (_superJump) Game.Player.SetSuperJumpThisFrame();
+            if (_fastRun) Game.Player.SetRunSpeedMultThisFrame(1.49f);
+
+            // Persistent states and maintenance do not need per-frame native calls.
+            int now = Game.GameTime;
+            if (now - _lastMaintenanceTime < 250) return;
+            _lastMaintenanceTime = now;
+
+            if (IsGodModeActive) player.IsInvincible = true;
+            if (_isInvisible) player.IsVisible = false;
+            if (_neverWanted && Game.Player.WantedLevel > 0) Game.Player.WantedLevel = 0;
+            if (_copsIgnore) Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
+            if (_fastSwim) Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.49f);
+            if (_noRagdoll) player.CanRagdoll = false;
+            if (_unlimitedStamina) Function.Call(Hash.RESET_PLAYER_STAMINA, Game.Player);
+            if (_unlimitedOxygen) Function.Call(Hash.SET_PED_MAX_TIME_UNDERWATER, player, 9999.0f);
+            if (_mobileRadio) Function.Call(Hash.SET_MOBILE_RADIO_ENABLED_DURING_GAMEPLAY, true);
         }
     }
 }
