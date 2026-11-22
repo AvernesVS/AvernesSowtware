@@ -36,11 +36,31 @@ namespace AvernesTreiner.Modules
             giveAll.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
+                int attachedComponents = 0;
                 foreach (WeaponHash w in Enum.GetValues(typeof(WeaponHash)))
                 {
-                    try { player.Weapons.Give(w, 9999, false, true); } catch { }
+                    try
+                    {
+                        player.Weapons.Give(w, 9999, false, true);
+                        foreach (WeaponComponentHash component in Enum.GetValues(typeof(WeaponComponentHash)))
+                        {
+                            try
+                            {
+                                if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT,
+                                    (uint)w, (uint)component))
+                                {
+                                    Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED,
+                                        player.Handle, (uint)w, (uint)component);
+                                    attachedComponents++;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch { }
                 }
-                UI.Notify("~g~All weapons granted with maximum ammo!");
+                UI.Notify("~g~All available weapons and compatible attachments granted! (" +
+                    attachedComponents + " attachments)");
             };
             weapMenu.AddItem(giveAll);
 
