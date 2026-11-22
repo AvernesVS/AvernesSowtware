@@ -42,7 +42,7 @@ namespace AvernesTreiner.Modules
                     try
                     {
                         player.Weapons.Give(w, 9999, false, true);
-                        foreach (WeaponComponentHash component in Enum.GetValues(typeof(WeaponComponentHash)))
+                        foreach (WeaponComponent component in Enum.GetValues(typeof(WeaponComponent)))
                         {
                             try
                             {
