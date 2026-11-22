@@ -1,4 +1,4 @@
-# AvernesTreiner v0.5
+# AvernesTreiner v0.6
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -35,7 +35,7 @@ A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carl
 - Corrected the Galileo Observatory roof teleport point and checked other landmark destinations.
 - Added **Save Settings** and **Load Settings** controls in the Settings menu.
 - `Config.ini` is loaded automatically at startup and is created with defaults on first launch.
-- Active Player, Vehicle, Weapons, World and Bodyguard checkbox states are saved to `Config.ini` automatically when changed and restored at startup. The Save/Load buttons are also available in Settings; after using Load Settings, restart the trainer script to apply the reloaded toggle states.
+- Player, Vehicle, Weapons, World and Bodyguard checkbox changes stay in memory until **Save Settings** is pressed; the trainer does not write to disk on each toggle. Saved values are restored at startup.
 - The menu hotkey is fixed to **F10**; existing 0.1 configurations are migrated from F4 to F10.
 - Vehicle spawning checks model validity and loading before creating a vehicle. Unsupported or unavailable models produce a “Vehicle not found” notification instead of being passed to the spawn call.
 - Corrected the `proto` vehicle model entry to the game model name `prototipo`.
@@ -61,7 +61,7 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.5-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.6-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
@@ -69,6 +69,14 @@ Extract `AvernesTreiner-0.5-GTA5-Legacy.zip` into the GTA V Legacy directory. It
 - `scripts/AvernesTreiner/SavedVehicles.json`
 
 Default menu key: **F10**.
+
+## v0.6 fixes
+- **Never Wanted:** sets the maximum wanted level to zero immediately and enforces it every frame. Wanted stars are blocked at the source rather than cleared after a visible delay; disabling the option restores the previous wanted-level cap (or the standard five-star cap if the stored value is invalid).
+- **Waypoint Teleport:** requests distant map streaming, moves the streaming focus to the target, waits for the scene/collision, probes ground from multiple heights, and falls back only to a nearby navmesh-safe location or a detected water surface. Streaming focus and the scene request are cleaned up after completion or cancellation.
+- **Config.ini:** resolves the correct runtime folder whether ScriptHookVDotNet exposes the game root or the `scripts` folder, avoiding the duplicate `scripts\\scripts` path. If the GTA installation folder is not writable, it uses the current Windows user's AppData folder and copies existing settings there.
+- Settings changes remain in memory until **Save Settings** is pressed. Speed unit selection no longer triggers an immediate write.
+- NativeUI's mouse cursor remains disabled; keyboard arrows control the menu while mouse camera-look and ordinary gameplay controls remain available.
+- The repository keeps source under `src/` and runtime defaults under `resources/`; generated installer ZIPs and obsolete workflows are not stored in the repository root.
 
 ## v0.5 fixes
 - Settings persistence now uses an absolute GTA installation path for Config.ini; Save Settings flushes the current settings and reports the underlying error if saving fails.
@@ -80,5 +88,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This release is version **0.5**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This release is version **0.6**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
