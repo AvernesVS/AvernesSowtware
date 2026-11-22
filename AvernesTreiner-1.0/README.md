@@ -12,6 +12,12 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 - The catalog targets GTA V Legacy **1.0.2245.0** (PC build 2245 / Online 1.54). It is reconstructed from the public DurtyFree GTA V data dump at build 2545 / Online 1.58, with vehicles introduced by Los Santos Tuners and The Contract excluded because those updates post-date build 2245. This is a filtered public-data reconstruction, not a direct extraction from the user's local game files.
 - Every spawn still passes the existing runtime checks (`IsInCdImage`, `IsValid`, and model streaming); unavailable models are rejected gracefully.
 
+## v0.4 saved vehicle catalog
+- Added a separate **Saved Vehicles** menu and `SavedVehicles.json` storage file.
+- Players can save the vehicle they are currently driving under a chosen name and spawn it later with stored model hash, mod slots and variations, toggle mods, standard paint and wheel colors, wheel type, window tint, plate, livery, neon setup, tire smoke, extras, and tire burst setting.
+- Saving is manual; no per-frame disk writes or automatic save loop is introduced.
+- Vehicle records are kept separately from `Config.ini` and `addons.json`.
+
 ## v0.3 changes
 - Optimized per-frame trainer updates: persistent player/vehicle state is refreshed on bounded intervals, while frame-scoped gameplay natives remain per-frame.
 - Limited autopilot nearby-vehicle scans and stuck-traffic checks to timed intervals; the stuck watchdog now uses elapsed time instead of frame counts.
