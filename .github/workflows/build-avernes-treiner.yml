@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.4 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.5 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['AvernesTreiner-1.0/**', '.github/workflows/build-avernes-treiner.yml']
@@ -65,7 +65,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $PWD 'AvernesTreiner-1.0'
           $stage = Join-Path $env:RUNNER_TEMP 'AvernesTreiner-install'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.4-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.5-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item (Join-Path $root 'package\scripts') -Destination $stage -Recurse
           $required = @('scripts\AvernesTreiner.dll','scripts\AvernesTreiner\Config.ini','scripts\AvernesTreiner\Languages\en-US.ini','scripts\AvernesTreiner\addons.json','scripts\AvernesTreiner\SavedVehicles.json')
@@ -74,7 +74,7 @@ jobs:
           $config = Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Config.ini') -Raw
           if ($config -notmatch 'Language=en-US') { throw 'English is not default.' }
           if ($config -notmatch 'MenuKey=F10') { throw 'Menu hotkey must be F10.' }
-          if ($config -notmatch 'Version=v0.4') { throw 'Config version must be v0.4.' }
+          if ($config -notmatch 'Version=v0.5') { throw 'Config version must be v0.5.' }
           $language = Get-Content (Join-Path $stage 'scripts\AvernesTreiner\Languages\en-US.ini') -Raw
           if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
@@ -97,7 +97,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.4-GTA5-Legacy
-          path: AvernesTreiner-0.4-GTA5-Legacy.zip
+          name: AvernesTreiner-0.5-GTA5-Legacy
+          path: AvernesTreiner-0.5-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
