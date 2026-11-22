@@ -48,8 +48,7 @@ namespace AvernesTreiner
 
                 _menuPool = new MenuPool();
                 _menuPool.MouseEdgeEnabled = false;
-                // Disable NativeUI's mouse cursor so navigation stays on keyboard arrows.
-                _menuPool.UseCursor = false;
+                // NativeUI 1.9.0 exposes cursor control on each UIMenu, not MenuPool.
                 _menuPool.ResetCursorOnOpen = false;
                 // Keep gameplay and camera controls active while the menu is open.
                 _menuPool.ControlDisablingEnabled = false;
@@ -81,6 +80,14 @@ namespace AvernesTreiner
                         module.Initialize(_mainMenu, _menuPool);
                     }
                     catch { }
+                }
+
+                // Disable the NativeUI cursor on the main menu and every submenu.
+                foreach (UIMenu menu in _menuPool.ToList())
+                {
+                    menu.UseCursor = false;
+                    menu.MouseEdgeEnabled = false;
+                    menu.ResetCursorOnOpen = false;
                 }
 
                 _menuPool.RefreshIndex();
