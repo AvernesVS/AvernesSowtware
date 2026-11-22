@@ -16,7 +16,7 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 - Added a separate **Saved Vehicles** menu and `SavedVehicles.json` storage file.
 - Players can save the vehicle they are currently driving under a chosen name and spawn it later with stored model hash, mod slots and variations, toggle mods, standard paint and wheel colors, wheel type, window tint, plate, livery, neon setup, tire smoke, extras, and tire burst setting.
 - Saving is manual; no per-frame disk writes or automatic save loop is introduced.
-- Vehicle records are kept separately from `Config.ini` and `addons.json`.
+- Vehicle records are kept separately from `Config.ini` and `addons.json`; a fresh installation starts with an empty `SavedVehicles.json`.
 
 ## v0.3 changes
 - Optimized per-frame trainer updates: persistent player/vehicle state is refreshed on bounded intervals, while frame-scoped gameplay natives remain per-frame.
