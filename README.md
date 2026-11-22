@@ -2,8 +2,12 @@
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
-## Source layout
-The retained C# modules are kept as separate source files under `src/Core` and `src/Modules`.
+## Repository layout
+- `src/Core` — trainer core and configuration.
+- `src/Modules` — gameplay and menu modules.
+- `resources/` — default runtime configuration, language and JSON data copied into the installer.
+- `.github/workflows/build-avernes-treiner.yml` — the single active build and packaging workflow.
+- `build/` — local compiler output (generated, not committed).
 
 ## v0.4 changes (retained)
 - Added 246 additional built-in vehicle model names missing from the original trainer categories, including DLC, service, utility, industrial, aircraft and watercraft models.
@@ -52,9 +56,9 @@ The retained C# modules are kept as separate source files under `src/Core` and `
 ScriptHookVDotNet and NativeUI are external build/runtime dependencies and are not bundled in the install ZIP. Keep their DLLs installed according to their own instructions.
 
 ## Build
-The GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml` restores pinned NuGet references, compiles on Windows against .NET Framework 4.8 reference assemblies, creates an installable ZIP and uploads it as an Actions artifact.
+The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml` restores pinned NuGet references, compiles on Windows against .NET Framework 4.8 reference assemblies, assembles the installable ZIP from `resources/`, and uploads it as an Actions artifact.
 
-For a local build from `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`.
+For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
 Extract `AvernesTreiner-0.5-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
@@ -62,6 +66,7 @@ Extract `AvernesTreiner-0.5-GTA5-Legacy.zip` into the GTA V Legacy directory. It
 - `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
 - `scripts/AvernesTreiner/addons.json`
+- `scripts/AvernesTreiner/SavedVehicles.json`
 
 Default menu key: **F10**.
 
@@ -75,5 +80,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This release is version **0.5**. The source and package are compile-validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This release is version **0.5**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
