@@ -22,6 +22,8 @@ namespace AvernesTreiner.Modules
         private float _waypointY;
         private int _waypointStartTime;
         private int _waypointAttempts;
+        private bool _waypointLoadSceneStarted;
+        private bool _waypointFocusActive;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -39,7 +41,11 @@ namespace AvernesTreiner.Modules
                     _waypointStartTime = Game.GameTime;
                     _waypointAttempts = 0;
                     _waypointTeleportPending = true;
-                    UI.Notify("~b~Finding safe ground at waypoint...");
+                    _waypointFocusActive = true;
+                    Function.Call(Hash._SET_FOCUS_AREA, _waypointX, _waypointY, 500.0f, 0.0f, 0.0f, 0.0f);
+                    _waypointLoadSceneStarted = Function.Call<bool>(Hash.NEW_LOAD_SCENE_START, _waypointX, _waypointY, 500.0f);
+                    RequestWaypointCollision();
+                    UI.Notify("~b~Loading waypoint area and finding ground...");
                 }
                 else
                 {
@@ -104,41 +110,101 @@ namespace AvernesTreiner.Modules
             if (!_waypointTeleportPending) return;
 
             _waypointAttempts++;
-            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 1000.0f);
+            Function.Call(Hash._SET_FOCUS_AREA, _waypointX, _waypointY, 500.0f, 0.0f, 0.0f, 0.0f);
+            RequestWaypointCollision();
 
-            float groundZ;
-            if (TryGetGroundHeight(_waypointX, _waypointY, out groundZ))
-            {
-                _waypointTeleportPending = false;
-                Teleport(new Vector3(_waypointX, _waypointY, groundZ + 1.0f));
-                UI.Notify("~g~Teleported to waypoint at ground level.");
-                return;
-            }
+            int elapsed = Game.GameTime - _waypointStartTime;
+            bool sceneLoaded = _waypointLoadSceneStarted &&
+                Function.Call<bool>(Hash.IS_NEW_LOAD_SCENE_LOADED);
 
-            // Water waypoints have no terrain ground; use the actual water surface.
-            OutputArgument waterHeight = new OutputArgument();
-            if (Function.Call<bool>(Hash.GET_WATER_HEIGHT, _waypointX, _waypointY, 1000.0f, waterHeight))
+            // Give the distant map area time to stream before querying its collision.
+            if (elapsed >= 1200 || sceneLoaded)
             {
-                float z = waterHeight.GetResult<float>();
-                if (!float.IsNaN(z) && !float.IsInfinity(z))
+                float groundZ;
+                if (TryGetGroundHeight(_waypointX, _waypointY, out groundZ))
                 {
-                    _waypointTeleportPending = false;
-                    Teleport(new Vector3(_waypointX, _waypointY, z + 1.0f));
-                    UI.Notify("~g~Teleported to waypoint at water level.");
+                    CompleteWaypointTeleport(new Vector3(_waypointX, _waypointY, groundZ + 1.0f),
+                        "~g~Teleported to waypoint at ground level.");
+                    return;
+                }
+
+                // A waypoint can be placed over water, where terrain ground does not exist.
+                OutputArgument waterHeight = new OutputArgument();
+                if (Function.Call<bool>(Hash.GET_WATER_HEIGHT, _waypointX, _waypointY, 1000.0f, waterHeight))
+                {
+                    float waterZ = waterHeight.GetResult<float>();
+                    if (!float.IsNaN(waterZ) && !float.IsInfinity(waterZ) &&
+                        waterZ > -200.0f && waterZ < 1200.0f)
+                    {
+                        CompleteWaypointTeleport(new Vector3(_waypointX, _waypointY, waterZ + 1.0f),
+                            "~g~Teleported to waypoint at water level.");
+                        return;
+                    }
+                }
+
+                // Ask the game for a nearby navmesh-safe position if the exact point
+                // is on an unusable slope or surface. Never accept a distant fallback.
+                Vector3 safePosition = World.GetSafeCoordForPed(
+                    new Vector3(_waypointX, _waypointY, 1000.0f), false, 0);
+                if (safePosition != Vector3.Zero &&
+                    Math.Abs(safePosition.X - _waypointX) <= 25.0f &&
+                    Math.Abs(safePosition.Y - _waypointY) <= 25.0f &&
+                    safePosition.Z > -200.0f && safePosition.Z < 1200.0f)
+                {
+                    CompleteWaypointTeleport(safePosition + new Vector3(0.0f, 0.0f, 1.0f),
+                        "~g~Teleported to the nearest safe ground near waypoint.");
                     return;
                 }
             }
 
-            if (Game.GameTime - _waypointStartTime > 5000 || _waypointAttempts > 180)
+            if (elapsed > 15000 || _waypointAttempts > 900)
             {
-                _waypointTeleportPending = false;
-                UI.Notify("~r~Could not find safe ground at this waypoint. You were not teleported.");
+                CancelWaypointTeleport();
+                UI.Notify("~r~Could not resolve a safe surface at this waypoint. No teleport was made.");
             }
+        }
+
+        private void RequestWaypointCollision()
+        {
+            // Ask for collision at several elevations; one high-altitude request
+            // is not enough for every terrain and interior streaming state.
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 1000.0f);
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 500.0f);
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 100.0f);
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 0.0f);
+        }
+
+        private void CompleteWaypointTeleport(Vector3 destination, string message)
+        {
+            _waypointTeleportPending = false;
+            Teleport(destination);
+            StopWaypointStreaming();
+            UI.Notify(message);
+        }
+
+        private void CancelWaypointTeleport()
+        {
+            _waypointTeleportPending = false;
+            StopWaypointStreaming();
+        }
+
+        private void StopWaypointStreaming()
+        {
+            if (_waypointLoadSceneStarted)
+                Function.Call(Hash.NEW_LOAD_SCENE_STOP);
+            if (_waypointFocusActive)
+                Function.Call(Hash.CLEAR_FOCUS);
+
+            _waypointLoadSceneStarted = false;
+            _waypointFocusActive = false;
         }
 
         private bool TryGetGroundHeight(float x, float y, out float groundZ)
         {
-            float[] probeHeights = new float[] { 1000.0f, 750.0f, 500.0f, 250.0f, 100.0f, 50.0f, 20.0f, 0.0f };
+            float[] probeHeights = new float[] {
+                1200.0f, 1000.0f, 900.0f, 800.0f, 700.0f, 600.0f, 500.0f,
+                400.0f, 300.0f, 200.0f, 150.0f, 100.0f, 50.0f, 20.0f, 0.0f, -50.0f, -100.0f
+            };
             for (int i = 0; i < probeHeights.Length; i++)
             {
                 OutputArgument result = new OutputArgument();
