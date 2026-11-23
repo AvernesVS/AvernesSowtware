@@ -123,7 +123,8 @@ namespace AvernesTreiner.Core
             {
                 EnsureConfigFile();
                 _settings = ScriptSettings.Load(_configPath);
-                _language = _settings.GetValue("General", "Language", "en-US");\n                if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
+                _language = _settings.GetValue("General", "Language", "en-US");
+                if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
                 _menuKey = "F10";
                 _version = "v0.8.1";
@@ -196,7 +197,7 @@ namespace AvernesTreiner.Core
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.8";
+                _version = "v0.8.1";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
@@ -218,7 +219,8 @@ namespace AvernesTreiner.Core
             try
             {
                 string directory = ConfigManager.RuntimeDirectoryPath;
-                if (!string.Equals(langCode, "ru-RU", StringComparison.OrdinalIgnoreCase)) langCode = "en-US";\n                string path = Path.Combine(directory, "Languages", langCode + ".ini");
+                if (!string.Equals(langCode, "ru-RU", StringComparison.OrdinalIgnoreCase)) langCode = "en-US";
+                string path = Path.Combine(directory, "Languages", langCode + ".ini");
                 if (!File.Exists(path))
                     path = Path.Combine(directory, "Languages", "en-US.ini");
                 if (File.Exists(path))
