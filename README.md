@@ -61,11 +61,7 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.8.1-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
-- `scripts/AvernesTreiner.dll`
-- `scripts/AvernesTreiner/Languages/en-US.ini`
-
-The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.8 will not overwrite your settings, saved cars, or add-on list. For an existing installation, extract the archive into the GTA V folder and allow it to replace only `scripts/AvernesTreiner.dll` and the language file; leave the three user-data files untouched.
+Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up `Config.ini`, `SavedVehicles.json` and `addons.json` under Documents\\AvernesTreiner_Backup, then installs the DLL and both language files. It does not delete user data or other mods. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
 
