@@ -35,4 +35,4 @@ The experimental GitHub Actions workflow builds the trainer and packages its run
 Menu key: **F10**.
 
 
-This README update also triggers the dedicated 6.1 experimental validation workflow.
+The dedicated 6.1 experimental validation workflow compiles this branch on every source update.
