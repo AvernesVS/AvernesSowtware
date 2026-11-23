@@ -146,7 +146,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(tuneItem);
 
             // Speed Boost / NOS
-            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold RIGHT SHIFT)", _speedBoost, "Hold RIGHT SHIFT inside a vehicle to activate nitro");
+            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (RIGHT SHIFT or X)", _speedBoost, "Hold RIGHT SHIFT or press X inside a vehicle to activate nitro");
             boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
  ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
@@ -676,6 +676,15 @@ namespace AvernesTreiner.Modules
         private void CleanupAbandonedSpawnedVehicles(Ped player, int now)
         {
             if (player == null || !player.Exists()) return;
+
+            // Do not clean up trainer vehicles while a story mission is active.
+            // Reset the grace timers so an old abandoned vehicle is not deleted as soon as the mission ends.
+            if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
+            {
+                _abandonedSince.Clear();
+                return;
+            }
+
             var remove = new List<int>();
             foreach (var entry in _trackedSpawnedVehicles)
             {
@@ -717,8 +726,24 @@ namespace AvernesTreiner.Modules
 
                 if (now - abandonedAt >= 60000)
                 {
-                    try { vehicle.IsPersistent = false; vehicle.Delete(); } catch { }
-                    remove.Add(handle);
+                    try
+                    {
+                        // Keep the vehicle as a mission entity until DELETE_VEHICLE receives its handle by reference.
+                        vehicle.IsPersistent = true;
+                        using (OutputArgument vehicleHandle = new OutputArgument(vehicle))
+                        {
+                            Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
+                        }
+                    }
+                    catch
+                    {
+                        try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
+                    }
+
+                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                        remove.Add(handle);
+                    else
+                        _abandonedSince[handle] = now;
                 }
             }
 
@@ -740,8 +765,6 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.SET_ENTITY_PROOFS, vehicle.Handle,
                 enabled, enabled, enabled, enabled, enabled, enabled, enabled, enabled);
             Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, vehicle.Handle, !enabled);
-            // Stop the game from processing vehicle glass damage while God Mode is active.
-            Function.Call((Hash)0x1087BC8EC540DAEB, vehicle.Handle, enabled);
             _godModeVehicle = enabled ? vehicle : null;
         }
 
@@ -754,7 +777,6 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_ENTITY_PROOFS, _godModeVehicle.Handle,
                     false, false, false, false, false, false, false, false);
                 Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, _godModeVehicle.Handle, true);
-                Function.Call((Hash)0x1087BC8EC540DAEB, _godModeVehicle.Handle, false);
             }
             _godModeVehicle = null;
         }
@@ -817,9 +839,9 @@ namespace AvernesTreiner.Modules
                         }
                     }
 
-                    // Keep the original nitro force and speed cap, but apply the force
-                    // horizontally so an upward-pitched vehicle does not receive lift.
-                    if (_speedBoost && Game.IsKeyPressed(Keys.RShiftKey))
+                    // Right Shift is the primary trigger; X remains as a reliable fallback key.
+                    // Keep the original force and speed cap, with horizontal force to avoid unwanted lift.
+                    if (_speedBoost && (Game.IsKeyPressed(Keys.RShiftKey) || Game.IsKeyPressed(Keys.X)))
                     {
                         Vector3 forward = v.ForwardVector;
                         float horizontalLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);

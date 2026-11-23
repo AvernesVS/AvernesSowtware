@@ -1,4 +1,4 @@
-# AvernesTreiner v0.7
+# AvernesTreiner v0.8
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -61,13 +61,21 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.7-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.8-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
 
-The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.7 will not overwrite your settings, saved cars, or add-on list. For an existing installation, extract the archive into the GTA V folder and allow it to replace only `scripts/AvernesTreiner.dll` and the language file; leave the three user-data files untouched.
+The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.8 will not overwrite your settings, saved cars, or add-on list. For an existing installation, extract the archive into the GTA V folder and allow it to replace only `scripts/AvernesTreiner.dll` and the language file; leave the three user-data files untouched.
 
 Default menu key: **F10**.
+
+## v0.8 fixes
+- Nitro accepts **Right Shift** as the primary trigger and **X** as a fallback, restoring the previously working alternate key without bringing back Left Shift. The horizontal boost force and speed cap remain unchanged.
+- Waypoint teleport now waits for `IS_NEW_LOAD_SCENE_LOADED` before querying ground height; it no longer falls back to probing after an arbitrary 2.5-second delay. If the scene does not finish streaming within 20 seconds, teleport is cancelled safely.
+- Vehicle God Mode no longer disables vehicle-glass collision processing, which can make bullets pass through glass. The original invincibility, damage proofs, visible-damage suppression and burst-proof tyres remain.
+- Automatic cleanup now pauses during story missions and resets the abandonment timer. Trainer-spawned vehicles are deleted through `DELETE_VEHICLE` without first marking them as no longer needed. Both vehicle creation paths (normal spawner and Saved Vehicles) are tracked.
+- **Still needs in-game confirmation:** Oppressor Mk II dismounting at a mission marker. No trainer instruction that blocks vehicle exit was found in the current source.
+- **Not addressed in code:** Windows sleep/resume performance and sound problems. The current evidence does not show that the trainer causes them; they require a separate Windows/driver/ScriptHookVDotNet diagnosis.
 
 ## v0.7 changes
 - Nitro activates while holding **Right Shift**; Left Shift is not captured. The original force strength (`1.8`) and speed cap (`400`) are retained, while the boost force is constrained to the horizontal plane to reduce unwanted lift.
@@ -93,5 +101,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This release is version **0.7**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This release is version **0.8**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer

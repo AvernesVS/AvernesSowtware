@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.7 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.8 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -67,12 +67,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = $PWD
           $stage = Join-Path $env:RUNNER_TEMP 'AvernesTreiner-install'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.7-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.8-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           $runtime = Join-Path $stage 'scripts\AvernesTreiner'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
-          # These are user-owned files. Never include v0.7 defaults in an update ZIP.
+          # These are user-owned files. Never include v0.8 defaults in an update ZIP.
           foreach ($userFile in @('Config.ini','SavedVehicles.json','addons.json')) {
             $userPath = Join-Path $runtime $userFile
             if (Test-Path $userPath) { Remove-Item $userPath -Force }
@@ -85,8 +85,9 @@ jobs:
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data file must not be shipped: $userFile" }
           }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
-          if ($configSource -notmatch 'Version=v0.7') { throw 'First-run config version must be v0.7.' }
+          if ($configSource -notmatch 'Version=v0.8') { throw 'First-run config version must be v0.8.' }
           $language = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
+          if ($language -notmatch 'MenuSubtitle=v0.8' -or $language -notmatch 'VersionLabel=Version: v0.8') { throw 'English UI version labels must be v0.8.' }
           if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
@@ -97,13 +98,15 @@ jobs:
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($settingsSource -notmatch 'ConfigManager.Save' -or $configSource -notmatch 'AppDomain.CurrentDomain.BaseDirectory' -or $configSource -notmatch 'LastError') { throw 'Settings persistence hardening is missing.' }
           $teleportSource = Get-Content (Join-Path $root 'src\Modules\TeleportModule.cs') -Raw
-          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed') { throw 'Waypoint streaming or safe ground resolution is missing.' }
+          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'sceneLoaded\s*&&' -or $teleportSource -match 'elapsed\s*>=\s*2500') { throw 'Waypoint streaming must finish before ground probing.' }
           $playerSource = Get-Content (Join-Path $root 'src\Modules\PlayerModule.cs') -Raw
           if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted') { throw 'Never Wanted must block wanted stars instead of clearing them after a delay.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'ResolveRuntimeDirectory' -or $configSource -notmatch 'SpecialFolder.ApplicationData' -or $configSource -notmatch 'Save Settings') { throw 'Config path resolution and writable fallback are missing.' }
           $vehicleSource = Get-Content (Join-Path $root 'src\Modules\VehicleModule.cs') -Raw
-          foreach ($required in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','Auto Repair on Entry')) { if ($vehicleSource -notmatch [regex]::Escape($required)) { throw "Vehicle fix missing: $required" } }
+          foreach ($required in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','Auto Repair on Entry','Keys.RShiftKey','Keys.X','GET_MISSION_FLAG','DELETE_VEHICLE')) { if ($vehicleSource -notmatch [regex]::Escape($required)) { throw "Vehicle fix missing: $required" } }
+          if ($vehicleSource -match 'SET_DONT_PROCESS_VEHICLE_GLASS|0x1087BC8EC540DAEB') { throw 'Vehicle God Mode must not disable vehicle glass collision processing.' }
+          if ($vehicleSource -match 'IsPersistent\s*=\s*false\s*;\s*vehicle\.Delete') { throw 'Unsafe vehicle cleanup deletion order found.' }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
           if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Compatible weapon attachments are not granted.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
@@ -121,7 +124,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.7-GTA5-Legacy
-          path: AvernesTreiner-0.7-GTA5-Legacy.zip
+          name: AvernesTreiner-0.8-GTA5-Legacy
+          path: AvernesTreiner-0.8-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30

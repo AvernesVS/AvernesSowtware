@@ -126,12 +126,11 @@ namespace AvernesTreiner.Modules
             }
 
             int elapsed = now - _waypointStartTime;
-            bool sceneLoaded = _waypointLoadSceneStarted &&
-                Function.Call<bool>(Hash.IS_NEW_LOAD_SCENE_LOADED);
+            bool sceneLoaded = Function.Call<bool>(Hash.IS_NEW_LOAD_SCENE_LOADED);
 
-            // Give the distant map area time to stream before querying its collision.
-            bool mayProbe = elapsed >= 1200 &&
-                (sceneLoaded || elapsed >= 2500) &&
+            // Never probe ground or teleport using stale collision data. Wait for the game
+            // to report that the requested distant scene has finished streaming.
+            bool mayProbe = elapsed >= 1200 && sceneLoaded &&
                 now - _waypointLastProbeTime >= 150;
             if (mayProbe)
             {
@@ -173,7 +172,7 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            if (elapsed > 15000 || _waypointAttempts > 900)
+            if (elapsed > 20000 || _waypointAttempts > 1200)
             {
                 CancelWaypointTeleport();
                 UI.Notify("~r~Could not resolve a safe surface at this waypoint. No teleport was made.");
