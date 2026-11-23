@@ -265,6 +265,7 @@ namespace AvernesTreiner.Modules
 
                 Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, vehicle.Handle, true, true);
                 vehicle.IsPersistent = true;
+                VehicleModule.TrackSpawnedVehicle(vehicle);
                 ApplyCustomization(vehicle, data);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 vehicle.PlaceOnGround();
