@@ -1,0 +1,109 @@
+name: Build AvernesTreiner 6.1 Experimental (GTA5 Legacy)
+
+on:
+  push:
+    branches: [experimental/avernes-treiner-6.1-phantom]
+    paths:
+      - 'src/**'
+      - 'resources/**'
+      - 'README.md'
+      - '.github/workflows/build-avernes-treiner-6.1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore pinned dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Join-Path $env:RUNNER_TEMP 'avernes-packages'
+          New-Item -ItemType Directory -Path $packages -Force | Out-Null
+          nuget install ScriptHookVDotNet2 -Version 2.10.13 -OutputDirectory $packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) { throw 'ScriptHookVDotNet2 restore failed.' }
+          nuget install NativeUI -Version 1.9.0 -DependencyVersion Ignore -OutputDirectory $packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) { throw 'NativeUI restore failed.' }
+          $shvdn = Get-ChildItem $packages -Filter ScriptHookVDotNet2.dll -Recurse -File | Select-Object -First 1
+          $native = Get-ChildItem $packages -Filter NativeUI.dll -Recurse -File | Select-Object -First 1
+          if (-not $shvdn -or -not $native) { throw 'Dependency DLLs were not found.' }
+          "SHVDN2_DLL=$($shvdn.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "NATIVEUI_DLL=$($native.FullName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile against .NET Framework 4.8
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $PWD
+          $src = Join-Path $root 'src'
+          $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          $ref = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'
+          if (-not (Test-Path $csc)) { throw "C# compiler not found: $csc" }
+          if (-not (Test-Path (Join-Path $ref 'mscorlib.dll'))) { throw ".NET Framework 4.8 reference assemblies not found." }
+          $build = Join-Path $root 'build'
+          New-Item -ItemType Directory -Path $build -Force | Out-Null
+          $dll = Join-Path $build 'AvernesTreiner.dll'
+          $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
+          if ($sources.Count -ne 16) { throw "Expected 16 retained C# source files, found $($sources.Count)." }
+          $references = @(
+            "/reference:$(Join-Path $ref 'mscorlib.dll')",
+            "/reference:$env:SHVDN2_DLL",
+            "/reference:$env:NATIVEUI_DLL",
+            "/reference:$(Join-Path $ref 'System.dll')",
+            "/reference:$(Join-Path $ref 'System.Core.dll')",
+            "/reference:$(Join-Path $ref 'System.Drawing.dll')",
+            "/reference:$(Join-Path $ref 'System.Windows.Forms.dll')",
+            "/reference:$(Join-Path $ref 'System.Web.Extensions.dll')",
+            "/reference:$(Join-Path $ref 'Microsoft.CSharp.dll')"
+          )
+          & $csc /noconfig /nostdlib /target:library /platform:anycpu /optimize+ "/out:$dll" $references $sources
+          if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
+          if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
+          Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
+
+      - name: Validate experimental Phantom entry and package install ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $PWD
+          $config = Get-Content (Join-Path $root 'resources\Config.ini') -Raw
+          if ($config -notmatch 'Version=v6.1') { throw 'Config version must be v6.1.' }
+          $addons = Get-Content (Join-Path $root 'resources\addons.json') -Raw | ConvertFrom-Json
+          $phantom = @($addons | Where-Object { $_.model -eq 'ph8oribe' })
+          if ($phantom.Count -ne 1) { throw 'The Phantom model ph8oribe must appear exactly once in addons.json.' }
+          $vehicleSource = Get-Content (Join-Path $root 'src\Modules\VehicleModule.cs') -Raw
+          if ($vehicleSource -notmatch 'Phantom DLC is not installed or registered') { throw 'The specific missing-DLC diagnostic is missing.' }
+          $stage = Join-Path $env:RUNNER_TEMP 'AvernesTreiner-6.1-install'
+          $scripts = Join-Path $stage 'scripts'
+          $runtime = Join-Path $scripts 'AvernesTreiner'
+          New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+          Copy-Item (Join-Path $root 'build\AvernesTreiner.dll') -Destination $scripts
+          Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
+          Copy-Item (Join-Path $root 'README.md') -Destination (Join-Path $stage 'README-6.1-EXPERIMENTAL.txt')
+          $required = @(
+            'scripts\AvernesTreiner.dll',
+            'scripts\AvernesTreiner\Config.ini',
+            'scripts\AvernesTreiner\Languages\en-US.ini',
+            'scripts\AvernesTreiner\addons.json',
+            'scripts\AvernesTreiner\SavedVehicles.json'
+          )
+          foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing install file: $f" } }
+          $zip = Join-Path $root 'AvernesTreiner-6.1-Experimental-GTA5-Legacy.zip'
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+          if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AvernesTreiner-6.1-Experimental-GTA5-Legacy
+          path: AvernesTreiner-6.1-Experimental-GTA5-Legacy.zip
+          if-no-files-found: error
+          retention-days: 30
