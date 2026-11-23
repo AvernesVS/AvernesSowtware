@@ -87,6 +87,7 @@ jobs:
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'Version=v0.8') { throw 'First-run config version must be v0.8.' }
           $language = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
+          if ($language -notmatch 'MenuSubtitle=v0.8' -or $language -notmatch 'VersionLabel=Version: v0.8') { throw 'English UI version labels must be v0.8.' }
           if ($language -match 'NoClip|NightVision|ThermalVision|SubmenuPowers|\[Powers\]') { throw 'Power/Vision strings remain in English localization.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
