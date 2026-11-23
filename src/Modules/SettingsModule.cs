@@ -14,6 +14,20 @@ namespace AvernesTreiner.Modules
         {
             var settingsMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuSettings", "Settings"));
 
+            var languageList = new List<dynamic> { Localization.Get("Settings", "English", "English"), Localization.Get("Settings", "Russian", "Русский") };
+            int currentLanguageIndex = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            var languageItem = new UIMenuListItem(
+                Localization.Get("Settings", "Language", "Language"),
+                languageList,
+                currentLanguageIndex,
+                Localization.Get("Settings", "LanguageDesc", "Choose menu language"));
+            languageItem.OnListChanged += (sender, index) =>
+            {
+                ConfigManager.Language = index == 1 ? "ru-RU" : "en-US";
+                UI.Notify("~b~Language selected. Press Save Settings and restart the trainer script.");
+            };
+            settingsMenu.AddItem(languageItem);
+
             var unitList = new List<dynamic> { "KM/H (Metric)", "MPH (Imperial)" };
             int currentUnitIdx = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             var unitItem = new UIMenuListItem(
@@ -49,6 +63,7 @@ namespace AvernesTreiner.Modules
                 if (ConfigManager.Load())
                 {
                     unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     UI.Notify("~g~Settings loaded. Restart the trainer script to apply saved toggle states.");
                 }
                 else
@@ -69,7 +84,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.7"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.8.1"),
                 "Official AvernesTreiner version");
             settingsMenu.AddItem(verItem);
 
