@@ -50,6 +50,9 @@ namespace AvernesTreiner.Modules
         private int _lastAutopilotReissueTime = 0;
         private bool _trafficRammer = ConfigManager.GetBool("Vehicle", "TrafficRammer", false);
         private readonly List<Prop> _spawnedRamps = new List<Prop>();
+        private static readonly Dictionary<int, Vehicle> _trackedSpawnedVehicles = new Dictionary<int, Vehicle>();
+        private static readonly Dictionary<int, int> _abandonedSince = new Dictionary<int, int>();
+        private int _lastSpawnCleanupTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -637,6 +640,7 @@ namespace AvernesTreiner.Modules
 
                 Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, v.Handle, true, true);
                 v.IsPersistent = true;
+                TrackSpawnedVehicle(v);
                 Function.Call(Hash.SET_VEHICLE_HAS_BEEN_OWNED_BY_PLAYER, v.Handle, true);
                 v.NeedsToBeHotwired = false;
 
@@ -662,6 +666,60 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        public static void TrackSpawnedVehicle(Vehicle vehicle)
+        {
+            if (vehicle == null || !vehicle.Exists()) return;
+            _trackedSpawnedVehicles[vehicle.Handle] = vehicle;
+            _abandonedSince.Remove(vehicle.Handle);
+        }
+
+        private void CleanupAbandonedSpawnedVehicles(Ped player, int now)
+        {
+            if (player == null || !player.Exists()) return;
+            var remove = new List<int>();
+            foreach (var entry in _trackedSpawnedVehicles)
+            {
+                Vehicle vehicle = entry.Value;
+                int handle = entry.Key;
+                if (vehicle == null || !vehicle.Exists())
+                {
+                    remove.Add(handle);
+                    continue;
+                }
+
+                if (player.IsInVehicle() && player.CurrentVehicle.Handle == handle)
+                {
+                    _abandonedSince.Remove(handle);
+                    continue;
+                }
+
+                if (World.GetDistance(player.Position, vehicle.Position) <= 150.0f)
+                {
+                    _abandonedSince.Remove(handle);
+                    continue;
+                }
+
+                int abandonedAt;
+                if (!_abandonedSince.TryGetValue(handle, out abandonedAt))
+                {
+                    _abandonedSince[handle] = now;
+                    continue;
+                }
+
+                if (now - abandonedAt >= 60000)
+                {
+                    try { vehicle.IsPersistent = false; vehicle.Delete(); } catch { }
+                    remove.Add(handle);
+                }
+            }
+
+            for (int i = 0; i < remove.Count; i++)
+            {
+                _trackedSpawnedVehicles.Remove(remove[i]);
+                _abandonedSince.Remove(remove[i]);
+            }
+        }
+
         private void ApplyVehicleGodMode(Vehicle vehicle, bool enabled)
         {
             if (vehicle == null || !vehicle.Exists()) return;
@@ -673,6 +731,8 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.SET_ENTITY_PROOFS, vehicle.Handle,
                 enabled, enabled, enabled, enabled, enabled, enabled, enabled, enabled);
             Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, vehicle.Handle, !enabled);
+            // Stop the game from processing vehicle glass damage while God Mode is active.
+            Function.Call((Hash)0x1087BC8EC540DAEB, vehicle.Handle, enabled);
             _godModeVehicle = enabled ? vehicle : null;
         }
 
@@ -685,6 +745,7 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_ENTITY_PROOFS, _godModeVehicle.Handle,
                     false, false, false, false, false, false, false, false);
                 Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, _godModeVehicle.Handle, true);
+                Function.Call((Hash)0x1087BC8EC540DAEB, _godModeVehicle.Handle, false);
             }
             _godModeVehicle = null;
         }
@@ -711,6 +772,11 @@ namespace AvernesTreiner.Modules
             if (player == null || !player.Exists()) return;
 
             int currentTime = Game.GameTime;
+            if (currentTime - _lastSpawnCleanupTime >= 1000)
+            {
+                _lastSpawnCleanupTime = currentTime;
+                CleanupAbandonedSpawnedVehicles(player, currentTime);
+            }
             bool maintenanceTick = currentTime - _lastMaintenanceTime >= 250;
             if (maintenanceTick) _lastMaintenanceTime = currentTime;
 
