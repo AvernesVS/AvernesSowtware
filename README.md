@@ -33,3 +33,6 @@ The experimental GitHub Actions workflow builds the trainer and packages its run
 - .NET Framework 4.8
 
 Menu key: **F10**.
+
+
+This README update also triggers the dedicated 6.1 experimental validation workflow.
