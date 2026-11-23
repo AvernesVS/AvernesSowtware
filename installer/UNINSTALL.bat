@@ -34,6 +34,10 @@ echo AvernesTreiner files removed. User data and other mods were left untouched.
 if exist "%BACKUP%" echo Backup saved to: "%BACKUP%"
 pause
 exit /b 0
+:backup_failed
+echo ERROR: Backup failed. No trainer files were removed.
+pause
+exit /b 3
 :failed
 echo ERROR: GTA5.exe was not found. Nothing was removed.
 pause
