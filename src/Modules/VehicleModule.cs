@@ -760,11 +760,19 @@ namespace AvernesTreiner.Modules
             if (_godModeVehicle != null && _godModeVehicle.Exists() && _godModeVehicle.Handle != vehicle.Handle)
                 RestoreVehicleGodMode();
 
+            bool newTarget = _godModeVehicle == null || !_godModeVehicle.Exists() ||
+                _godModeVehicle.Handle != vehicle.Handle;
+            if (enabled && newTarget)
+                Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, vehicle.Handle);
+
             vehicle.IsInvincible = enabled;
             vehicle.CanBeVisiblyDamaged = !enabled;
             Function.Call(Hash.SET_ENTITY_PROOFS, vehicle.Handle,
                 enabled, enabled, enabled, enabled, enabled, enabled, enabled, enabled);
             Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, vehicle.Handle, !enabled);
+            // Entity proofs stop health damage; these natives also prevent collision dents.
+            Function.Call(Hash.SET_VEHICLE_STRONG, vehicle.Handle, enabled);
+            Function.Call(Hash.SET_VEHICLE_DEFORMATION_MULTIPLIER, vehicle.Handle, enabled ? 0.0f : 1.0f);
             _godModeVehicle = enabled ? vehicle : null;
         }
 
@@ -777,6 +785,8 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_ENTITY_PROOFS, _godModeVehicle.Handle,
                     false, false, false, false, false, false, false, false);
                 Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, _godModeVehicle.Handle, true);
+                Function.Call(Hash.SET_VEHICLE_STRONG, _godModeVehicle.Handle, false);
+                Function.Call(Hash.SET_VEHICLE_DEFORMATION_MULTIPLIER, _godModeVehicle.Handle, 1.0f);
             }
             _godModeVehicle = null;
         }
