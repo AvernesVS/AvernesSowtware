@@ -143,7 +143,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(tuneItem);
 
             // Speed Boost / NOS
-            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold SHIFT or X)", _speedBoost, "Extreme acceleration while holding SHIFT or X");
+            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold N)", _speedBoost, "Extreme acceleration while holding N");
             boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
  ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
@@ -743,7 +743,7 @@ namespace AvernesTreiner.Modules
                     }
 
                     // Nitro Boost / NOS (SHIFT or X)
-                    if (_speedBoost && (Game.IsKeyPressed(Keys.ShiftKey) || Game.IsKeyPressed(Keys.X)))
+                    if (_speedBoost && Game.IsKeyPressed(Keys.N))
                     {
                         v.ApplyForce(v.ForwardVector * 1.8f);
                         v.MaxSpeed = 400.0f;
