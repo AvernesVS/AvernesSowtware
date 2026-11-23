@@ -40,6 +40,10 @@ if exist "%BACKUP%" echo Backup saved to: "%BACKUP%"
 echo Your Config.ini, SavedVehicles.json and addons.json were preserved.
 pause
 exit /b 0
+:backup_failed
+echo ERROR: Backup failed. Installation was cancelled before replacing the trainer.
+pause
+exit /b 3
 :package_error
 echo ERROR: Installer package is incomplete.
 pause
