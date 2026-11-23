@@ -6,6 +6,7 @@ if exist "%TARGET%GTA5.exe" goto target_ok
 echo AvernesTreiner 0.8.1 - Uninstaller
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
+set "TARGET=%TARGET:"=%"
 for %%I in ("%TARGET%") do set "TARGET=%%~fI"
 if not exist "%TARGET%\GTA5.exe" goto failed
 :target_ok
@@ -18,14 +19,17 @@ set "BACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\uninstall_%RANDOM%_%RA
 if exist "%DATA%\Config.ini" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\Config.ini" "%BACKUP%\Config.ini" >nul
+  if errorlevel 1 goto backup_failed
 )
 if exist "%DATA%\SavedVehicles.json" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\SavedVehicles.json" "%BACKUP%\SavedVehicles.json" >nul
+  if errorlevel 1 goto backup_failed
 )
 if exist "%DATA%\addons.json" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\addons.json" "%BACKUP%\addons.json" >nul
+  if errorlevel 1 goto backup_failed
 )
 if exist "%TARGET%\scripts\AvernesTreiner.dll" del /q "%TARGET%\scripts\AvernesTreiner.dll"
 if exist "%DATA%\Languages\en-US.ini" del /q "%DATA%\Languages\en-US.ini"
