@@ -556,9 +556,7 @@ namespace AvernesTreiner.Modules
             }
 
             int dist = (int)World.GetDistance(v.Position, wp);
-            UI.Notify("~g~Autopilot activated!
-~w~Destination: ~y~" + dist + "m
-~w~Hold ~r~BRAKE (S) ~w~or honk to cancel.");
+            UI.Notify("~g~Autopilot activated!\n~w~Destination: ~y~" + dist + "m\n~w~Hold ~r~BRAKE (S) ~w~or honk to cancel.");
         }
 
         private void CancelAutopilot(bool clearTask, string notifyMsg = null)
