@@ -65,7 +65,7 @@ Extract `AvernesTreiner-0.7-GTA5-Legacy.zip` into the GTA V Legacy directory. It
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
 
-The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.7 will not overwrite your settings, saved cars, or add-on list.
+The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.7 will not overwrite your settings, saved cars, or add-on list. For an existing installation, extract the archive into the GTA V folder and allow it to replace only `scripts/AvernesTreiner.dll` and the language file; leave the three user-data files untouched.
 
 Default menu key: **F10**.
 
