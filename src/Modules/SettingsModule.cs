@@ -62,7 +62,8 @@ namespace AvernesTreiner.Modules
             {
                 if (ConfigManager.Load())
                 {
-                    unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;\n                    languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     UI.Notify("~g~Settings loaded. Restart the trainer script to apply saved toggle states.");
                 }
                 else
