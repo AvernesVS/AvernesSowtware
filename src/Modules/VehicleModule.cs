@@ -146,7 +146,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(tuneItem);
 
             // Speed Boost / NOS
-            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold N)", _speedBoost, "Extreme acceleration while holding N");
+            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (Hold RIGHT SHIFT)", _speedBoost, "Hold RIGHT SHIFT inside a vehicle to activate nitro");
             boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
  ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
@@ -699,6 +699,15 @@ namespace AvernesTreiner.Modules
                     continue;
                 }
 
+                // Never remove a trainer vehicle that is occupied or still moving.
+                int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1);
+                int passengerCount = Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, handle);
+                if (driverHandle != 0 || passengerCount > 0 || vehicle.Speed > 0.5f)
+                {
+                    _abandonedSince.Remove(handle);
+                    continue;
+                }
+
                 int abandonedAt;
                 if (!_abandonedSince.TryGetValue(handle, out abandonedAt))
                 {
@@ -808,12 +817,21 @@ namespace AvernesTreiner.Modules
                         }
                     }
 
-                    // Nitro Boost / NOS (hold N). Change forward speed directly to avoid
-                    // applying a force that can pitch some vehicle models backwards.
-                    if (_speedBoost && Game.IsKeyPressed(Keys.N))
+                    // Keep the original nitro force and speed cap, but apply the force
+                    // horizontally so an upward-pitched vehicle does not receive lift.
+                    if (_speedBoost && Game.IsKeyPressed(Keys.RShiftKey))
                     {
-                        float boostedSpeed = Math.Min(v.Speed + 0.15f, 90.0f);
-                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, v.Handle, boostedSpeed);
+                        Vector3 forward = v.ForwardVector;
+                        float horizontalLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
+                        if (horizontalLength > 0.001f)
+                        {
+                            Vector3 horizontalForce = new Vector3(
+                                forward.X / horizontalLength * 1.8f,
+                                forward.Y / horizontalLength * 1.8f,
+                                0.0f);
+                            v.ApplyForce(horizontalForce);
+                        }
+                        v.MaxSpeed = 400.0f;
                     }
 
                     if (_superTorque && Game.IsControlPressed(0, GTA.Control.VehicleAccelerate))
