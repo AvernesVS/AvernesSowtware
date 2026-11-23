@@ -100,7 +100,7 @@ jobs:
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
           $vehicleSource = Get-Content (Join-Path $root 'src\Modules\VehicleModule.cs') -Raw
-          foreach ($requiredToken in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','Auto Repair on Entry','Keys.RShiftKey','Keys.X','GET_MISSION_FLAG','DELETE_VEHICLE')) {
+          foreach ($requiredToken in @('RestoreDriftMode','SET_ENTITY_PROOFS','SET_VEHICLE_TYRES_CAN_BURST','SET_VEHICLE_DEFORMATION_FIXED','SET_VEHICLE_STRONG','SET_VEHICLE_DEFORMATION_MULTIPLIER','Auto Repair on Entry','Keys.RShiftKey','Keys.X','GET_MISSION_FLAG','DELETE_VEHICLE')) {
             if ($vehicleSource -notmatch [regex]::Escape($requiredToken)) { throw "Vehicle behavior check missing: $requiredToken" }
           }
           if ($vehicleSource -match 'SET_DONT_PROCESS_VEHICLE_GLASS|0x1087BC8EC540DAEB|IsPersistent\s*=\s*false\s*;\s*vehicle\.Delete') { throw 'Unsafe or obsolete vehicle protection/cleanup code found.' }
