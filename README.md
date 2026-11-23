@@ -1,4 +1,4 @@
-# AvernesTreiner v0.6
+# AvernesTreiner v0.7
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -61,14 +61,19 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.6-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.7-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
-- `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
-- `scripts/AvernesTreiner/addons.json`
-- `scripts/AvernesTreiner/SavedVehicles.json`
+
+The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.7 will not overwrite your settings, saved cars, or add-on list. For an existing installation, extract the archive into the GTA V folder and allow it to replace only `scripts/AvernesTreiner.dll` and the language file; leave the three user-data files untouched.
 
 Default menu key: **F10**.
+
+## v0.7 changes
+- Nitro activates while holding **Right Shift**; Left Shift is not captured. The original force strength (`1.8`) and speed cap (`400`) are retained, while the boost force is constrained to the horizontal plane to reduce unwanted lift.
+- Vehicle God Mode disables vehicle-glass damage processing while active and restores normal glass processing when disabled.
+- Trainer-spawned vehicles, including vehicles spawned from Saved Vehicles, are tracked for cleanup. A vehicle is eligible only after the player has exited it, moved more than 150 metres away, and left it empty and stationary for at least 60 seconds. Ambient traffic and vehicles spawned by other scripts are not tracked.
+- Installer layout places `AvernesTreiner.dll` directly in `scripts/` and keeps configuration/data in `scripts/AvernesTreiner/`.
 
 ## v0.6 fixes
 - **Never Wanted:** sets the maximum wanted level to zero immediately and enforces it every frame. Wanted stars are blocked at the source rather than cleared after a visible delay; disabling the option restores the previous wanted-level cap (or the standard five-star cap if the stored value is invalid).
@@ -88,5 +93,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This release is version **0.6**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This release is version **0.7**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
