@@ -616,7 +616,7 @@ namespace AvernesTreiner.Modules
             {
                 if (!model.IsInCdImage || !model.IsValid)
                 {
-                    UI.Notify("~r~Vehicle not found: " + modelName);
+                    if (string.Equals(modelName.Trim(), "ph8oribe", StringComparison.OrdinalIgnoreCase))\n                    {\n                        UI.Notify("~r~Phantom DLC is not installed or registered. Install ph8oribe and add it to dlclist.xml.");\n                    }\n                    else\n                    {\n                        UI.Notify("~r~Vehicle not found: " + modelName);\n                    }
                     return;
                 }
 
