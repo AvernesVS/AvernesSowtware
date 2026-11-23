@@ -808,11 +808,12 @@ namespace AvernesTreiner.Modules
                         }
                     }
 
-                    // Nitro Boost / NOS (SHIFT or X)
+                    // Nitro Boost / NOS (hold N). Change forward speed directly to avoid
+                    // applying a force that can pitch some vehicle models backwards.
                     if (_speedBoost && Game.IsKeyPressed(Keys.N))
                     {
-                        v.ApplyForce(v.ForwardVector * 1.8f);
-                        v.MaxSpeed = 400.0f;
+                        float boostedSpeed = Math.Min(v.Speed + 0.15f, 90.0f);
+                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, v.Handle, boostedSpeed);
                     }
 
                     if (_superTorque && Game.IsControlPressed(0, GTA.Control.VehicleAccelerate))
