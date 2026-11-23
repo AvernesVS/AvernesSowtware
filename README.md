@@ -63,17 +63,16 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 ## Install
 Extract `AvernesTreiner-0.7-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
-- `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
-- `scripts/AvernesTreiner/addons.json`
-- `scripts/AvernesTreiner/SavedVehicles.json`
+
+The trainer creates `Config.ini` and `SavedVehicles.json` when they do not exist. The update ZIP intentionally does not contain `Config.ini`, `SavedVehicles.json`, or `addons.json`, so extracting v0.7 will not overwrite your settings, saved cars, or add-on list.
 
 Default menu key: **F10**.
 
 ## v0.7 changes
-- Nitro now activates while holding **N** instead of Shift/X, avoiding the motorcycle tuck/lean key conflict.
+- Nitro activates while holding **Right Shift**; Left Shift is not captured. The original force strength (`1.8`) and speed cap (`400`) are retained, while the boost force is constrained to the horizontal plane to reduce unwanted lift.
 - Vehicle God Mode disables vehicle-glass damage processing while active and restores normal glass processing when disabled.
-- Trainer-spawned vehicles, including vehicles spawned from Saved Vehicles, are tracked for cleanup. A vehicle is eligible for deletion only after the player has exited it, moved more than 150 metres away, and left it untouched for at least 60 seconds.
+- Trainer-spawned vehicles, including vehicles spawned from Saved Vehicles, are tracked for cleanup. A vehicle is eligible only after the player has exited it, moved more than 150 metres away, and left it empty and stationary for at least 60 seconds. Ambient traffic and vehicles spawned by other scripts are not tracked.
 - Installer layout places `AvernesTreiner.dll` directly in `scripts/` and keeps configuration/data in `scripts/AvernesTreiner/`.
 
 ## v0.6 fixes
