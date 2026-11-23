@@ -104,6 +104,24 @@ jobs:
             if ($vehicleSource -notmatch [regex]::Escape($requiredToken)) { throw "Vehicle behavior check missing: $requiredToken" }
           }
           if ($vehicleSource -match 'SET_DONT_PROCESS_VEHICLE_GLASS|0x1087BC8EC540DAEB|IsPersistent\s*=\s*false\s*;\s*vehicle\.Delete') { throw 'Unsafe or obsolete vehicle protection/cleanup code found.' }
+          if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION' -or $core -notmatch 'EnableCameraControls' -or $core -notmatch 'ENABLE_CONTROL_ACTION') { throw 'Menu navigation/camera controls regression checks failed.' }
+          $settingsSource = Get-Content (Join-Path $root 'src\\Modules\\SettingsModule.cs') -Raw
+          if ($settingsSource -notmatch 'languageItem' -or $settingsSource -notmatch 'ConfigManager.Save') { throw 'Language selector or settings save behavior is missing.' }
+          $teleportSource = Get-Content (Join-Path $root 'src\\Modules\\TeleportModule.cs') -Raw
+          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'sceneLoaded\\s*&&' -or $teleportSource -match 'elapsed\\s*>=\\s*2500') { throw 'Waypoint streaming regression checks failed.' }
+          $playerSource = Get-Content (Join-Path $root 'src\\Modules\\PlayerModule.cs') -Raw
+          if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted') { throw 'Never Wanted regression checks failed.' }
+          $weaponSource = Get-Content (Join-Path $root 'src\\Modules\\WeaponModule.cs') -Raw
+          if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Weapon attachment regression checks failed.' }
+          $vehicleDatabase = Get-Content (Join-Path $root 'src\\Modules\\VehicleDatabase.cs') -Raw
+          $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+          if ($databaseModels.Count -ne 246) { throw "Expected 246 additional vehicle models, found $($databaseModels.Count)." }
+          foreach ($model in @('calico','dominator7','dominator8','euros','remus','zr350','jester4','rt3000','vectre','futo2','previon','sultan3','tailgater2','comet6','growler','cypher','warrener2','astron','buffalo4','champion','cinquemila','deity','ignus','jubilee','zeno','baller7','patriot3','comet7','shinobi','iwagen','granger2','reever','mule5')) {
+            if ($vehicleDatabase -match ('"' + $model + '"')) { throw "Post-1.0.2245.0 vehicle model found: $model" }
+          }
+          $savedVehiclesSource = Get-Content (Join-Path $root 'src\\Modules\\SavedVehiclesModule.cs') -Raw
+          if ($savedVehiclesSource -notmatch 'CaptureVehicle' -or $savedVehiclesSource -notmatch 'ApplyCustomization' -or $savedVehiclesSource -notmatch 'SavedVehicles.json' -or $core -notmatch 'new SavedVehiclesModule\\(\\)') { throw 'Saved vehicle save/spawn registration checks failed.' }
+          if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
