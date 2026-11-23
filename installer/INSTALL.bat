@@ -8,6 +8,7 @@ echo AvernesTreiner 0.8.1 - GTA V Legacy installer
 echo.
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
+set "TARGET=%TARGET:"=%"
 for %%I in ("%TARGET%") do set "TARGET=%%~fI"
 if not exist "%TARGET%\GTA5.exe" goto failed
 :target_ok
@@ -21,14 +22,17 @@ if not exist "%DATA%" mkdir "%DATA%"
 if exist "%DATA%\Config.ini" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\Config.ini" "%BACKUP%\Config.ini" >nul
+  if errorlevel 1 goto backup_failed
 )
 if exist "%DATA%\SavedVehicles.json" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\SavedVehicles.json" "%BACKUP%\SavedVehicles.json" >nul
+  if errorlevel 1 goto backup_failed
 )
 if exist "%DATA%\addons.json" (
   if not exist "%BACKUP%" mkdir "%BACKUP%"
   copy /y "%DATA%\addons.json" "%BACKUP%\addons.json" >nul
+  if errorlevel 1 goto backup_failed
 )
 copy /y "%PACKAGE%files\scripts\AvernesTreiner.dll" "%TARGET%\scripts\AvernesTreiner.dll" >nul
 if errorlevel 1 goto failed
