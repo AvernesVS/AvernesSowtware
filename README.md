@@ -1,4 +1,4 @@
-# AvernesTreiner v0.6
+# AvernesTreiner v0.7
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -61,7 +61,7 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract `AvernesTreiner-0.6-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
+Extract `AvernesTreiner-0.7-GTA5-Legacy.zip` into the GTA V Legacy directory. It installs:
 - `scripts/AvernesTreiner.dll`
 - `scripts/AvernesTreiner/Config.ini`
 - `scripts/AvernesTreiner/Languages/en-US.ini`
@@ -70,7 +70,7 @@ Extract `AvernesTreiner-0.6-GTA5-Legacy.zip` into the GTA V Legacy directory. It
 
 Default menu key: **F10**.
 
-## v0.6 fixes
+## v0.7 fixes
 - **Never Wanted:** sets the maximum wanted level to zero immediately and enforces it every frame. Wanted stars are blocked at the source rather than cleared after a visible delay; disabling the option restores the previous wanted-level cap (or the standard five-star cap if the stored value is invalid).
 - **Waypoint Teleport:** requests distant map streaming, moves the streaming focus to the target, waits for the scene/collision, probes ground from multiple heights, and falls back only to a nearby navmesh-safe location or a detected water surface. Streaming focus and the scene request are cleaned up after completion or cancellation.
 - **Config.ini:** resolves the correct runtime folder whether ScriptHookVDotNet exposes the game root or the `scripts` folder, avoiding the duplicate `scripts\\scripts` path. If the GTA installation folder is not writable, it uses the current Windows user's AppData folder and copies existing settings there.
