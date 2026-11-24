@@ -39,7 +39,8 @@ for %%F in (Config.ini SavedVehicles.json addons.json) do (
 
 rem Migrate the latest backup created by older 0.8.1 installers, if needed.
 set "LEGACYBACKUP="
-for /f "delims=" %%D in ('dir /b /ad /o-d "%USERPROFILE%\Documents\AvernesTreiner_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\%%D"
+for /f "delims=" %%D in ('dir /b /ad /o-d "%USERPROFILE%\Documents\AvernesTrainer_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%USERPROFILE%\Documents\AvernesTrainer_Backup\%%D"
+if not defined LEGACYBACKUP for /f "delims=" %%D in ('dir /b /ad /o-d "%USERPROFILE%\Documents\AvernesTreiner_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\%%D"
 if defined LEGACYBACKUP (
   for %%F in (Config.ini SavedVehicles.json addons.json) do (
     if not exist "%USERDATA%\%%F" if exist "%LEGACYBACKUP%\%%F" copy "%LEGACYBACKUP%\%%F" "%USERDATA%\%%F" >nul
