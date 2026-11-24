@@ -231,35 +231,29 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            int modelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
-            int characterSlot = -1;
-            if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_zero")) characterSlot = 0;
-            else if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_one")) characterSlot = 1;
-            else if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_two")) characterSlot = 2;
-
-            if (characterSlot < 0)
-            {
-                UI.Notify("~y~Skill upgrade is available for the three Story Mode protagonists.");
-                return;
-            }
-
-            string prefix = "SP" + characterSlot.ToString() + "_";
+            // Story Mode keeps separate SP0/SP1/SP2 skill records for Franklin,
+            // Michael and Trevor. Update all three without touching mission progress,
+            // money, unlocks or other unrelated statistics.
             string[] skills = new string[] {
-                "STAMINA", "STRENGTH", "LUNG_CAPACITY", "SHOOTING_ABILITY",
-                "WHEELIE_ABILITY", "FLYING_ABILITY", "STEALTH_ABILITY"
+                "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
+                "WHEELIE_ABILITY", "FLYING_ABILITY", "SHOOTING_ABILITY", "STEALTH_ABILITY"
             };
 
             int updated = 0;
-            for (int i = 0; i < skills.Length; i++)
+            for (int characterSlot = 0; characterSlot < 3; characterSlot++)
             {
-                int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + skills[i]);
-                if (Function.Call<bool>((Hash)0xB3271D7AB655B441, statHash, 100, true))
-                    updated++;
+                string prefix = "SP" + characterSlot.ToString() + "_";
+                for (int i = 0; i < skills.Length; i++)
+                {
+                    int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + skills[i]);
+                    if (Function.Call<bool>((Hash)0xB3271D7AB655B441, statHash, 100, true))
+                        updated++;
+                }
             }
 
-            UI.Notify(updated == skills.Length
-                ? "~g~All seven character skills maximized."
-                : "~y~Updated " + updated + " of " + skills.Length + " skills. Check the game stats.");
+            UI.Notify(updated == 24
+                ? "~g~All skills maximized for Franklin, Michael and Trevor."
+                : "~y~Updated " + updated + " of 24 skill values. Check each character's stats.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
