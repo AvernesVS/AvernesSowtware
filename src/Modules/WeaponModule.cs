@@ -137,6 +137,7 @@ namespace AvernesTreiner.Modules
                 _superDamage = state;
                 ConfigManager.SetBool("Weapons", "SuperDamage", _superDamage);
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, _superDamage ? 100.0f : 1.0f);
+                UI.Notify(_superDamage ? "~g~Super weapon damage enabled." : "~y~Weapon damage restored.");
             };
             weapMenu.AddItem(superDmg);
             if (_superDamage)
@@ -163,7 +164,8 @@ namespace AvernesTreiner.Modules
             // These natives are frame-scoped and must remain in the frame tick.
             if (_explosiveAmmo) Game.Player.SetExplosiveAmmoThisFrame();
             if (_fireAmmo) Game.Player.SetFireAmmoThisFrame();
-            if (_superDamage) Game.Player.SetSuperJumpThisFrame();
+            // Weapon damage is controlled by SET_PLAYER_WEAPON_DAMAGE_MODIFIER above.
+            // Do not call SetSuperJumpThisFrame here: that incorrectly mixed two unrelated features.
 
             // Avoid querying the impact coordinate unless a shot-triggered feature is enabled.
             if ((_teleportGun || _forceGun || _rpgAmmo) && player.IsShooting)
