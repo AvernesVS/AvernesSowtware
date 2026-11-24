@@ -97,7 +97,7 @@ jobs:
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
           if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch 'SpecialFolder\]::MyDocuments') { throw 'Installer legacy backup migration or persistent data path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
-          if ($configSource -notmatch 'Version=v1.0' -or $configSource -notmatch 'SpecialFolder.MyDocuments' -or $configSource -notmatch 'UserDataDirectoryPath') { throw 'Persistent Documents config storage/version is missing.' }
+          if ($configSource -notmatch 'Version=v1.0' -or $configSource -notmatch 'SpecialFolder.MyDocuments' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Rebind ScriptSettings to the active Config.ini path') { throw 'Persistent Documents config storage/version/recovery is missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'TrainerLog' -or $core -notmatch 'Module\.Initialize' -or $core -notmatch 'Module\.OnTick') { throw 'Runtime diagnostic logging checks failed.' }
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
@@ -125,7 +125,7 @@ jobs:
           }
           $savedVehiclesSource = Get-Content (Join-Path $root 'src\Modules\SavedVehiclesModule.cs') -Raw
           if ($savedVehiclesSource -notmatch 'CaptureVehicle' -or $savedVehiclesSource -notmatch 'ApplyCustomization' -or $savedVehiclesSource -notmatch 'SavedVehicles.json' -or $core -notmatch 'new SavedVehiclesModule\(\)') { throw 'Saved vehicle save/spawn registration checks failed.' }
-          if ($savedVehiclesSource -notmatch 'DeserializeSavedVehicles' -or $savedVehiclesSource -notmatch 'SavedVehicles.json\.bak' -or $savedVehiclesSource -notmatch 'Saved vehicle limit reached') { throw 'Saved vehicle recovery/limit checks failed.' }
+          if ($savedVehiclesSource -notmatch 'DeserializeSavedVehicles' -or $savedVehiclesSource -notmatch 'StoragePath \+ ".bak"' -or $savedVehiclesSource -notmatch 'Saved vehicle limit reached') { throw 'Saved vehicle recovery/limit checks failed.' }
           $addonSource = Get-Content (Join-Path $root 'src\Core\AddonManager.cs') -Raw
           if ($addonSource -notmatch 'validModel' -or $addonSource -notmatch '_addons\.Count < 500') { throw 'Add-on catalog validation checks failed.' }
           $bodyguardSource = Get-Content (Join-Path $root 'src\Modules\BodyguardModule.cs') -Raw
@@ -133,7 +133,7 @@ jobs:
           $worldSource = Get-Content (Join-Path $root 'src\Modules\WorldModule.cs') -Raw
           if ($worldSource -notmatch 'RestoreWorldDefaults' -or $worldSource -notmatch 'SET_TIME_SCALE') { throw 'World reset checks failed.' }
           if ($teleportSource -notmatch 'float\.IsNaN' -or $teleportSource -notmatch 'finally' -or $teleportSource -notmatch 'CLEAR_FOCUS') { throw 'Teleport validation/cleanup checks failed.' }
-          if ($playerSource -notmatch 'MaximizeCharacterSkills' -or $playerSource -notmatch '0xB3271D7AB655B441') { throw 'Story Mode character skill upgrade checks failed.' }
+          if ($playerSource -notmatch 'MaximizeCharacterSkills' -or $playerSource -notmatch '0xB3271D7AB655B441' -or $playerSource -notmatch 'SPECIAL_ABILITY' -or $playerSource -notmatch 'characterSlot < 3') { throw 'Story Mode character skill upgrade checks failed.' }
           if ($settingsSource -notmatch 'CreateUserDataBackup' -or $settingsSource -notmatch 'Show User Data Location') { throw 'User data backup controls are missing.' }
           if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
           if (Test-Path $zip) { Remove-Item $zip -Force }
