@@ -112,7 +112,18 @@ namespace AvernesTreiner.Core
             try
             {
                 EnsureConfigFile();
-                _settings = ScriptSettings.Load(_configPath);
+                try
+                {
+                    _settings = ScriptSettings.Load(_configPath);
+                }
+                catch
+                {
+                    string backupPath = _configPath + ".bak";
+                    if (!File.Exists(backupPath)) throw;
+                    _settings = ScriptSettings.Load(backupPath);
+                    File.Copy(backupPath, _configPath, true);
+                    LastError = "Config.ini was recovered from its backup.";
+                }
                 _language = _settings.GetValue("General", "Language", "en-US");
                 if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
@@ -146,6 +157,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.GetBool: " + section + "." + key, ex);
                 return defaultValue;
             }
         }
@@ -165,6 +177,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.SetBool: " + section + "." + key, ex);
             }
         }
 
@@ -181,9 +194,11 @@ namespace AvernesTreiner.Core
                 _settings.SetValue("General", "Version", "v0.8.2");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
+                if (File.Exists(_configPath))
+                    File.Copy(_configPath, _configPath + ".bak", true);
                 _settings.Save();
 
-                if (!File.Exists(_configPath))
+                if (!File.Exists(_configPath) || new FileInfo(_configPath).Length == 0)
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
@@ -195,6 +210,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.Save", ex);
                 return false;
             }
         }
