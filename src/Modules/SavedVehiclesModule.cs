@@ -63,13 +63,13 @@ namespace AvernesTreiner.Modules
                     return;
                 }
 
-                List<SavedVehicleData> loaded = DeserializeSavedVehicles(File.ReadAllText(StoragePath, Encoding.UTF8));
+                List<SavedVehicleData> loaded = TryReadSavedVehicles(StoragePath);
                 if (loaded == null)
                 {
                     string backupPath = StoragePath + ".bak";
                     if (File.Exists(backupPath))
                     {
-                        loaded = DeserializeSavedVehicles(File.ReadAllText(backupPath, Encoding.UTF8));
+                        loaded = TryReadSavedVehicles(backupPath);
                         if (loaded != null)
                         {
                             File.Copy(backupPath, StoragePath, true);
@@ -95,6 +95,21 @@ namespace AvernesTreiner.Modules
             {
                 TrainerLog.Write("SavedVehicles.Load", ex);
                 UI.Notify("~r~Could not load saved vehicles. See trainer.log.");
+            }
+        }
+
+        private List<SavedVehicleData> TryReadSavedVehicles(string path)
+        {
+            try
+            {
+                if (!File.Exists(path) || new FileInfo(path).Length > 10485760)
+                    return null;
+                return DeserializeSavedVehicles(File.ReadAllText(path, Encoding.UTF8));
+            }
+            catch (Exception ex)
+            {
+                TrainerLog.Write("SavedVehicles.Read", ex);
+                return null;
             }
         }
 
