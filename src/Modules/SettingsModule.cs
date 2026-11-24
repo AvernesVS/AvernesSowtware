@@ -132,7 +132,6 @@ namespace AvernesTreiner.Modules
                 }
 
                 UI.Notify("~g~User data backup created. Files: " + copied + ".");
-                TrainerLog.Write("Settings.Backup", null);
             }
             catch (Exception ex)
             {
