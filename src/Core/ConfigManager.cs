@@ -15,7 +15,7 @@ namespace AvernesTreiner.Core
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.8.2";
+        private static string _version = "v1.0";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -59,7 +59,7 @@ namespace AvernesTreiner.Core
             return "[General]\r\n" +
                 "Language=en-US\r\n" +
                 "MenuKey=F10\r\n" +
-                "Version=v0.8.2\r\n" +
+                "Version=v1.0\r\n" +
                 "Title=AvernesTreiner\r\n" +
                 "SpeedUnit=KM/H\r\n";
         }
@@ -109,18 +109,34 @@ namespace AvernesTreiner.Core
 
         public static bool Load()
         {
+            LastError = null;
             try
             {
                 EnsureConfigFile();
-                _settings = ScriptSettings.Load(_configPath);
+                try
+                {
+                    _settings = ScriptSettings.Load(_configPath);
+                }
+                catch
+                {
+                    string backupPath = _configPath + ".bak";
+                    if (!File.Exists(backupPath)) throw;
+                    _settings = ScriptSettings.Load(backupPath);
+                    File.Copy(backupPath, _configPath, true);
+                    // Rebind ScriptSettings to the active Config.ini path; otherwise Save()
+                    // would continue writing to the .bak file loaded above.
+                    _settings = ScriptSettings.Load(_configPath);
+                    LastError = "Config.ini was recovered from its backup.";
+                }
                 _language = _settings.GetValue("General", "Language", "en-US");
                 if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
                 _menuKey = "F10";
-                _version = "v0.8.2";
+                _version = "v1.0";
                 _title = "AvernesTreiner";
                 // Loading must not write the file; saving is explicit through Settings.
-                LastError = null;
+                if (string.IsNullOrEmpty(LastError) || !LastError.StartsWith("Config.ini was recovered", StringComparison.Ordinal))
+                    LastError = null;
                 return true;
             }
             catch (Exception ex)
@@ -146,6 +162,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.GetBool: " + section + "." + key, ex);
                 return defaultValue;
             }
         }
@@ -165,6 +182,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.SetBool: " + section + "." + key, ex);
             }
         }
 
@@ -178,16 +196,18 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.8.2");
+                _settings.SetValue("General", "Version", "v1.0");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
+                if (File.Exists(_configPath))
+                    File.Copy(_configPath, _configPath + ".bak", true);
                 _settings.Save();
 
-                if (!File.Exists(_configPath))
+                if (!File.Exists(_configPath) || new FileInfo(_configPath).Length == 0)
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.8.2";
+                _version = "v1.0";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
@@ -195,6 +215,7 @@ namespace AvernesTreiner.Core
             catch (Exception ex)
             {
                 LastError = ex.Message;
+                TrainerLog.Write("ConfigManager.Save", ex);
                 return false;
             }
         }

@@ -98,9 +98,27 @@ namespace AvernesTreiner.Modules
             };
             worldMenu.AddItem(moonItem);
 
+            var restoreWorldItem = new UIMenuItem("Restore World Defaults", "Resets slow motion, clock pause, gravity and visual filters.");
+            restoreWorldItem.Activated += (sender, selected) => RestoreWorldDefaults();
+            worldMenu.AddItem(restoreWorldItem);
+
             // Apply persisted world toggles on startup.
             if (_freezeTime) Function.Call(Hash.PAUSE_CLOCK, true);
             if (_moonGravity) World.GravityLevel = 1;
+        }
+
+        private void RestoreWorldDefaults()
+        {
+            Game.TimeScale = 1.0f;
+            Function.Call(Hash.SET_TIME_SCALE, 1.0f);
+            Function.Call(Hash.PAUSE_CLOCK, false);
+            World.GravityLevel = 0;
+            Function.Call(Hash.CLEAR_TIMECYCLE_MODIFIER);
+            _freezeTime = false;
+            _moonGravity = false;
+            ConfigManager.SetBool("World", "FreezeTime", false);
+            ConfigManager.SetBool("World", "MoonGravity", false);
+            UI.Notify("~g~World effects restored to normal.");
         }
 
         private void AddBulletTimeOption(UIMenu menu, string label, float scale)

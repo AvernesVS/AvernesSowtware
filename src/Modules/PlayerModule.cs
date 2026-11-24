@@ -178,6 +178,11 @@ namespace AvernesTreiner.Modules
  ConfigManager.SetBool("Player", "UnlimitedOxygen", _unlimitedOxygen); };
             playerMenu.AddItem(oxyItem);
 
+            // Character skill progression (Story Mode only).
+            var maxStatsItem = new UIMenuItem("Max All Character Skills", "Maximizes all eight Story Mode skills for Franklin, Michael and Trevor.");
+            maxStatsItem.Activated += (sender, selected) => MaximizeCharacterSkills();
+            playerMenu.AddItem(maxStatsItem);
+
             // Money Submenu
             var moneyMenu = menuPool.AddSubMenu(playerMenu, "Money Generator");
             AddCashOption(moneyMenu, "Add +$100,000", 100000);
@@ -215,6 +220,40 @@ namespace AvernesTreiner.Modules
                 }
             };
             playerMenu.AddItem(suicideItem);
+        }
+
+        private void MaximizeCharacterSkills()
+        {
+            Ped player = Game.Player.Character;
+            if (player == null || !player.Exists())
+            {
+                UI.Notify("~r~Player character is not available.");
+                return;
+            }
+
+            // Story Mode keeps separate SP0/SP1/SP2 skill records for Franklin,
+            // Michael and Trevor. Update all three without touching mission progress,
+            // money, unlocks or other unrelated statistics.
+            string[] skills = new string[] {
+                "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
+                "WHEELIE_ABILITY", "FLYING_ABILITY", "SHOOTING_ABILITY", "STEALTH_ABILITY"
+            };
+
+            int updated = 0;
+            for (int characterSlot = 0; characterSlot < 3; characterSlot++)
+            {
+                string prefix = "SP" + characterSlot.ToString() + "_";
+                for (int i = 0; i < skills.Length; i++)
+                {
+                    int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + skills[i]);
+                    if (Function.Call<bool>((Hash)0xB3271D7AB655B441, statHash, 100, true))
+                        updated++;
+                }
+            }
+
+            UI.Notify(updated == 24
+                ? "~g~All skills maximized for Franklin, Michael and Trevor."
+                : "~y~Updated " + updated + " of 24 skill values. Check each character's stats.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)

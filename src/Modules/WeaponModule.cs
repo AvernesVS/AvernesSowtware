@@ -26,6 +26,7 @@ namespace AvernesTreiner.Modules
         private bool _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
         private bool _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
         private int _lastAmmoRefreshTime = 0;
+        private int _lastPlayerModifierRefreshTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -137,6 +138,7 @@ namespace AvernesTreiner.Modules
                 _superDamage = state;
                 ConfigManager.SetBool("Weapons", "SuperDamage", _superDamage);
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, _superDamage ? 100.0f : 1.0f);
+                UI.Notify(_superDamage ? "~g~Super weapon damage enabled." : "~y~Weapon damage restored.");
             };
             weapMenu.AddItem(superDmg);
             if (_superDamage)
@@ -160,10 +162,19 @@ namespace AvernesTreiner.Modules
                     player.Weapons.Current.Ammo = player.Weapons.Current.MaxAmmo;
             }
 
+            // Reapply ped-scoped settings after a protagonist/model switch.
+            if (now - _lastPlayerModifierRefreshTime >= 250)
+            {
+                _lastPlayerModifierRefreshTime = now;
+                Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, player.Handle, _infiniteClip);
+                Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, _superDamage ? 100.0f : 1.0f);
+            }
+
             // These natives are frame-scoped and must remain in the frame tick.
             if (_explosiveAmmo) Game.Player.SetExplosiveAmmoThisFrame();
             if (_fireAmmo) Game.Player.SetFireAmmoThisFrame();
-            if (_superDamage) Game.Player.SetSuperJumpThisFrame();
+            // Weapon damage is controlled by SET_PLAYER_WEAPON_DAMAGE_MODIFIER above.
+            // Do not call SetSuperJumpThisFrame here: that incorrectly mixed two unrelated features.
 
             // Avoid querying the impact coordinate unless a shot-triggered feature is enabled.
             if ((_teleportGun || _forceGun || _rpgAmmo) && player.IsShooting)
@@ -175,7 +186,14 @@ namespace AvernesTreiner.Modules
                     Vector3 hitPos = outCoord.GetResult<Vector3>();
                     if (hitPos != Vector3.Zero)
                     {
-                        if (_teleportGun) player.Position = hitPos + new Vector3(0, 0, 1.0f);
+                        if (_teleportGun)
+                        {
+                            Vector3 destination = hitPos + new Vector3(0, 0, 1.0f);
+                            if (player.IsInVehicle() && player.CurrentVehicle != null && player.CurrentVehicle.Exists())
+                                player.CurrentVehicle.Position = destination;
+                            else
+                                player.Position = destination;
+                        }
                         if (_forceGun) World.AddExplosion(hitPos, ExplosionType.Extinguisher, 6.0f, 0.0f, false, true);
                         if (_rpgAmmo) World.AddExplosion(hitPos, ExplosionType.GrenadeL, 3.5f, 1.0f, true, false);
                     }

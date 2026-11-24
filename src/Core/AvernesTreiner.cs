@@ -7,12 +7,56 @@ using NativeUI;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using System;
 
 namespace AvernesTreiner
 {
+    internal static class TrainerLog
+    {
+        private static readonly object Sync = new object();
+        private static readonly Dictionary<string, DateTime> LastWritten = new Dictionary<string, DateTime>();
+
+        public static void Write(string source, Exception exception)
+        {
+            try
+            {
+                lock (Sync)
+                {
+                    DateTime now = DateTime.UtcNow;
+                    DateTime last;
+                    if (LastWritten.TryGetValue(source, out last) &&
+                        (now - last).TotalSeconds < 10.0)
+                        return;
+                    LastWritten[source] = now;
+
+                    string directory = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        "AvernesTreiner", "Logs");
+                    if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                    string path = Path.Combine(directory, "trainer.log");
+                    FileInfo info = new FileInfo(path);
+                    if (info.Exists && info.Length > 1048576)
+                    {
+                        string previous = path + ".old";
+                        if (File.Exists(previous)) File.Delete(previous);
+                        File.Move(path, previous);
+                    }
+
+                    string details = exception == null ? "No exception details." : exception.ToString();
+                    File.AppendAllText(path,
+                        "[" + now.ToString("yyyy-MM-dd HH:mm:ss") + " UTC] " +
+                        source + Environment.NewLine + details + Environment.NewLine +
+                        "----------------------------------------" + Environment.NewLine,
+                        Encoding.UTF8);
+                }
+            }
+            catch { }
+        }
+    }
+
     public class AvernesTreinerScript : Script
     {
         private MenuPool _menuPool;
@@ -34,6 +78,8 @@ namespace AvernesTreiner
         {
             try
             {
+                AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+                    TrainerLog.Write("AppDomain", args.ExceptionObject as Exception);
                 ConfigManager.Load();
                 Localization.LoadLanguage(ConfigManager.Language);
 
@@ -54,7 +100,7 @@ namespace AvernesTreiner
                 _menuPool.ControlDisablingEnabled = false;
 
                 string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.8");
+                string subtitle = Localization.Get("General", "MenuSubtitle", "v1.0");
                 _mainMenu = new UIMenu(title, subtitle);
                 _menuPool.Add(_mainMenu);
 
@@ -79,7 +125,7 @@ namespace AvernesTreiner
                     {
                         module.Initialize(_mainMenu, _menuPool);
                     }
-                    catch { }
+                    catch (Exception ex) { TrainerLog.Write("Module.Initialize: " + module.Name, ex); }
                 }
 
                 // Disable the NativeUI cursor on the main menu and every submenu.
@@ -97,10 +143,11 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.8.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v1.0 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
+                TrainerLog.Write("Startup", ex);
                 UI.Notify("~r~Error starting AvernesTreiner: " + ex.Message);
             }
         }
@@ -135,7 +182,7 @@ namespace AvernesTreiner
                 for (int i = 0; i < _modules.Count; i++)
                 {
                     try { _modules[i].OnTick(); }
-                    catch { }
+                    catch (Exception ex) { TrainerLog.Write("Module.OnTick: " + _modules[i].Name, ex); }
                 }
             }
         }
