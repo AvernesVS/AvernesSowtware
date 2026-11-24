@@ -131,7 +131,8 @@ namespace AvernesTreiner.Core
                 _version = "v0.8.2";
                 _title = "AvernesTreiner";
                 // Loading must not write the file; saving is explicit through Settings.
-                LastError = null;
+                if (string.IsNullOrEmpty(LastError) || !LastError.StartsWith("Config.ini was recovered", StringComparison.Ordinal))
+                    LastError = null;
                 return true;
             }
             catch (Exception ex)
