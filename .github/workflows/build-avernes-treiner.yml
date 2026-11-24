@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
   push:
-    branches: [main]
+    branches: [main, 'avernes-treiner-*']
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
   workflow_dispatch:
 permissions:
