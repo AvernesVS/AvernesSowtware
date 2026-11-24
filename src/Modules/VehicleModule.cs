@@ -832,7 +832,12 @@ namespace AvernesTreiner.Modules
                 if (v != null && v.Exists())
                 {
                     if (_vehicleGodMode && maintenanceTick)
+                    {
                         ApplyVehicleGodMode(v, true);
+                        // Re-fix deformation while God Mode is active; health proofs alone
+                        // do not stop all collision deformation on every vehicle type.
+                        Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, v.Handle);
+                    }
                     else if (!_vehicleGodMode && _godModeVehicle != null)
                         RestoreVehicleGodMode();
 
@@ -840,11 +845,15 @@ namespace AvernesTreiner.Modules
                     if (_autoRepair && v.Handle != _lastEnteredVehicleHandle)
                     {
                         _lastEnteredVehicleHandle = v.Handle;
-                        if (v.Health < 1000 || v.EngineHealth < 1000 || v.BodyHealth < 1000)
-                        {
-                            v.Repair();
-                            UI.Notify("~g~Damaged vehicle repaired on entry.");
-                        }
+                        // Use the game repair natives directly; Vehicle.Repair() alone can
+                        // leave deformation/body state behind on some vehicle classes.
+                        Function.Call(Hash.SET_VEHICLE_FIXED, v.Handle);
+                        Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, v.Handle);
+                        Function.Call(Hash.SET_VEHICLE_DIRT_LEVEL, v.Handle, 0.0f);
+                        Function.Call(Hash.SET_VEHICLE_ENGINE_HEALTH, v.Handle, 1000.0f);
+                        Function.Call(Hash.SET_VEHICLE_BODY_HEALTH, v.Handle, 1000.0f);
+                        Function.Call(Hash.SET_VEHICLE_PETROL_TANK_HEALTH, v.Handle, 1000.0f);
+                        UI.Notify("~g~Vehicle repaired on entry.");
                     }
 
                     // Right Shift is the primary trigger; X remains as a reliable fallback key.

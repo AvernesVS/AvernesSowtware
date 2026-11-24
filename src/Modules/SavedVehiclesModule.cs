@@ -18,7 +18,7 @@ namespace AvernesTreiner.Modules
     /// </summary>
     public class SavedVehiclesModule : IAvernesModule
     {
-        private const string StoragePath = @"scripts\AvernesTreiner\SavedVehicles.json";
+        private static string StoragePath { get { return Path.Combine(ConfigManager.UserDataDirectoryPath, "SavedVehicles.json"); } }
         private readonly List<SavedVehicleData> _saved = new List<SavedVehicleData>();
         private UIMenu _savedMenu;
         private MenuPool _menuPool;

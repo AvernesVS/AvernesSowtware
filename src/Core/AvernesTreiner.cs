@@ -97,7 +97,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.8 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.8.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {

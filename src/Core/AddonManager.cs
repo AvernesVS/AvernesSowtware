@@ -26,7 +26,7 @@ namespace AvernesTreiner.Core
 
     public static class AddonManager
     {
-        private static readonly string AddonsPath = @"scripts\AvernesTreiner\addons.json";
+        private static string AddonsPath { get { return Path.Combine(ConfigManager.UserDataDirectoryPath, "addons.json"); } }
         private static List<AddonVehicle> _addons = new List<AddonVehicle>();
 
         public static List<AddonVehicle> Addons

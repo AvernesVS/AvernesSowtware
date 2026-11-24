@@ -9,13 +9,13 @@ namespace AvernesTreiner.Core
     {
         private static readonly string RuntimeDirectory = ResolveRuntimeDirectory();
         private static readonly string UserConfigDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AvernesTreiner");
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AvernesTreiner");
         private static string _configPath;
         private static ScriptSettings _settings;
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.8.1";
+        private static string _version = "v0.8.2";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -26,6 +26,7 @@ namespace AvernesTreiner.Core
         public static string SpeedUnit { get { return _speedUnit; } set { _speedUnit = value; } }
         public static string LastError { get; private set; }
         public static string RuntimeDirectoryPath { get { return RuntimeDirectory; } }
+        public static string UserDataDirectoryPath { get { return UserConfigDirectory; } }
         public static string ConfigPath { get { EnsureConfigFile(); return _configPath; } }
         public static string SaveLocationDescription
         {
@@ -58,7 +59,7 @@ namespace AvernesTreiner.Core
             return "[General]\r\n" +
                 "Language=en-US\r\n" +
                 "MenuKey=F10\r\n" +
-                "Version=v0.8.1\r\n" +
+                "Version=v0.8.2\r\n" +
                 "Title=AvernesTreiner\r\n" +
                 "SpeedUnit=KM/H\r\n";
         }
@@ -83,37 +84,26 @@ namespace AvernesTreiner.Core
 
         private static void EnsureConfigFile()
         {
-            if (!string.IsNullOrEmpty(_configPath) && File.Exists(_configPath))
-                return;
+            if (!Directory.Exists(UserConfigDirectory))
+                Directory.CreateDirectory(UserConfigDirectory);
 
-            string primaryPath = Path.Combine(RuntimeDirectory, "Config.ini");
-            if (TryPrepareWritablePath(primaryPath))
+            // Migrate existing files from the old game-local folder only when the
+            // permanent Documents copy does not already exist. Never overwrite user data.
+            string[] userFiles = new string[] { "Config.ini", "SavedVehicles.json", "addons.json" };
+            for (int i = 0; i < userFiles.Length; i++)
             {
-                _configPath = primaryPath;
-            }
-            else
-            {
-                string fallbackPath = Path.Combine(UserConfigDirectory, "Config.ini");
-                string fallbackDirectory = Path.GetDirectoryName(fallbackPath);
-                if (!Directory.Exists(fallbackDirectory))
-                    Directory.CreateDirectory(fallbackDirectory);
-
-                if (!File.Exists(fallbackPath))
+                string destination = Path.Combine(UserConfigDirectory, userFiles[i]);
+                string legacy = Path.Combine(RuntimeDirectory, userFiles[i]);
+                if (!File.Exists(destination) && File.Exists(legacy))
                 {
-                    if (File.Exists(primaryPath))
-                        File.Copy(primaryPath, fallbackPath);
-                    else
-                        File.WriteAllText(fallbackPath, DefaultConfig(), Encoding.UTF8);
+                    string backup = destination + ".migration.bak";
+                    File.Copy(legacy, backup, true);
+                    File.Copy(legacy, destination, false);
                 }
-
-                if (!TryPrepareWritablePath(fallbackPath))
-                    throw new UnauthorizedAccessException("Neither the GTA scripts folder nor the Windows user config folder is writable.");
-
-                _configPath = fallbackPath;
             }
 
-            FileInfo configInfo = new FileInfo(_configPath);
-            if (!configInfo.Exists || configInfo.Length == 0)
+            _configPath = Path.Combine(UserConfigDirectory, "Config.ini");
+            if (!File.Exists(_configPath) || new FileInfo(_configPath).Length == 0)
                 File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
         }
 
@@ -127,7 +117,7 @@ namespace AvernesTreiner.Core
                 if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
                 _menuKey = "F10";
-                _version = "v0.8.1";
+                _version = "v0.8.2";
                 _title = "AvernesTreiner";
                 // Loading must not write the file; saving is explicit through Settings.
                 LastError = null;
@@ -188,7 +178,7 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.8.1");
+                _settings.SetValue("General", "Version", "v0.8.2");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
                 _settings.Save();
@@ -197,7 +187,7 @@ namespace AvernesTreiner.Core
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.8.1";
+                _version = "v0.8.2";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
@@ -212,32 +202,41 @@ namespace AvernesTreiner.Core
 
     public static class Localization
     {
-        private static ScriptSettings _langSettings;
+        private static readonly System.Collections.Generic.Dictionary<string, string> Values =
+            new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public static void LoadLanguage(string langCode)
         {
-            try
+            Values.Clear();
+            if (!string.Equals(langCode, "ru-RU", StringComparison.OrdinalIgnoreCase))
+                langCode = "en-US";
+            string path = Path.Combine(ConfigManager.RuntimeDirectoryPath, "Languages", langCode + ".ini");
+            if (!File.Exists(path))
+                path = Path.Combine(ConfigManager.RuntimeDirectoryPath, "Languages", "en-US.ini");
+            if (!File.Exists(path)) return;
+
+            string section = "";
+            foreach (string rawLine in File.ReadAllLines(path, Encoding.UTF8))
             {
-                string directory = ConfigManager.RuntimeDirectoryPath;
-                if (!string.Equals(langCode, "ru-RU", StringComparison.OrdinalIgnoreCase)) langCode = "en-US";
-                string path = Path.Combine(directory, "Languages", langCode + ".ini");
-                if (!File.Exists(path))
-                    path = Path.Combine(directory, "Languages", "en-US.ini");
-                if (File.Exists(path))
-                    _langSettings = ScriptSettings.Load(path);
+                string line = rawLine.Trim().TrimStart('\uFEFF');
+                if (line.Length == 0 || line.StartsWith(";") || line.StartsWith("#")) continue;
+                if (line.StartsWith("[") && line.EndsWith("]"))
+                {
+                    section = line.Substring(1, line.Length - 2).Trim();
+                    continue;
+                }
+                int separator = line.IndexOf('=');
+                if (separator <= 0) continue;
+                string key = line.Substring(0, separator).Trim();
+                string value = line.Substring(separator + 1).Trim();
+                Values[section + "." + key] = value;
             }
-            catch { }
         }
 
         public static string Get(string section, string key, string fallback)
         {
-            try
-            {
-                if (_langSettings != null)
-                    return _langSettings.GetValue(section, key, fallback);
-            }
-            catch { }
-            return fallback;
+            string value;
+            return Values.TryGetValue(section + "." + key, out value) ? value : fallback;
         }
 
         public static string Get(string section, string key)

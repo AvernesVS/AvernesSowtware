@@ -1,10 +1,12 @@
 @echo off
 setlocal
-title AvernesTreiner 0.8.1 Installer
+title AvernesTreiner 0.8.2 Installer
 set "PACKAGE=%~dp0"
+set "TARGET=C:\Program Files (x86)\Grand Theft Auto V"
+if exist "%TARGET%\GTA5.exe" goto target_ok
 set "TARGET=%~dp0"
 if exist "%TARGET%GTA5.exe" goto target_ok
-echo AvernesTreiner 0.8.1 - GTA V Legacy installer
+echo AvernesTreiner 0.8.2 - GTA V Legacy installer
 echo.
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
@@ -17,33 +19,55 @@ if not exist "%PACKAGE%files\scripts\AvernesTreiner\Languages\en-US.ini" goto pa
 if not exist "%PACKAGE%files\scripts\AvernesTreiner\Languages\ru-RU.ini" goto package_error
 if not exist "%TARGET%\scripts" mkdir "%TARGET%\scripts"
 set "DATA=%TARGET%\scripts\AvernesTreiner"
-set "BACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\%RANDOM%_%RANDOM%"
-if not exist "%DATA%" mkdir "%DATA%"
-if exist "%DATA%\Config.ini" (
-  if not exist "%BACKUP%" mkdir "%BACKUP%"
-  copy /y "%DATA%\Config.ini" "%BACKUP%\Config.ini" >nul
-  if errorlevel 1 goto backup_failed
+set "USERDATA=%USERPROFILE%\Documents\AvernesTreiner"
+set "BACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\update_%RANDOM%_%RANDOM%"
+if not exist "%USERDATA%" mkdir "%USERDATA%"
+if not exist "%BACKUP%" mkdir "%BACKUP%"
+if errorlevel 1 goto backup_failed
+
+rem Back up current persistent data and old game-local data before migration.
+if exist "%USERDATA%\*" xcopy "%USERDATA%\*" "%BACKUP%\persistent\" /E /I /Y >nul
+if errorlevel 1 goto backup_failed
+if exist "%DATA%\*" xcopy "%DATA%\*" "%BACKUP%\legacy-game-data\" /E /I /Y >nul
+if errorlevel 1 goto backup_failed
+
+rem Migrate from the previous game-local folder without overwriting newer Documents data.
+for %%F in (Config.ini SavedVehicles.json addons.json) do (
+  if not exist "%USERDATA%\%%F" if exist "%DATA%\%%F" copy "%DATA%\%%F" "%USERDATA%\%%F" >nul
+  if errorlevel 1 goto migration_failed
 )
-if exist "%DATA%\SavedVehicles.json" (
-  if not exist "%BACKUP%" mkdir "%BACKUP%"
-  copy /y "%DATA%\SavedVehicles.json" "%BACKUP%\SavedVehicles.json" >nul
-  if errorlevel 1 goto backup_failed
+
+rem Migrate the latest backup created by older 0.8.1 installers, if needed.
+set "LEGACYBACKUP="
+for /f "delims=" %%D in ('dir /b /ad /o-d "%USERPROFILE%\Documents\AvernesTrainer_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%USERPROFILE%\Documents\AvernesTrainer_Backup\%%D"
+if not defined LEGACYBACKUP for /f "delims=" %%D in ('dir /b /ad /o-d "%USERPROFILE%\Documents\AvernesTreiner_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%USERPROFILE%\Documents\AvernesTreiner_Backup\%%D"
+if defined LEGACYBACKUP (
+  for %%F in (Config.ini SavedVehicles.json addons.json) do (
+    if not exist "%USERDATA%\%%F" if exist "%LEGACYBACKUP%\%%F" copy "%LEGACYBACKUP%\%%F" "%USERDATA%\%%F" >nul
+    if errorlevel 1 goto migration_failed
+  )
 )
-if exist "%DATA%\addons.json" (
-  if not exist "%BACKUP%" mkdir "%BACKUP%"
-  copy /y "%DATA%\addons.json" "%BACKUP%\addons.json" >nul
-  if errorlevel 1 goto backup_failed
-)
+if not exist "%USERDATA%\Config.ini" if exist "%APPDATA%\AvernesTreiner\Config.ini" copy "%APPDATA%\AvernesTreiner\Config.ini" "%USERDATA%\Config.ini" >nul
+if errorlevel 1 goto migration_failed
+
 copy /y "%PACKAGE%files\scripts\AvernesTreiner.dll" "%TARGET%\scripts\AvernesTreiner.dll" >nul
 if errorlevel 1 goto failed
+if not exist "%DATA%\Languages" mkdir "%DATA%\Languages"
 xcopy "%PACKAGE%files\scripts\AvernesTreiner\Languages\*.ini" "%DATA%\Languages\" /I /Y >nul
 if errorlevel 1 goto failed
+
 echo.
 echo Installation completed.
-if exist "%BACKUP%" echo Backup saved to: "%BACKUP%"
-echo Your Config.ini, SavedVehicles.json and addons.json were preserved.
+echo User data location: "%USERDATA%"
+echo Backup saved to: "%BACKUP%"
+echo Existing user files were migrated only when the Documents copy did not exist.
 pause
 exit /b 0
+:migration_failed
+echo ERROR: User data migration failed. Do not start the trainer; your previous files remain in the backup.
+echo Backup: "%BACKUP%"
+pause
+exit /b 4
 :backup_failed
 echo ERROR: Backup failed. Installation was cancelled before replacing the trainer.
 pause
