@@ -113,7 +113,7 @@ namespace AvernesTreiner.Modules
                 if (!Directory.Exists(source)) Directory.CreateDirectory(source);
                 string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 string backupRoot = Path.Combine(documents, "AvernesTreiner_Backup");
-                string backupPath = Path.Combine(backupRoot, "manual_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                string backupPath = Path.Combine(backupRoot, "manual_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N").Substring(0, 8));
                 Directory.CreateDirectory(backupPath);
 
                 string[] files = new string[] {
