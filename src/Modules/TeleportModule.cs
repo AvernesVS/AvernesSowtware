@@ -96,15 +96,34 @@ namespace AvernesTreiner.Modules
 
         private void Teleport(Vector3 pos)
         {
+            if (float.IsNaN(pos.X) || float.IsNaN(pos.Y) || float.IsNaN(pos.Z) ||
+                float.IsInfinity(pos.X) || float.IsInfinity(pos.Y) || float.IsInfinity(pos.Z) ||
+                Math.Abs(pos.X) > 10000.0f || Math.Abs(pos.Y) > 10000.0f ||
+                pos.Z < -1000.0f || pos.Z > 3000.0f)
+            {
+                UI.Notify("~r~Teleport cancelled: destination coordinates are invalid.");
+                return;
+            }
+
             Ped player = Game.Player.Character;
-            if (player == null || !player.Exists()) return;
+            if (player == null || !player.Exists())
+            {
+                UI.Notify("~r~Teleport cancelled: player is not available.");
+                return;
+            }
 
             // Ask the game to stream collision before moving the player/entity.
             Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z);
 
             if (player.IsInVehicle())
             {
-                player.CurrentVehicle.Position = pos;
+                Vehicle vehicle = player.CurrentVehicle;
+                if (vehicle == null || !vehicle.Exists())
+                {
+                    UI.Notify("~r~Teleport cancelled: current vehicle is not available.");
+                    return;
+                }
+                vehicle.Position = pos;
             }
             else
             {
@@ -192,9 +211,15 @@ namespace AvernesTreiner.Modules
         private void CompleteWaypointTeleport(Vector3 destination, string message)
         {
             _waypointTeleportPending = false;
-            Teleport(destination);
-            StopWaypointStreaming();
-            UI.Notify(message);
+            try
+            {
+                Teleport(destination);
+                UI.Notify(message);
+            }
+            finally
+            {
+                StopWaypointStreaming();
+            }
         }
 
         private void CancelWaypointTeleport()
@@ -205,13 +230,19 @@ namespace AvernesTreiner.Modules
 
         private void StopWaypointStreaming()
         {
-            if (_waypointLoadSceneStarted)
-                Function.Call(Hash.NEW_LOAD_SCENE_STOP);
-            if (_waypointFocusActive)
-                Function.Call(Hash.CLEAR_FOCUS);
-
+            bool stopScene = _waypointLoadSceneStarted;
+            bool clearFocus = _waypointFocusActive;
             _waypointLoadSceneStarted = false;
             _waypointFocusActive = false;
+
+            try
+            {
+                if (stopScene) Function.Call(Hash.NEW_LOAD_SCENE_STOP);
+            }
+            finally
+            {
+                if (clearFocus) Function.Call(Hash.CLEAR_FOCUS);
+            }
         }
 
         private bool TryGetGroundHeight(float x, float y, out float groundZ)
