@@ -887,7 +887,7 @@ namespace AvernesTreiner.Modules
                         {
                             RestoreNitroSpeed();
                             _nitroVehicle = v;
-                            _nitroOriginalMaxSpeed = v.MaxSpeed;
+                            _nitroOriginalMaxSpeed = Function.Call<float>((Hash)0xF417C2502FFFED43, v.Model.Hash);
                             _nitroMaxSpeedCaptured = true;
                         }
 
@@ -915,7 +915,8 @@ namespace AvernesTreiner.Modules
                         {
                             RestoreSuperTorque();
                             _torqueVehicle = v;
-                            _originalTorqueMultiplier = v.EnginePowerMultiplier;
+                            // ScriptHookVDotNet2 exposes EnginePowerMultiplier as a setter only; restore the game default.
+                            _originalTorqueMultiplier = 1.0f;
                             _torqueMultiplierCaptured = true;
                         }
                         v.EnginePowerMultiplier = 2.5f;
