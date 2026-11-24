@@ -178,6 +178,11 @@ namespace AvernesTreiner.Modules
  ConfigManager.SetBool("Player", "UnlimitedOxygen", _unlimitedOxygen); };
             playerMenu.AddItem(oxyItem);
 
+            // Character skill progression (Story Mode only).
+            var maxStatsItem = new UIMenuItem("Max All Character Skills", "Maximizes the active protagonist's seven skill stats.");
+            maxStatsItem.Activated += (sender, selected) => MaximizeCharacterSkills();
+            playerMenu.AddItem(maxStatsItem);
+
             // Money Submenu
             var moneyMenu = menuPool.AddSubMenu(playerMenu, "Money Generator");
             AddCashOption(moneyMenu, "Add +$100,000", 100000);
@@ -215,6 +220,46 @@ namespace AvernesTreiner.Modules
                 }
             };
             playerMenu.AddItem(suicideItem);
+        }
+
+        private void MaximizeCharacterSkills()
+        {
+            Ped player = Game.Player.Character;
+            if (player == null || !player.Exists())
+            {
+                UI.Notify("~r~Player character is not available.");
+                return;
+            }
+
+            int modelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
+            int characterSlot = -1;
+            if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_zero")) characterSlot = 0;
+            else if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_one")) characterSlot = 1;
+            else if (modelHash == Function.Call<int>(Hash.GET_HASH_KEY, "player_two")) characterSlot = 2;
+
+            if (characterSlot < 0)
+            {
+                UI.Notify("~y~Skill upgrade is available for the three Story Mode protagonists.");
+                return;
+            }
+
+            string prefix = "SP" + characterSlot.ToString() + "_";
+            string[] skills = new string[] {
+                "STAMINA", "STRENGTH", "LUNG_CAPACITY", "SHOOTING_ABILITY",
+                "WHEELIE_ABILITY", "FLYING_ABILITY", "STEALTH_ABILITY"
+            };
+
+            int updated = 0;
+            for (int i = 0; i < skills.Length; i++)
+            {
+                int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + skills[i]);
+                if (Function.Call<bool>((Hash)0xB3271D7AB655B441, statHash, 100, true))
+                    updated++;
+            }
+
+            UI.Notify(updated == skills.Length
+                ? "~g~All seven character skills maximized."
+                : "~y~Updated " + updated + " of " + skills.Length + " skills. Check the game stats.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
