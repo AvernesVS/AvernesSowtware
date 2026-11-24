@@ -179,7 +179,7 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(oxyItem);
 
             // Character skill progression (Story Mode only).
-            var maxStatsItem = new UIMenuItem("Max All Character Skills", "Maximizes the active protagonist's seven skill stats.");
+            var maxStatsItem = new UIMenuItem("Max All Character Skills", "Maximizes all eight Story Mode skills for Franklin, Michael and Trevor.");
             maxStatsItem.Activated += (sender, selected) => MaximizeCharacterSkills();
             playerMenu.AddItem(maxStatsItem);
 
