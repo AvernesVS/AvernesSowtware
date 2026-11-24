@@ -59,7 +59,7 @@ namespace AvernesTreiner.Core
             return "[General]\r\n" +
                 "Language=en-US\r\n" +
                 "MenuKey=F10\r\n" +
-                "Version=v0.8.1\r\n" +
+                "Version=v0.8.2\r\n" +
                 "Title=AvernesTreiner\r\n" +
                 "SpeedUnit=KM/H\r\n";
         }
@@ -178,7 +178,7 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.8.1");
+                _settings.SetValue("General", "Version", "v0.8.2");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
                 _settings.Save();
@@ -187,7 +187,7 @@ namespace AvernesTreiner.Core
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.8.1";
+                _version = "v0.8.2";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
