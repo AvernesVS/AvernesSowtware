@@ -24,7 +24,8 @@ namespace AvernesTreiner.Modules
             languageItem.OnListChanged += (sender, index) =>
             {
                 ConfigManager.Language = index == 1 ? "ru-RU" : "en-US";
-                UI.Notify("~b~Language selected. Press Save Settings and restart the trainer script.");
+                Localization.LoadLanguage(ConfigManager.Language);
+                UI.Notify("~b~Language saved selection. Press Save Settings, then reload the trainer script.");
             };
             settingsMenu.AddItem(languageItem);
 
@@ -84,7 +85,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.8.1"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.8.2"),
                 "Official AvernesTreiner version");
             settingsMenu.AddItem(verItem);
 
