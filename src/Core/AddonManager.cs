@@ -42,6 +42,8 @@ namespace AvernesTreiner.Core
                 if (!File.Exists(AddonsPath))
                     return;
 
+                if (new FileInfo(AddonsPath).Length > 1048576)
+                    throw new InvalidDataException("addons.json exceeds the 1 MB safety limit.");
                 string json = File.ReadAllText(AddonsPath, System.Text.Encoding.UTF8);
                 var serializer = new JavaScriptSerializer();
                 serializer.MaxJsonLength = 1024 * 1024;
