@@ -109,6 +109,7 @@ namespace AvernesTreiner.Core
 
         public static bool Load()
         {
+            LastError = null;
             try
             {
                 EnsureConfigFile();
