@@ -95,7 +95,7 @@ jobs:
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data must not be shipped: $userFile" }
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
-          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'Documents\AvernesTreiner') { throw 'Installer legacy backup migration or persistent data path is missing.' }
+          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA') { throw 'Installer legacy backup migration or persistent data path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'Version=v0.8.2' -or $configSource -notmatch 'SpecialFolder.MyDocuments' -or $configSource -notmatch 'UserDataDirectoryPath') { throw 'Persistent Documents config storage/version is missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
