@@ -53,9 +53,9 @@ namespace AvernesTreiner.Modules
 
         private void LoadFromDisk()
         {
+            string directory = Path.GetDirectoryName(StoragePath);
             try
             {
-                string directory = Path.GetDirectoryName(StoragePath);
                 if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
                 if (!File.Exists(StoragePath))
                 {
@@ -63,9 +63,27 @@ namespace AvernesTreiner.Modules
                     return;
                 }
 
-                string json = File.ReadAllText(StoragePath, Encoding.UTF8);
-                List<SavedVehicleData> loaded = _serializer.Deserialize<List<SavedVehicleData>>(json);
-                if (loaded == null) return;
+                List<SavedVehicleData> loaded = DeserializeSavedVehicles(File.ReadAllText(StoragePath, Encoding.UTF8));
+                if (loaded == null)
+                {
+                    string backupPath = StoragePath + ".bak";
+                    if (File.Exists(backupPath))
+                    {
+                        loaded = DeserializeSavedVehicles(File.ReadAllText(backupPath, Encoding.UTF8));
+                        if (loaded != null)
+                        {
+                            File.Copy(backupPath, StoragePath, true);
+                            UI.Notify("~y~Saved vehicle data recovered from its backup.");
+                        }
+                    }
+                }
+
+                if (loaded == null)
+                {
+                    UI.Notify("~r~Saved vehicle data is damaged; the original file was kept for recovery.");
+                    return;
+                }
+
                 for (int i = 0; i < loaded.Count; i++)
                 {
                     if (loaded[i] != null && loaded[i].ModelHash != 0 &&
@@ -73,10 +91,22 @@ namespace AvernesTreiner.Modules
                         _saved.Add(loaded[i]);
                 }
             }
+            catch (Exception ex)
+            {
+                TrainerLog.Write("SavedVehicles.Load", ex);
+                UI.Notify("~r~Could not load saved vehicles. See trainer.log.");
+            }
+        }
+
+        private List<SavedVehicleData> DeserializeSavedVehicles(string json)
+        {
+            try
+            {
+                return _serializer.Deserialize<List<SavedVehicleData>>(json);
+            }
             catch
             {
-                // Keep the trainer usable if the optional saved-car file is damaged.
-                _saved.Clear();
+                return null;
             }
         }
 
@@ -94,7 +124,7 @@ namespace AvernesTreiner.Modules
                     string backupPath = StoragePath + ".bak";
                     if (File.Exists(backupPath)) File.Delete(backupPath);
                     File.Replace(tempPath, StoragePath, backupPath);
-                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    // Keep the previous valid snapshot so a later damaged file can be recovered.
                 }
                 else
                 {
@@ -102,8 +132,9 @@ namespace AvernesTreiner.Modules
                 }
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                TrainerLog.Write("SavedVehicles.Save", ex);
                 try
                 {
                     string tempPath = StoragePath + ".tmp";
@@ -125,6 +156,21 @@ namespace AvernesTreiner.Modules
 
             string name = Game.GetUserInput(30);
             if (string.IsNullOrWhiteSpace(name)) return;
+            name = name.Trim();
+            for (int i = 0; i < _saved.Count; i++)
+            {
+                if (string.Equals(_saved[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    UI.Notify("~y~A saved vehicle with that name already exists.");
+                    return;
+                }
+            }
+
+            if (_saved.Count >= 100)
+            {
+                UI.Notify("~y~Saved vehicle limit reached (100).");
+                return;
+            }
 
             Vehicle vehicle = player.CurrentVehicle;
             if (vehicle == null || !vehicle.Exists()) return;
@@ -132,7 +178,7 @@ namespace AvernesTreiner.Modules
             SavedVehicleData data;
             try
             {
-                data = CaptureVehicle(vehicle, name.Trim());
+                data = CaptureVehicle(vehicle, name);
             }
             catch (Exception ex)
             {
@@ -247,6 +293,7 @@ namespace AvernesTreiner.Modules
             }
 
             Model model = new Model(data.ModelHash);
+            Vehicle vehicle = null;
             try
             {
                 if (!model.IsInCdImage || !model.IsValid || !model.Request(3000) || !model.IsLoaded)
@@ -256,7 +303,7 @@ namespace AvernesTreiner.Modules
                 }
 
                 Vector3 position = player.Position + player.ForwardVector * 4.0f;
-                Vehicle vehicle = World.CreateVehicle(model, position, player.Heading);
+                vehicle = World.CreateVehicle(model, position, player.Heading);
                 if (vehicle == null || !vehicle.Exists())
                 {
                     UI.Notify("~r~Could not create saved vehicle.");
@@ -273,6 +320,12 @@ namespace AvernesTreiner.Modules
             }
             catch (Exception ex)
             {
+                TrainerLog.Write("SavedVehicles.Spawn", ex);
+                if (vehicle != null && vehicle.Exists() &&
+                    (!player.IsInVehicle() || player.CurrentVehicle.Handle != vehicle.Handle))
+                {
+                    try { vehicle.Delete(); } catch { }
+                }
                 UI.Notify("~r~Could not load saved vehicle: " + ex.Message);
             }
             finally
