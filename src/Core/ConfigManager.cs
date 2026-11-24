@@ -122,6 +122,9 @@ namespace AvernesTreiner.Core
                     if (!File.Exists(backupPath)) throw;
                     _settings = ScriptSettings.Load(backupPath);
                     File.Copy(backupPath, _configPath, true);
+                    // Rebind ScriptSettings to the active Config.ini path; otherwise Save()
+                    // would continue writing to the .bak file loaded above.
+                    _settings = ScriptSettings.Load(_configPath);
                     LastError = "Config.ini was recovered from its backup.";
                 }
                 _language = _settings.GetValue("General", "Language", "en-US");
