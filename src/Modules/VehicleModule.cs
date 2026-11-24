@@ -53,6 +53,12 @@ namespace AvernesTreiner.Modules
         private static readonly Dictionary<int, Vehicle> _trackedSpawnedVehicles = new Dictionary<int, Vehicle>();
         private static readonly Dictionary<int, int> _abandonedSince = new Dictionary<int, int>();
         private int _lastSpawnCleanupTime = 0;
+        private Vehicle _nitroVehicle;
+        private float _nitroOriginalMaxSpeed;
+        private bool _nitroMaxSpeedCaptured;
+        private Vehicle _torqueVehicle;
+        private float _originalTorqueMultiplier;
+        private bool _torqueMultiplierCaptured;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -206,8 +212,8 @@ namespace AvernesTreiner.Modules
                 Vehicle v = player.CurrentVehicle;
                 Vector3 rampPos = v.Position + v.ForwardVector * 16.0f;
                 Model rampModel = new Model("prop_mp_ramp_01");
-                rampModel.Request(1500);
-                if (rampModel.IsInCdImage && rampModel.IsValid)
+                if (rampModel.IsInCdImage && rampModel.IsValid &&
+                    rampModel.Request(2500) && rampModel.IsLoaded)
                 {
                     Prop ramp = World.CreateProp(rampModel, rampPos, new Vector3(0, 0, v.Heading), false, false);
                     if (ramp != null && ramp.Exists())
@@ -789,6 +795,22 @@ namespace AvernesTreiner.Modules
             _godModeVehicle = null;
         }
 
+        private void RestoreNitroSpeed()
+        {
+            if (_nitroMaxSpeedCaptured && _nitroVehicle != null && _nitroVehicle.Exists())
+                _nitroVehicle.MaxSpeed = _nitroOriginalMaxSpeed;
+            _nitroVehicle = null;
+            _nitroMaxSpeedCaptured = false;
+        }
+
+        private void RestoreSuperTorque()
+        {
+            if (_torqueMultiplierCaptured && _torqueVehicle != null && _torqueVehicle.Exists())
+                _torqueVehicle.EnginePowerMultiplier = _originalTorqueMultiplier;
+            _torqueVehicle = null;
+            _torqueMultiplierCaptured = false;
+        }
+
         private void ApplyDriftMode(Vehicle vehicle)
         {
             if (vehicle == null || !vehicle.Exists()) return;
@@ -856,10 +878,19 @@ namespace AvernesTreiner.Modules
                         UI.Notify("~g~Vehicle repaired on entry.");
                     }
 
-                    // Right Shift is the primary trigger; X remains as a reliable fallback key.
-                    // Keep the original force and speed cap, with horizontal force to avoid unwanted lift.
-                    if (_speedBoost && (Game.IsKeyPressed(Keys.RShiftKey) || Game.IsKeyPressed(Keys.X)))
+                    // Preserve each vehicle's original speed cap and restore it when Nitro is released.
+                    bool nitroHeld = _speedBoost &&
+                        (Game.IsKeyPressed(Keys.RShiftKey) || Game.IsKeyPressed(Keys.X));
+                    if (nitroHeld)
                     {
+                        if (_nitroVehicle == null || !_nitroVehicle.Exists() || _nitroVehicle.Handle != v.Handle)
+                        {
+                            RestoreNitroSpeed();
+                            _nitroVehicle = v;
+                            _nitroOriginalMaxSpeed = v.MaxSpeed;
+                            _nitroMaxSpeedCaptured = true;
+                        }
+
                         Vector3 forward = v.ForwardVector;
                         float horizontalLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
                         if (horizontalLength > 0.001f)
@@ -870,12 +901,28 @@ namespace AvernesTreiner.Modules
                                 0.0f);
                             v.ApplyForce(horizontalForce);
                         }
-                        v.MaxSpeed = 400.0f;
+                        v.MaxSpeed = Math.Max(_nitroOriginalMaxSpeed, 400.0f);
+                    }
+                    else
+                    {
+                        RestoreNitroSpeed();
                     }
 
+                    // Restore the previous engine multiplier when Super Torque is released or disabled.
                     if (_superTorque && Game.IsControlPressed(0, GTA.Control.VehicleAccelerate))
                     {
+                        if (_torqueVehicle == null || !_torqueVehicle.Exists() || _torqueVehicle.Handle != v.Handle)
+                        {
+                            RestoreSuperTorque();
+                            _torqueVehicle = v;
+                            _originalTorqueMultiplier = v.EnginePowerMultiplier;
+                            _torqueMultiplierCaptured = true;
+                        }
                         v.EnginePowerMultiplier = 2.5f;
+                    }
+                    else
+                    {
+                        RestoreSuperTorque();
                     }
 
                     if (_driftMode && maintenanceTick)
@@ -1074,6 +1121,8 @@ namespace AvernesTreiner.Modules
             else
             {
                 _lastEnteredVehicleHandle = 0;
+                RestoreNitroSpeed();
+                RestoreSuperTorque();
                 if (_driftVehicle != null) RestoreDriftMode();
                 if (_godModeVehicle != null) RestoreVehicleGodMode();
                 if (_autopilotActive)
