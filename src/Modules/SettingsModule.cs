@@ -78,8 +78,6 @@ namespace AvernesTreiner.Modules
                 if (ConfigManager.Load())
                 {
                     Localization.LoadLanguage(ConfigManager.Language);
-                    unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                    languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     UI.Notify(Localization.Get("Settings", "SettingsLoaded", "Settings loaded."));
                     if (_requestMenuRebuild != null) _requestMenuRebuild(true);
                 }
