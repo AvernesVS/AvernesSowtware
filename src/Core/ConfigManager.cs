@@ -114,7 +114,13 @@ namespace AvernesTreiner.Core
 
             _configPath = Path.Combine(UserConfigDirectory, "Config.ini");
             if (!File.Exists(_configPath) || new FileInfo(_configPath).Length == 0)
-                File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
+            {
+                string backupPath = _configPath + ".bak";
+                if (File.Exists(backupPath) && new FileInfo(backupPath).Length > 0)
+                    File.Copy(backupPath, _configPath, true);
+                else
+                    File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
+            }
         }
 
         public static bool Load()
