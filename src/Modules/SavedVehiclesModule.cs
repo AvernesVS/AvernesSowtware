@@ -23,6 +23,7 @@ namespace AvernesTreiner.Modules
         private UIMenu _savedMenu;
         private MenuPool _menuPool;
         private JavaScriptSerializer _serializer;
+        private bool _hasLoadedFromDisk;
 
         public string Name { get { return "Saved Vehicles"; } }
 
@@ -34,7 +35,7 @@ namespace AvernesTreiner.Modules
                 _serializer = new JavaScriptSerializer();
                 _serializer.MaxJsonLength = int.MaxValue;
             }
-            LoadFromDisk();
+            if (!_hasLoadedFromDisk) LoadFromDisk();
 
             _savedMenu = menuPool.AddSubMenu(mainMenu,
                 Localization.Get("General", "SubmenuSavedVehicles", "Saved Vehicles"));
@@ -65,23 +66,30 @@ namespace AvernesTreiner.Modules
                 if (!File.Exists(StoragePath))
                 {
                     File.WriteAllText(StoragePath, "[]", Encoding.UTF8);
+                    _hasLoadedFromDisk = true;
                     return;
                 }
 
                 string json = File.ReadAllText(StoragePath, Encoding.UTF8);
                 List<SavedVehicleData> loaded = _serializer.Deserialize<List<SavedVehicleData>>(json);
-                if (loaded == null) return;
+                if (loaded == null)
+                {
+                    _hasLoadedFromDisk = true;
+                    return;
+                }
                 for (int i = 0; i < loaded.Count; i++)
                 {
                     if (loaded[i] != null && loaded[i].ModelHash != 0 &&
                         !string.IsNullOrWhiteSpace(loaded[i].Name))
                         _saved.Add(loaded[i]);
                 }
+                _hasLoadedFromDisk = true;
             }
             catch
             {
                 // Keep the trainer usable if the optional saved-car file is damaged.
                 _saved.Clear();
+                _hasLoadedFromDisk = false;
             }
         }
 
