@@ -8,9 +8,9 @@ namespace AvernesTreiner.Modules
 {
     public class SettingsModule : IAvernesModule
     {
-        private readonly Action _requestMenuRebuild;
+        private readonly Action<bool> _requestMenuRebuild;
 
-        public SettingsModule(Action requestMenuRebuild)
+        public SettingsModule(Action<bool> requestMenuRebuild)
         {
             _requestMenuRebuild = requestMenuRebuild;
         }
@@ -39,7 +39,7 @@ namespace AvernesTreiner.Modules
                     return;
                 }
                 UI.Notify(Localization.Get("Settings", "LanguageChanged", "Language changed."));
-                if (_requestMenuRebuild != null) _requestMenuRebuild();
+                if (_requestMenuRebuild != null) _requestMenuRebuild(false);
             };
             settingsMenu.AddItem(languageItem);
 
@@ -81,7 +81,7 @@ namespace AvernesTreiner.Modules
                     unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     UI.Notify(Localization.Get("Settings", "SettingsLoaded", "Settings loaded."));
-                    if (_requestMenuRebuild != null) _requestMenuRebuild();
+                    if (_requestMenuRebuild != null) _requestMenuRebuild(true);
                 }
                 else
                 {
