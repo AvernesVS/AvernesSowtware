@@ -19,6 +19,7 @@ namespace AvernesTreiner.Modules
 
         private bool _freezeTime = ConfigManager.GetBool("World", "FreezeTime", false);
         private bool _moonGravity = ConfigManager.GetBool("World", "MoonGravity", false);
+        private int _lastWorldSettingsApplyTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -158,6 +159,13 @@ namespace AvernesTreiner.Modules
             if (wasMoonGravity && !_moonGravity) World.GravityLevel = 0;
         }
 
-        public void OnTick() { }
+        public void OnTick()
+        {
+            int now = Game.GameTime;
+            if (now - _lastWorldSettingsApplyTime < 250) return;
+            _lastWorldSettingsApplyTime = now;
+            if (_freezeTime) Function.Call(Hash.PAUSE_CLOCK, true);
+            if (_moonGravity) World.GravityLevel = 1;
+        }
     }
 }
