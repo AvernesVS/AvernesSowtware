@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.7
+# AvernesTreiner v0.8.9
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -65,7 +65,7 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
-## v0.8.7 additions
+## v0.8.9 additions
 - Infinite Special Ability refills the active protagonist's special meter while enabled.
 - Max All Character Stats sets all eight Story Mode skills to 100% for Michael, Franklin and Trevor, using per-protagonist stat slots and persistent writes.
 
