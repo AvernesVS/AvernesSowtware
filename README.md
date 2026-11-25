@@ -66,10 +66,14 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 Default menu key: **F10**.
 
 ## v0.8.3 changes
-- Use `Documents/AvernesTreiner` as persistent storage for configuration, saved vehicles and add-on lists; migrate existing game-local files without overwriting an existing Documents copy.
-- Parse localization INI files explicitly as UTF-8 so Russian text is not silently lost by the runtime INI reader.
-- Strengthen Auto Repair on Entry with direct vehicle repair, deformation, dirt, engine, body and petrol-tank repair natives.
-- Reapply deformation repair while Vehicle God Mode is enabled. In-game validation is still required.
+- Apply language changes immediately: the menu is rebuilt in the selected language without restarting GTA V. Reload Settings also rebuilds module controls so loaded checkbox states are reflected in the menu and runtime modules.
+- Expand Russian and English localization coverage across the Vehicle menu, including autopilot controls, driving styles, speed choices, stunt ramps and vehicle categories.
+- Persist checkbox settings as they change, retain a `.bak` copy of Config.ini, and recover from that backup if the primary configuration cannot be loaded.
+- Resolve the installer's user-data folder through Windows' actual My Documents location so it matches the path used by the trainer, including redirected Documents folders.
+- Move distant waypoint placement to the native coordinate setter after collision streaming, avoiding the ScriptHookVDotNet vehicle safe-placement setter that can reject a requested vehicle position.
+- Track vehicles spawned during story missions and remove them when the mission ends, once they are unoccupied. Vehicles currently occupied by the player or NPCs are not deleted.
+- Reapply vehicle deformation repair each script tick while Vehicle God Mode is active without calling the full vehicle repair native, which could reset customization.
+- These changes pass static/CI checks only after the workflow completes; target-game behavior still requires in-game testing.
 
 ## v0.8 fixes
 - Nitro accepts **Right Shift** as the primary trigger and **X** as a fallback, restoring the previously working alternate key without bringing back Left Shift. The horizontal boost force and speed cap remain unchanged.
