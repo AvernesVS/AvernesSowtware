@@ -136,7 +136,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.8.3-GTA5-Legacy
-          path: AvernesTreiner-0.8.3-GTA5-Legacy.zip
+          name: AvernesTreiner-0.8.4-GTA5-Legacy
+          path: AvernesTreiner-0.8.4-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
