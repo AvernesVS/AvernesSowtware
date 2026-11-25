@@ -269,7 +269,7 @@ namespace AvernesTreiner.Modules
             for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
             {
                 string statName = prefix + MaxSkillStatNames[statIndex];
-                Hash statHash = (Hash)Function.Call<int>(Hash.GET_HASH_KEY, statName);
+                int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
                 bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
                 if (applied) updated++;
 
@@ -436,7 +436,7 @@ namespace AvernesTreiner.Modules
                 bool abilityActive = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_ACTIVE, Game.Player);
                 bool meterFull = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_METER_FULL, Game.Player);
                 bool michaelAiming = _currentPlayerModelHash == _michaelModelHash &&
-                    Function.Call<bool>(Hash.IS_PED_AIMING, player.Handle);
+                    Function.Call<bool>(Hash.IS_PLAYER_FREE_AIMING, Game.Player);
 
                 if (!abilityActive && !meterFull && !michaelAiming)
                     Function.Call(Hash.SPECIAL_ABILITY_CHARGE_NORMALIZED, Game.Player, 1.0f, true);
