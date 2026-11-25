@@ -79,7 +79,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(fixItem);
 
             // Auto Repair
-            var autoRepItem = new UIMenuCheckboxItem("Auto Repair on Entry", _autoRepair, "Repairs a damaged vehicle once when you enter it");
+            var autoRepItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "AutoRepair", "Auto Repair on Entry"), _autoRepair, Localization.Get("Vehicle", "AutoRepairDesc", "Repairs a damaged vehicle once when you enter it"));
             autoRepItem.CheckboxEvent += (sender, state) => { _autoRepair = state;
  ConfigManager.SetBool("Vehicle", "AutoRepair", _autoRepair); };
             vehMenu.AddItem(autoRepItem);
@@ -98,7 +98,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(godItem);
 
             // Seatbelt (Anti-Fly through windshield & anti-fall from bikes)
-            var seatItem = new UIMenuCheckboxItem("Seatbelt (Anti-Ejection)", _seatbelt, "Prevents windshield ejection in crashes and keeps you on motorcycles");
+            var seatItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "Seatbelt", "Seatbelt (Anti-Ejection)"), _seatbelt, Localization.Get("Vehicle", "SeatbeltDesc", "Prevents ejection in crashes"));
             seatItem.CheckboxEvent += (sender, state) =>
             {
                 _seatbelt = state;
@@ -146,19 +146,19 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(tuneItem);
 
             // Speed Boost / NOS
-            var boostItem = new UIMenuCheckboxItem("Nitro Boost / NOS (RIGHT SHIFT or X)", _speedBoost, "Hold RIGHT SHIFT or press X inside a vehicle to activate nitro");
+            var boostItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "Nitro", "Nitro Boost / NOS (RIGHT SHIFT or X)"), _speedBoost, Localization.Get("Vehicle", "NitroDesc", "Hold RIGHT SHIFT or press X to activate nitro"));
             boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
  ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
 
             // Super Torque
-            var torqueItem = new UIMenuCheckboxItem("Super Engine (3x Torque)", _superTorque, "Multiplies engine torque for brutal acceleration");
+            var torqueItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "SuperEngine", "Super Engine (3x Torque)"), _superTorque, Localization.Get("Vehicle", "SuperEngineDesc", "Multiplies engine torque"));
             torqueItem.CheckboxEvent += (sender, state) => { _superTorque = state;
  ConfigManager.SetBool("Vehicle", "SuperTorque", _superTorque); };
             vehMenu.AddItem(torqueItem);
 
             // Vehicle Jump (Ruiner 2000 style)
-            var jumpItem = new UIMenuCheckboxItem("Vehicle Jump (Space)", _vehicleJump, "Press SPACE to jump over obstacles and other cars");
+            var jumpItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "VehicleJump", "Vehicle Jump (Space)"), _vehicleJump, Localization.Get("Vehicle", "VehicleJumpDesc", "Press SPACE to jump"));
             jumpItem.CheckboxEvent += (sender, state) => { _vehicleJump = state;
  ConfigManager.SetBool("Vehicle", "VehicleJump", _vehicleJump); };
             vehMenu.AddItem(jumpItem);
@@ -170,13 +170,13 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(hornItem);
 
             // Auto-Flip
-            var autoFlipItem = new UIMenuCheckboxItem("Auto-Flip (Anti-Rollover)", _autoFlip, "Automatically rights the vehicle if it rolls over");
+            var autoFlipItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "AutoFlip", "Auto-Flip (Anti-Rollover)"), _autoFlip, Localization.Get("Vehicle", "AutoFlipDesc", "Automatically rights the vehicle"));
             autoFlipItem.CheckboxEvent += (sender, state) => { _autoFlip = state;
  ConfigManager.SetBool("Vehicle", "AutoFlip", _autoFlip); };
             vehMenu.AddItem(autoFlipItem);
 
             // Drift Mode
-            var driftItem = new UIMenuCheckboxItem("Drift Mode", _driftMode, "Reduces rear grip for smooth drifting");
+            var driftItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "DriftMode", "Drift Mode"), _driftMode, Localization.Get("Vehicle", "DriftModeDesc", "Reduces rear grip for drifting"));
             driftItem.CheckboxEvent += (sender, state) =>
             {
                 _driftMode = state;
@@ -194,7 +194,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(waterItem);
 
             // Spawn Instant Stunt Ramp
-            var rampItem = new UIMenuItem("Create Stunt Ramp Ahead", "Spawns a perfect jump ramp 15 meters in front of the car");
+            var rampItem = new UIMenuItem(Localization.Get("Vehicle", "CreateRamp", "Create Stunt Ramp Ahead"), Localization.Get("Vehicle", "CreateRampDesc", "Spawns a jump ramp ahead"));
             rampItem.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
@@ -222,7 +222,7 @@ namespace AvernesTreiner.Modules
             };
             vehMenu.AddItem(rampItem);
 
-            var clearRamps = new UIMenuItem("Remove Created Ramps", "Removes all stunt ramps from the map");
+            var clearRamps = new UIMenuItem(Localization.Get("Vehicle", "RemoveRamps", "Remove Created Ramps"), Localization.Get("Vehicle", "RemoveRampsDesc", "Removes all created ramps"));
             clearRamps.Activated += (sender, selected) =>
             {
                 int count = 0;
@@ -240,14 +240,14 @@ namespace AvernesTreiner.Modules
             // -------------------------------------------------------------
             var autoMenu = menuPool.AddSubMenu(vehMenu, "Smart Autopilot (Waypoint)");
 
-            var autoToggle = new UIMenuItem("Start Autopilot", "Drives autonomously to the GPS waypoint using advanced AI");
+            var autoToggle = new UIMenuItem(Localization.Get("Vehicle", "StartAutopilot", "Start Autopilot"), Localization.Get("Vehicle", "StartAutopilotDesc", "Drives to the GPS waypoint"));
             autoToggle.Activated += (sender, selected) =>
             {
                 StartAutopilot();
             };
             autoMenu.AddItem(autoToggle);
 
-            var autoCancel = new UIMenuItem("Cancel Autopilot", "Immediately returns manual control of the car");
+            var autoCancel = new UIMenuItem(Localization.Get("Vehicle", "CancelAutopilot", "Cancel Autopilot"), Localization.Get("Vehicle", "CancelAutopilotDesc", "Returns manual control"));
             autoCancel.Activated += (sender, selected) =>
             {
                 CancelAutopilot(true, "~g~Autopilot cancelled manually.");
@@ -255,7 +255,7 @@ namespace AvernesTreiner.Modules
             autoMenu.AddItem(autoCancel);
 
             var styleList = new List<dynamic> { "Safe / Legal (Follows Rules)", "Fast / Avoids Traffic", "Escape / Aggressive (Insane / No Stops)" };
-            var styleItem = new UIMenuListItem("Driving Style", styleList, 0, "Changes the AI's traffic behavior");
+            var styleItem = new UIMenuListItem(Localization.Get("Vehicle", "DrivingStyle", "Driving Style"), styleList, 0, Localization.Get("Vehicle", "DrivingStyleDesc", "Changes AI traffic behavior"));
             styleItem.OnListChanged += (sender, index) =>
             {
                 if (index == 0)
@@ -284,14 +284,14 @@ namespace AvernesTreiner.Modules
             };
             autoMenu.AddItem(styleItem);
 
-            var rammerItem = new UIMenuCheckboxItem("Ramming Mode (Push Traffic)", _trafficRammer, "Forces a path by pushing vehicles blocking your way");
+            var rammerItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "RammingMode", "Ramming Mode (Push Traffic)"), _trafficRammer, Localization.Get("Vehicle", "RammingModeDesc", "Pushes vehicles blocking your way"));
             rammerItem.CheckboxEvent += (sender, state) => { _trafficRammer = state;
  ConfigManager.SetBool("Vehicle", "TrafficRammer", _trafficRammer); };
             autoMenu.AddItem(rammerItem);
 
             var speedList = new List<dynamic> { "60 KM/H (Cruise)", "90 KM/H (Default)", "130 KM/H (Fast)", "180 KM/H (Maximum)" };
             var speedVals = new[] { 17.0f, 25.0f, 36.0f, 50.0f };
-            var speedItem = new UIMenuListItem("Cruise Speed", speedList, 1, "Sets the AI target speed");
+            var speedItem = new UIMenuListItem(Localization.Get("Vehicle", "CruiseSpeed", "Cruise Speed"), speedList, 1, Localization.Get("Vehicle", "CruiseSpeedDesc", "Sets the AI target speed"));
             speedItem.OnListChanged += (sender, index) =>
             {
                 _autopilotSpeed = speedVals[index];
@@ -333,7 +333,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(flipItem);
 
             // Open/Close Doors
-            var openDoors = new UIMenuItem(Localization.Get("Vehicle", "OpenAllDoors", "Open All Doors"), "Opens all doors, hood, and trunk");
+            var openDoors = new UIMenuItem(Localization.Get("Vehicle", "OpenAllDoors", "Open All Doors"), Localization.Get("Vehicle", "OpenAllDoorsDesc", "Opens all doors, hood, and trunk"));
             openDoors.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
@@ -385,14 +385,14 @@ namespace AvernesTreiner.Modules
                 {
                     string m = addon.model;
                     string label = string.IsNullOrEmpty(addon.name) ? m.ToUpper() : addon.name;
-                    var item = new UIMenuItem(label, "Model: " + m + " (" + addon.category + ")");
+                    var item = new UIMenuItem(label, Localization.Get("Vehicle", "AddonModel", "Model: ") + m + " (" + addon.category + ")");
                     item.Activated += (sender, selected) => { SpawnVehicle(m); };
                     addonMenu.AddItem(item);
                 }
             }
             else
             {
-                addonMenu.AddItem(new UIMenuItem("No vehicles in addons.json", "Edit scripts/AvernesTreiner/addons.json"));
+                addonMenu.AddItem(new UIMenuItem(Localization.Get("Vehicle", "NoVehicles", "No vehicles in addons.json"), Localization.Get("Vehicle", "NoVehiclesDesc", "Add models to Documents/AvernesTreiner/addons.json")));
             }
 
             var addonInputItem = new UIMenuItem(Localization.Get("Vehicle", "SpawnAddonInput", "Enter Add-On Model"), Localization.Get("Vehicle", "SpawnAddonInputDesc", "Enter any model name"));
@@ -408,7 +408,7 @@ namespace AvernesTreiner.Modules
 
             var origCatsMenu = menuPool.AddSubMenu(spawnerMenu, Localization.Get("Vehicle", "SpawnCategories", "Original GTA V Categories"));
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Super", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategorySuper", "Super"), new[]
             {
                 "adder", "autarch", "banshee2", "bullet", "cheetah", "cyclone", "deveste", "entity2", "entityxf",
                 "emerus", "fmj", "furia", "gp1", "infernus", "italigtb", "italigtb2", "krieger", "le7b", "nero",
@@ -417,7 +417,7 @@ namespace AvernesTreiner.Modules
                 "vacca", "vagner", "visione", "voltic", "xa21", "zentorno", "zorrusso"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Sports Cars", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategorySports", "Sports Cars"), new[]
             {
                 "alpha", "banshee", "bestiagts", "blista2", "buffalo", "buffalo2", "buffalo3", "carbonizzare", "comet2",
                 "comet3", "comet4", "comet5", "coquette", "coquette4", "drafter", "elegy", "elegy2", "feltzer2", "flashgt",
@@ -428,14 +428,14 @@ namespace AvernesTreiner.Modules
                 "streiter", "sugoi", "sultan", "surano", "tropos", "verlierer2"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Sports Classics", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryClassics", "Sports Classics"), new[]
             {
                 "casco", "cheetah2", "coquette2", "coquette3", "deluxo", "dynasty", "gt500", "jb700", "jb7002", "mamba", "manana", "manana2", "michelli", "monroe", "nebula", "peyote", "peyote2",
                 "pigalle", "retinue", "retinue2", "savestra", "stinger", "stingergt", "stromberg", "swinger", "torero",
                 "turismo2", "viseris", "ztype", "zion3"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Muscle Cars", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryMuscle", "Muscle Cars"), new[]
             {
                 "blade", "buccaneer", "buccaneer2", "chino", "chino2", "clique", "coquette3", "deviant", "dominator",
                 "dominator2", "dominator3", "dukes", "dukes2", "ellie", "faction", "faction2", "faction3", "gauntlet",
@@ -445,7 +445,7 @@ namespace AvernesTreiner.Modules
                 "tulip", "vamos", "vigilante", "virgo", "virgo2", "virgo3", "voodoo", "voodoo2", "yosemite", "yosemite2"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Sedans, Coupes & SUVs", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategorySedans", "Sedans, Coupes & SUVs"), new[]
             {
                 "asea", "asterope", "cog55", "cognoscenti", "emperor", "fugitive", "glendale", "ingot", "intruder",
                 "premier", "primo", "primo2", "regina", "romero", "stanier", "stratum", "surge", "tailgater",
@@ -456,7 +456,7 @@ namespace AvernesTreiner.Modules
                 "patriot2", "radi", "rebla", "rocoto", "seminole", "serrano", "toros", "xls"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Motorcycles & Quad Bikes", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryMotorcycles", "Motorcycles & Quad Bikes"), new[]
             {
                 "akuma", "avarus", "bagger", "bati", "bati2", "bf400", "carbonrs", "chimera", "cliffhanger", "daemon",
                 "daemon2", "defiler", "deathbike", "deathbike2", "deathbike3", "diablous", "diablous2", "double", "enduro",
@@ -467,7 +467,7 @@ namespace AvernesTreiner.Modules
                 "tribike2", "tribike3"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Off-Road", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryOffroad", "Off-Road"), new[]
             {
                 "bfinjection", "bifta", "blazer", "blazer2", "blazer3", "blazer4", "blazer5", "bodhi2", "brawler", "bruiser",
                 "bruiser2", "bruiser3", "caracara", "caracara2", "dloader", "dune", "dune2", "dune3", "dune4", "dune5",
@@ -476,7 +476,7 @@ namespace AvernesTreiner.Modules
                 "technical", "technical2", "technical3", "trophytruck", "trophytruck2", "vagrant", "wastelander", "zhaba"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Helicopters & Planes", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryAircraft", "Helicopters & Planes"), new[]
             {
                 "akula", "annihilator", "buzzard", "buzzard2", "cargobob", "cargobob2", "cargobob3", "cargobob4", "frogger",
                 "frogger2", "havok", "hunter", "maverick", "savage", "seasparrow", "skylift", "supervolito", "supervolito2",
@@ -487,7 +487,7 @@ namespace AvernesTreiner.Modules
                 "vestra", "volatol"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Boats, Military & Emergency", new[]
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategorySpecial", "Boats, Military & Emergency"), new[]
             {
                 "dinghy", "dinghy2", "dinghy3", "dinghy4", "jetmax", "marquis", "seashark", "seashark2", "seashark3",
                 "speeder", "speeder2", "squalo", "submersible", "submersible2", "suntrap", "toro", "toro2", "tropic",
@@ -497,7 +497,7 @@ namespace AvernesTreiner.Modules
                 "policet", "pranger", "predator", "riot", "riot2", "sheriff", "sheriff2"
             });
 
-            AddCategoryMenu(origCatsMenu, menuPool, "Additional Vehicles (Build 2245)", VehicleDatabase.AdditionalModels);
+            AddCategoryMenu(origCatsMenu, menuPool, Localization.Get("Vehicle", "CategoryAdditional", "Additional Vehicles (Build 2245)"), VehicleDatabase.AdditionalModels);
         }
 
         private void StartAutopilot()
@@ -593,7 +593,7 @@ namespace AvernesTreiner.Modules
             foreach (var modelName in models)
             {
                 string m = modelName;
-                var item = new UIMenuItem(m.ToUpper(), "Spawn " + m);
+                var item = new UIMenuItem(m.ToUpper(), Localization.Get("Vehicle", "SpawnModel", "Spawn ") + m);
                 item.Activated += (sender, selected) => { SpawnVehicle(m); };
                 catMenu.AddItem(item);
             }
