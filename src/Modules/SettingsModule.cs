@@ -43,7 +43,7 @@ namespace AvernesTreiner.Modules
             };
             settingsMenu.AddItem(languageItem);
 
-            var unitList = new List<dynamic> { "KM/H (Metric)", "MPH (Imperial)" };
+            var unitList = new List<dynamic> { Localization.Get("Settings", "SpeedMetric", "KM/H (Metric)"), Localization.Get("Settings", "SpeedImperial", "MPH (Imperial)") };
             int currentUnitIdx = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             var unitItem = new UIMenuListItem(
                 Localization.Get("Settings", "SpeedUnit", "Speed Unit"),
@@ -60,7 +60,7 @@ namespace AvernesTreiner.Modules
 
             var saveItem = new UIMenuItem(
                 Localization.Get("Settings", "SaveSettings", "Save Settings"),
-                "Writes the current settings to Config.ini");
+                Localization.Get("Settings", "SaveSettingsDesc", "Writes the current settings to Config.ini"));
             saveItem.Activated += (sender, selected) =>
             {
                 bool saved = ConfigManager.Save();
@@ -72,7 +72,7 @@ namespace AvernesTreiner.Modules
 
             var loadItem = new UIMenuItem(
                 Localization.Get("Settings", "LoadSettings", "Load Settings"),
-                "Reloads saved settings from Config.ini");
+                Localization.Get("Settings", "LoadSettingsDesc", "Reloads saved settings from Config.ini"));
             loadItem.Activated += (sender, selected) =>
             {
                 if (ConfigManager.Load())
@@ -92,7 +92,7 @@ namespace AvernesTreiner.Modules
 
             var reloadAddonsItem = new UIMenuItem(
                 Localization.Get("Settings", "ReloadAddons", "Reload addons.json"),
-                "Refreshes the vehicle list from Documents/AvernesTreiner/addons.json");
+                Localization.Get("Settings", "ReloadAddonsDesc", "Refreshes the vehicle list from Documents/AvernesTreiner/addons.json"));
             reloadAddonsItem.Activated += (sender, selected) =>
             {
                 AddonManager.Load();
@@ -102,12 +102,12 @@ namespace AvernesTreiner.Modules
 
             var verItem = new UIMenuItem(
                 Localization.Get("Settings", "VersionLabel", "Version: v0.8.3"),
-                "Official AvernesTreiner version");
+                Localization.Get("Settings", "VersionDesc", "Official AvernesTreiner version"));
             settingsMenu.AddItem(verItem);
 
             var authorItem = new UIMenuItem(
                 Localization.Get("Settings", "CreatorLabel", "Created by Avernes"),
-                "Official AvernesTreiner");
+                Localization.Get("Settings", "CreatorDesc", "Official AvernesTreiner"));
             settingsMenu.AddItem(authorItem);
         }
 
