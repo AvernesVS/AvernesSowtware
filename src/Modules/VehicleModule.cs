@@ -54,6 +54,7 @@ namespace AvernesTreiner.Modules
         private static readonly Dictionary<int, int> _abandonedSince = new Dictionary<int, int>();
         private static readonly HashSet<int> _missionSpawnedVehicles = new HashSet<int>();
         private static readonly HashSet<int> _protectedSavedVehicles = new HashSet<int>();
+        private bool _missionCleanupTrackingActive = false;
         private readonly Queue<int> _vehicleDeletionQueue = new Queue<int>();
         private readonly HashSet<int> _pendingVehicleDeletion = new HashSet<int>();
         private readonly List<int> _trackedVehicleRemovalBuffer = new List<int>();
@@ -732,13 +733,25 @@ namespace AvernesTreiner.Modules
         {
             if (player == null || !player.Exists()) return;
 
-            // Do not clean up trainer vehicles while a story mission is active.
-            // Reset the grace timers so old abandoned vehicles are not deleted immediately after it ends.
+            // Capture every currently tracked, unsaved trainer vehicle when a
+            // mission starts, not only vehicles spawned from inside the mission.
+            // This also cleans up a trainer-spawned car left behind before driving
+            // away to begin a mission. Occupancy is rechecked before deletion.
             if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
             {
+                if (!_missionCleanupTrackingActive)
+                {
+                    _missionCleanupTrackingActive = true;
+                    foreach (var trackedEntry in _trackedSpawnedVehicles)
+                    {
+                        if (!_protectedSavedVehicles.Contains(trackedEntry.Key))
+                            _missionSpawnedVehicles.Add(trackedEntry.Key);
+                    }
+                }
                 _abandonedSince.Clear();
                 return;
             }
+            _missionCleanupTrackingActive = false;
 
             _trackedVehicleRemovalBuffer.Clear();
             foreach (var entry in _trackedSpawnedVehicles)
@@ -1044,7 +1057,13 @@ namespace AvernesTreiner.Modules
                     if (_vehicleGodMode)
                     {
                         if (maintenanceTick)
+                        {
                             ApplyVehicleGodMode(v, true);
+                            // Periodic full repair clears minor collision scuffs that
+                            // deformation-only repair does not remove. Vehicle mods,
+                            // paint and saved-vehicle data are not rewritten.
+                            Function.Call(Hash.SET_VEHICLE_FIXED, v.Handle);
+                        }
                         // Collision deformation can be applied between maintenance ticks.
                         // Reapply the deformation fix each script tick without using
                         // SET_VEHICLE_FIXED, which can reset vehicle customization.
