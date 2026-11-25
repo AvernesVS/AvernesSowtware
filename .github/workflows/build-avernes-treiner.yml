@@ -115,6 +115,7 @@ jobs:
           if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'SET_ENTITY_COORDS_NO_OFFSET' -or $teleportSource -notmatch 'streamingReady' -or $teleportSource -notmatch '_waypointTargetHandle' -or $teleportSource -notmatch 'TeleportEntity') { throw 'Waypoint streaming fallback or original vehicle-handle placement checks failed.' }
           $playerSource = Get-Content (Join-Path $root 'src\Modules\PlayerModule.cs') -Raw
           if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted' -or $playerSource -match '_copsIgnore|CopsIgnore') { throw 'Never Wanted regression checks failed or the redundant Cops Ignore feature remains.' }
+          foreach ($languageFile in @($english, $russian)) { if ($languageFile -match '(?m)^CopsIgnore(?:Desc)?=') { throw 'Removed Cops Ignore localization keys remain.' } }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
           if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Weapon attachment regression checks failed.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
