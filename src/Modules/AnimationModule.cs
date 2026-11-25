@@ -68,6 +68,8 @@ namespace AvernesTreiner.Modules
             menu.AddItem(item);
         }
 
+        public void ReloadSettings() { }
+
         public void OnTick()
         {
         }
