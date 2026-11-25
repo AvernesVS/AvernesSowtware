@@ -840,6 +840,37 @@ namespace AvernesTreiner.Modules
             _driftVehicle = null;
         }
 
+        public void ReloadSettings()
+        {
+            bool wasGodMode = _vehicleGodMode;
+            bool wasDriftMode = _driftMode;
+            bool wasSeatbelt = _seatbelt;
+
+            _vehicleGodMode = ConfigManager.GetBool("Vehicle", "VehicleGodMode", false);
+            _speedBoost = ConfigManager.GetBool("Vehicle", "SpeedBoost", false);
+            _hornJump = ConfigManager.GetBool("Vehicle", "HornJump", false);
+            _vehicleJump = ConfigManager.GetBool("Vehicle", "VehicleJump", false);
+            _driveOnWater = ConfigManager.GetBool("Vehicle", "DriveOnWater", false);
+            _speedometer = ConfigManager.GetBool("Vehicle", "Speedometer", false);
+            _driftMode = ConfigManager.GetBool("Vehicle", "DriftMode", false);
+            _seatbelt = ConfigManager.GetBool("Vehicle", "Seatbelt", true);
+            _autoRepair = ConfigManager.GetBool("Vehicle", "AutoRepair", false);
+            _superTorque = ConfigManager.GetBool("Vehicle", "SuperTorque", false);
+            _autoFlip = ConfigManager.GetBool("Vehicle", "AutoFlip", false);
+            _trafficRammer = ConfigManager.GetBool("Vehicle", "TrafficRammer", false);
+
+            if (wasGodMode && !_vehicleGodMode) RestoreVehicleGodMode();
+            if (wasDriftMode && !_driftMode) RestoreDriftMode();
+
+            Ped player = Game.Player.Character;
+            if (wasSeatbelt && !_seatbelt && player != null && player.Exists())
+            {
+                Function.Call(Hash.SET_PED_CONFIG_FLAG, player.Handle, 32, true);
+                Function.Call(Hash.SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE, player.Handle, 0);
+            }
+            _lastEnteredVehicleHandle = 0;
+        }
+
         public void OnTick()
         {
             Ped player = Game.Player.Character;
