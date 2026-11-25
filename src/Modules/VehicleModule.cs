@@ -1059,10 +1059,6 @@ namespace AvernesTreiner.Modules
                         if (maintenanceTick)
                         {
                             ApplyVehicleGodMode(v, true);
-                            // Periodic full repair clears minor collision scuffs that
-                            // deformation-only repair does not remove. Vehicle mods,
-                            // paint and saved-vehicle data are not rewritten.
-                            Function.Call(Hash.SET_VEHICLE_FIXED, v.Handle);
                         }
                         // Collision deformation can be applied between maintenance ticks.
                         // Reapply the deformation fix each script tick without using
