@@ -26,7 +26,7 @@ namespace AvernesTreiner.Modules
             var bgMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuBodyguards", "Bodyguards & Gang"));
 
             // 1. Single Bodyguards
-            var singleMenu = menuPool.AddSubMenu(bgMenu, "Spawn Individual Bodyguard");
+            var singleMenu = menuPool.AddSubMenu(bgMenu, Localization.Get("Bodyguards", "SpawnIndividual", "Spawn Individual Bodyguard"));
             AddSingleBgItem(singleMenu, "SWAT Officer", "s_m_y_swat_01", WeaponHash.CarbineRifle);
             AddSingleBgItem(singleMenu, "Military Soldier", "s_m_y_marine_01", WeaponHash.CombatMG);
             AddSingleBgItem(singleMenu, "Security Agent", "s_m_m_security_01", WeaponHash.SMG);
@@ -35,7 +35,7 @@ namespace AvernesTreiner.Modules
             AddSingleBgItem(singleMenu, "Vagos Member", "g_m_y_salvagoon_01", WeaponHash.CombatPistol);
 
             // 2. Squads
-            var squadMenu = menuPool.AddSubMenu(bgMenu, "Spawn Full Gang Squad");
+            var squadMenu = menuPool.AddSubMenu(bgMenu, Localization.Get("Bodyguards", "SpawnSquad", "Spawn Full Gang Squad"));
             AddSquadItem(squadMenu, "Families Squad (Grove Street - 3 Members)", "g_m_y_famdnf_01", WeaponHash.CarbineRifle, 3);
             AddSquadItem(squadMenu, "Ballas Squad (3 Members)", "g_m_y_ballaorig_01", WeaponHash.MicroSMG, 3);
             AddSquadItem(squadMenu, "Los Vagos Squad (3 Members)", "g_m_y_salvagoon_01", WeaponHash.PumpShotgun, 3);
@@ -43,7 +43,7 @@ namespace AvernesTreiner.Modules
             AddSquadItem(squadMenu, "Elite Military Squad (4 Members)", "s_m_y_marine_01", WeaponHash.CombatMG, 4);
 
             // 3. Gang Armory
-            var armoryMenu = menuPool.AddSubMenu(bgMenu, "Gang Armory & Equipment");
+            var armoryMenu = menuPool.AddSubMenu(bgMenu, Localization.Get("Bodyguards", "GangArmory", "Gang Armory & Equipment"));
             AddWeaponEquipItem(armoryMenu, "Equip Assault Rifles (Carbine Rifle)", WeaponHash.CarbineRifle);
             AddWeaponEquipItem(armoryMenu, "Equip Heavy Machine Guns (Combat MG)", WeaponHash.CombatMG);
             AddWeaponEquipItem(armoryMenu, "Equip Combat Shotguns", WeaponHash.PumpShotgun);
@@ -51,7 +51,7 @@ namespace AvernesTreiner.Modules
             AddWeaponEquipItem(armoryMenu, "Equip Rocket Launcher (RPG)", WeaponHash.RPG);
             AddWeaponEquipItem(armoryMenu, "Equip Minigun", WeaponHash.Minigun);
 
-            var armorAllItem = new UIMenuItem("Full Gang Armor (100% Armor)", "Restores all members' health and armor");
+            var armorAllItem = new UIMenuItem(Localization.Get("Bodyguards", "FullGangArmor", "Full Gang Armor (100% Armor)"), Localization.Get("Bodyguards", "FullGangArmorDesc", "Restores all members health and armor"));
             armorAllItem.Activated += (sender, selected) =>
             {
                 int count = 0;
@@ -68,7 +68,7 @@ namespace AvernesTreiner.Modules
             };
             armoryMenu.AddItem(armorAllItem);
 
-            var godSquadItem = new UIMenuCheckboxItem("Invincible Gang (God Mode)", _godModeSquad, "Makes all members immune to bullets and explosions");
+            var godSquadItem = new UIMenuCheckboxItem(Localization.Get("Bodyguards", "InvincibleGang", "Invincible Gang (God Mode)"), _godModeSquad, Localization.Get("Bodyguards", "InvincibleGangDesc", "Makes all members immune to bullets and explosions"));
             godSquadItem.CheckboxEvent += (sender, state) =>
             {
                 _godModeSquad = state;
@@ -86,9 +86,9 @@ namespace AvernesTreiner.Modules
             armoryMenu.AddItem(godSquadItem);
 
             // 4. Tactical Commands
-            var cmdMenu = menuPool.AddSubMenu(bgMenu, "Group Orders & Tactics");
+            var cmdMenu = menuPool.AddSubMenu(bgMenu, Localization.Get("Bodyguards", "GroupOrders", "Group Orders & Tactics"));
 
-            var attackTargetItem = new UIMenuItem("Everyone Attack Aimed Target", "Orders the gang to attack the enemy you aim at");
+            var attackTargetItem = new UIMenuItem(Localization.Get("Bodyguards", "AttackTarget", "Everyone Attack Aimed Target"), Localization.Get("Bodyguards", "AttackTargetDesc", "Orders the gang to attack your aimed target"));
             attackTargetItem.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
@@ -114,7 +114,7 @@ namespace AvernesTreiner.Modules
             };
             cmdMenu.AddItem(attackTargetItem);
 
-            var holdItem = new UIMenuItem("Hold Position (Stay Put)", "Members will defend the current area");
+            var holdItem = new UIMenuItem(Localization.Get("Bodyguards", "HoldPosition", "Hold Position (Stay Put)"), Localization.Get("Bodyguards", "HoldPositionDesc", "Members defend the current area"));
             holdItem.Activated += (sender, selected) =>
             {
                 foreach (var bg in _bodyguards)
@@ -128,7 +128,7 @@ namespace AvernesTreiner.Modules
             };
             cmdMenu.AddItem(holdItem);
 
-            var followItem = new UIMenuItem("Regroup and Follow Player", "Cancels previous orders and resumes following");
+            var followItem = new UIMenuItem(Localization.Get("Bodyguards", "FollowPlayer", "Regroup and Follow Player"), Localization.Get("Bodyguards", "FollowPlayerDesc", "Cancels previous orders and resumes following"));
             followItem.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
@@ -145,7 +145,7 @@ namespace AvernesTreiner.Modules
             cmdMenu.AddItem(followItem);
 
             // 5. Gang War Simulator
-            var warItem = new UIMenuItem("Start Gang War (Combat Simulation)", "Spawns Ballas vs Families in a local shootout");
+            var warItem = new UIMenuItem(Localization.Get("Bodyguards", "GangWar", "Start Gang War (Combat Simulation)"), Localization.Get("Bodyguards", "GangWarDesc", "Starts a local gang shootout"));
             warItem.Activated += (sender, selected) =>
             {
                 StartGangWar();
