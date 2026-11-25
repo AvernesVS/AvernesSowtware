@@ -255,6 +255,42 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, Game.Player);
         }
 
+        public void ReloadSettings()
+        {
+            Ped player = Game.Player.Character;
+            bool wasGodMode = _isGodModeActive;
+            bool wasNeverWanted = _neverWanted;
+            bool wasCopsIgnore = _copsIgnore;
+            bool wasInvisible = _isInvisible;
+
+            _isGodModeActive = ConfigManager.GetBool("Player", "GodMode", false);
+            _neverWanted = ConfigManager.GetBool("Player", "NeverWanted", false);
+            _copsIgnore = ConfigManager.GetBool("Player", "CopsIgnore", false);
+            _superJump = ConfigManager.GetBool("Player", "SuperJump", false);
+            _fastRun = ConfigManager.GetBool("Player", "FastRun", false);
+            _fastSwim = ConfigManager.GetBool("Player", "FastSwim", false);
+            _noRagdoll = ConfigManager.GetBool("Player", "NoRagdoll", false);
+            _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
+            _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
+            _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
+            _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
+
+            if (player != null && player.Exists())
+            {
+                if (wasGodMode != _isGodModeActive) player.IsInvincible = _isGodModeActive;
+                if (wasInvisible != _isInvisible) player.IsVisible = !_isInvisible;
+                if (wasCopsIgnore != _copsIgnore)
+                    Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _copsIgnore);
+                if (!_noRagdoll) player.CanRagdoll = true;
+                if (!_fastSwim) Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.0f);
+                if (!_unlimitedOxygen) Function.Call(Hash.SET_PED_MAX_TIME_UNDERWATER, player, 10.0f);
+                if (!_mobileRadio) Function.Call(Hash.SET_MOBILE_RADIO_ENABLED_DURING_GAMEPLAY, false);
+            }
+
+            if (wasNeverWanted && !_neverWanted) DisableNeverWanted();
+            else if (_neverWanted) EnableNeverWanted();
+        }
+
         public void OnTick()
         {
             Ped player = Game.Player.Character;
