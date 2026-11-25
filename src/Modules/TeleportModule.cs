@@ -108,6 +108,8 @@ namespace AvernesTreiner.Modules
                 pos.X, pos.Y, pos.Z, false, false, false);
         }
 
+        public void ReloadSettings() { }
+
         public void OnTick()
         {
             if (!_waypointTeleportPending) return;
