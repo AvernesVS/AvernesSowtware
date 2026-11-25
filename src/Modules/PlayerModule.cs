@@ -27,6 +27,7 @@ namespace AvernesTreiner.Modules
         private bool _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
         private bool _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
+        private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
         private static readonly string[] MaxSkillStatNames = new string[]
         {
             "STAMINA", "STRENGTH", "SHOOTING_ABILITY", "STEALTH_ABILITY",
@@ -240,11 +241,11 @@ namespace AvernesTreiner.Modules
             bool allSucceeded = true;
 
             // Story Mode stat slots: SP0 = Michael, SP1 = Franklin, SP2 = Trevor.
-            for (int characterIndex = 0; characterIndex < 3; characterIndex++)
+            for (int characterIndex = 0; characterIndex < CharacterStatPrefixes.Length; characterIndex++)
             {
                 for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
                 {
-                    string statName = "SP" + characterIndex.ToString() + "_" + MaxSkillStatNames[statIndex];
+                    string statName = CharacterStatPrefixes[characterIndex] + MaxSkillStatNames[statIndex];
                     int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
                     bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
                     if (!applied) allSucceeded = false;
