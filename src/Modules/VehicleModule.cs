@@ -62,6 +62,8 @@ namespace AvernesTreiner.Modules
         private int _lastSpawnCleanupTime = 0;
         private int _lastVehicleDeletionTime = 0;
         private int _lastExplodedVehicleCheckTime = 0;
+        private UIText _speedometerText;
+        private UIText _autopilotText;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -1022,6 +1024,19 @@ namespace AvernesTreiner.Modules
             _lastEnteredVehicleHandle = 0;
         }
 
+        private static void DrawHudText(ref UIText element, string caption, System.Drawing.Point position,
+            float scale, System.Drawing.Color color, bool centered, bool shadow, bool outline)
+        {
+            if (element == null)
+                element = new UIText(caption, position, scale, color, GTA.Font.ChaletComprimeCologne, centered, shadow, outline);
+            else
+            {
+                element.Caption = caption;
+                element.Position = position;
+            }
+            element.Draw();
+        }
+
         public void OnTick()
         {
             Ped player = Game.Player.Character;
@@ -1168,7 +1183,7 @@ namespace AvernesTreiner.Modules
                         string gearText = (gear == 0) ? "R" : gear.ToString();
                         string gearLabel = Localization.Get("Vehicle", "GearLabel", isMph ? "G" : "M");
                         string text = string.Format("{0:0} {1}  |  {2}: {3}", speedVal, unitStr, gearLabel, gearText);
-                        new UIText(text, new System.Drawing.Point(UI.WIDTH - 200, UI.HEIGHT - 70), 0.6f, System.Drawing.Color.FromArgb(255, 0, 230, 255), GTA.Font.ChaletComprimeCologne, false, true, true).Draw();
+                        DrawHudText(ref _speedometerText, text, new System.Drawing.Point(UI.WIDTH - 200, UI.HEIGHT - 70), 0.6f, System.Drawing.Color.FromArgb(255, 0, 230, 255), false, true, true);
                     }
 
                     // ---------------------------------------------------------
@@ -1262,7 +1277,7 @@ namespace AvernesTreiner.Modules
 
                         // Draw Autopilot HUD status
                         string hudText = string.Format("~b~AUTOPILOT ~w~| Distance: ~y~{0:0}m ~w~| Speed: ~g~{1:0} km/h ~w~| Hold ~r~[S] ~w~or honk", dist, currentKmh);
-                        new UIText(hudText, new System.Drawing.Point(UI.WIDTH / 2, UI.HEIGHT - 35), 0.45f, System.Drawing.Color.White, GTA.Font.ChaletComprimeCologne, true, false, true).Draw();
+                        DrawHudText(ref _autopilotText, hudText, new System.Drawing.Point(UI.WIDTH / 2, UI.HEIGHT - 35), 0.45f, System.Drawing.Color.White, true, false, true);
 
                         // Cancellation check (only after 1.5s grace period)
                         if (Game.GameTime - _autopilotStartTime > 1500)

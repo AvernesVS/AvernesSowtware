@@ -1,13 +1,9 @@
 using AvernesTreiner.Core;
 using AvernesTreiner.Modules;
-using GTA.Math;
 using GTA.Native;
 using GTA;
 using NativeUI;
 using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using System;
 
@@ -31,6 +27,8 @@ namespace AvernesTreiner
             GTA.Control.CursorScrollUp, GTA.Control.CursorScrollDown,
             GTA.Control.FrontendAccept, GTA.Control.PhoneCancel, GTA.Control.FrontendPause
         };
+        private static readonly int[] CameraControls = new int[] { 1, 2 };
+        private static readonly int[] InputGroups = new int[] { 0, 1, 2 };
 
         public AvernesTreinerScript()
         {
@@ -55,7 +53,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.0 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.1 Test ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -71,7 +69,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.0");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.1 Test");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
@@ -178,13 +176,11 @@ namespace AvernesTreiner
         {
             // NativeUI can suppress look input even when ControlDisablingEnabled is false.
             // Re-enable the two camera axes in all gameplay input groups after menu processing.
-            int[] cameraControls = new int[] { 1, 2 };
-            int[] inputGroups = new int[] { 0, 1, 2 };
-            for (int g = 0; g < inputGroups.Length; g++)
+            for (int g = 0; g < InputGroups.Length; g++)
             {
-                for (int c = 0; c < cameraControls.Length; c++)
+                for (int c = 0; c < CameraControls.Length; c++)
                 {
-                    Function.Call(Hash.ENABLE_CONTROL_ACTION, inputGroups[g], cameraControls[c]);
+                    Function.Call(Hash.ENABLE_CONTROL_ACTION, InputGroups[g], CameraControls[c]);
                 }
             }
         }
