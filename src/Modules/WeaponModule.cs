@@ -143,6 +143,18 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
         }
 
+        public void ReloadSettings()
+        {
+            _infiniteAmmo = ConfigManager.GetBool("Weapons", "InfiniteAmmo", false);
+            _explosiveAmmo = ConfigManager.GetBool("Weapons", "ExplosiveAmmo", false);
+            _fireAmmo = ConfigManager.GetBool("Weapons", "FireAmmo", false);
+            _superDamage = ConfigManager.GetBool("Weapons", "SuperDamage", false);
+            _teleportGun = ConfigManager.GetBool("Weapons", "TeleportGun", false);
+            _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
+            _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
+            _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
+        }
+
         public void OnTick()
         {
             bool needsUpdate = _infiniteAmmo || _explosiveAmmo || _fireAmmo || _superDamage ||
