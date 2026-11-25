@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.0
+# AvernesTreiner v0.9.1 Test
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,12 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.1 Test — performance refactor
+- Reuses camera-control arrays instead of allocating them on every open-menu frame.
+- Reuses speedometer and autopilot `UIText` instances while refreshing their captions and positions.
+- Removes unused imports from the trainer core. Gameplay features, controls, menu layout and native behavior are preserved.
+- The build workflow checks these allocation-reuse safeguards.
 
 ## v0.9.0 fixes and changes
 - Infinite Special Ability now refills after an ability use instead of forcing the meter every frame; it does not refill during Michael's aiming state.
@@ -137,5 +143,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This development branch targets version **0.9.0**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This development branch targets version **0.9.1 Test**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
