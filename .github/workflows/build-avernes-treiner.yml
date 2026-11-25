@@ -95,9 +95,9 @@ jobs:
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data must not be shipped: $userFile" }
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
-          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA') { throw 'Installer legacy backup migration or persistent data path is missing.' }
+          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch "GetFolderPath\('MyDocuments'\)") { throw 'Installer legacy backup migration or Windows My Documents path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
-          if ($configSource -notmatch 'Version=v0.8.3' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak') { throw 'Persistent settings, immediate saves or backup recovery are missing.' }
+          if ($configSource -notmatch 'Version=v0.8.3' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
@@ -125,7 +125,11 @@ jobs:
           if ($savedVehiclesSource -notmatch 'CaptureVehicle' -or $savedVehiclesSource -notmatch 'ApplyCustomization' -or $savedVehiclesSource -notmatch 'SavedVehicles.json' -or $core -notmatch 'new SavedVehiclesModule\(\)') { throw 'Saved vehicle save/spawn registration checks failed.' }
           if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
           if ($vehicleSource -notmatch '_missionSpawnedVehicles' -or $vehicleSource -notmatch 'Vehicles created during a mission') { throw 'Mission-spawned vehicle cleanup is missing.' }
-          if ($core -notmatch 'BuildMenus\(\)' -or $core -notmatch '_rebuildMenuRequested') { throw 'Live menu rebuild support is missing.' }
+          if ($core -notmatch 'BuildMenus\(\)' -or $core -notmatch '_rebuildMenuRequested' -or $core -notmatch '_modules\[i\]\.ReloadSettings\(\)') { throw 'Live menu rebuild or module settings reload support is missing.' }
+          $moduleContract = Get-Content (Join-Path $root 'src\Core\IAvernesModule.cs') -Raw
+          if ($moduleContract -notmatch 'ReloadSettings') { throw 'Module settings reload contract is missing.' }
+          $worldSource = Get-Content (Join-Path $root 'src\Modules\WorldModule.cs') -Raw
+          if ($worldSource -notmatch 'PAUSE_CLOCK' -or $worldSource -notmatch 'GravityLevel' -or $worldSource -notmatch '_lastWorldSettingsApplyTime') { throw 'Loaded world settings are not reapplied.' }
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
