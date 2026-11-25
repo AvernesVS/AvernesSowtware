@@ -20,6 +20,7 @@ namespace AvernesTreiner.Modules
         private bool _waypointTeleportPending;
         private float _waypointX;
         private float _waypointY;
+        private int _waypointTargetHandle;
         private int _waypointStartTime;
         private int _waypointAttempts;
         private bool _waypointLoadSceneStarted;
@@ -47,6 +48,9 @@ namespace AvernesTreiner.Modules
                     _waypointLastProbeTime = 0;
                     _waypointX = wp.X;
                     _waypointY = wp.Y;
+                    Ped player = Game.Player.Character;
+                    if (player == null || !player.Exists()) return;
+                    _waypointTargetHandle = player.IsInVehicle() ? player.CurrentVehicle.Handle : player.Handle;
                     _waypointStartTime = Game.GameTime;
                     _waypointAttempts = 0;
                     _waypointTeleportPending = true;
@@ -102,12 +106,14 @@ namespace AvernesTreiner.Modules
         {
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
-
-            // Stream collision, then move the actual entity with the native directly.
-            // SHVDN's Vehicle.Position setter can reject distant waypoint placement when
-            // its internal safe-placement resolver cannot find a vehicle-sized position.
-            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z);
             int targetHandle = player.IsInVehicle() ? player.CurrentVehicle.Handle : player.Handle;
+            TeleportEntity(targetHandle, pos);
+        }
+
+        private void TeleportEntity(int targetHandle, Vector3 pos)
+        {
+            if (targetHandle == 0 || !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, targetHandle)) return;
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z);
             Function.Call(Hash.SET_ENTITY_COORDS_NO_OFFSET, targetHandle,
                 pos.X, pos.Y, pos.Z, false, false, false);
         }
@@ -130,10 +136,13 @@ namespace AvernesTreiner.Modules
             int elapsed = now - _waypointStartTime;
             bool sceneLoaded = Function.Call<bool>(Hash.IS_NEW_LOAD_SCENE_LOADED);
 
-            // Never probe ground or teleport using stale collision data. Wait for the game
-            // to report that the requested distant scene has finished streaming.
-            bool mayProbe = elapsed >= 1200 && sceneLoaded &&
-                now - _waypointLastProbeTime >= 150;
+            // NEW_LOAD_SCENE_START can fail for some destinations even though collision
+            // requests still work. Do not wait for a scene flag that will never become true.
+            // If streaming is slow, begin probing after a short fallback window; the ground
+            // native itself must still confirm a valid surface before any teleport occurs.
+            bool streamingReady = sceneLoaded || !_waypointLoadSceneStarted || elapsed >= 4000;
+            bool mayProbe = elapsed >= 1200 && streamingReady &&
+                now - _waypointLastProbeTime >= 250;
             if (mayProbe)
             {
                 _waypointLastProbeTime = now;
@@ -194,9 +203,20 @@ namespace AvernesTreiner.Modules
         private void CompleteWaypointTeleport(Vector3 destination, string message)
         {
             _waypointTeleportPending = false;
-            Teleport(destination);
-            StopWaypointStreaming();
-            UI.Notify(message);
+            bool targetExists = _waypointTargetHandle != 0 &&
+                Function.Call<bool>(Hash.DOES_ENTITY_EXIST, _waypointTargetHandle);
+            if (targetExists)
+            {
+                TeleportEntity(_waypointTargetHandle, destination);
+                StopWaypointStreaming();
+                UI.Notify(message);
+            }
+            else
+            {
+                StopWaypointStreaming();
+                UI.Notify("~r~Teleport cancelled: the original player/vehicle no longer exists.");
+            }
+            _waypointTargetHandle = 0;
         }
 
         private void CancelWaypointTeleport()

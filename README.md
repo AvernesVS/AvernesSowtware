@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.4
+# AvernesTreiner v0.8.5
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,13 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.8.5 bug fixes
+- Remove the redundant Cops Ignore Player toggle and its repeated police-ignore native calls. Clear the legacy police-ignore state on startup; Never Wanted remains the supported police feature.
+- Waypoint teleport captures the original player/vehicle handle when requested, so the intended vehicle is moved even if streaming takes time.
+- Waypoint probing no longer waits indefinitely for NEW_LOAD_SCENE_START to succeed; collision/ground checks use a bounded fallback window and still require a valid ground or water result.
+- Vehicle God Mode sets vehicle damage scale to zero while enabled and restores the normal scale when disabled, supplementing deformation repair.
+- Load Settings relies on the rebuilt menu to refresh list indices, avoiding programmatic list-index changes before the rebuild.
 
 ## v0.8.4 changes
 - Trainer-spawned vehicle cleanup now uses a deletion queue (one attempt per 500 ms), rechecks existence and occupancy immediately before and after deletion, and retries when the entity remains.

@@ -893,7 +893,9 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.SET_ENTITY_PROOFS, vehicle.Handle,
                 enabled, enabled, enabled, enabled, enabled, enabled, enabled, enabled);
             Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, vehicle.Handle, !enabled);
-            // Entity proofs stop health damage; these natives also prevent collision dents.
+            // Zero the vehicle damage scale while protected; deformation repair alone
+            // removes dents but does not suppress every cosmetic collision mark.
+            Function.Call((Hash)0x4E20D2A627011E8E, vehicle.Handle, enabled ? 0.0f : 1.0f);
             Function.Call(Hash.SET_VEHICLE_STRONG, vehicle.Handle, enabled);
             _godModeVehicle = enabled ? vehicle : null;
         }
@@ -907,6 +909,7 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_ENTITY_PROOFS, _godModeVehicle.Handle,
                     false, false, false, false, false, false, false, false);
                 Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, _godModeVehicle.Handle, true);
+                Function.Call((Hash)0x4E20D2A627011E8E, _godModeVehicle.Handle, 1.0f);
                 Function.Call(Hash.SET_VEHICLE_STRONG, _godModeVehicle.Handle, false);
             }
             _godModeVehicle = null;

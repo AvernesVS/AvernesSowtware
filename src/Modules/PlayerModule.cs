@@ -20,7 +20,6 @@ namespace AvernesTreiner.Modules
         private static bool _isGodModeActive = ConfigManager.GetBool("Player", "GodMode", false);
         public static bool IsGodModeActive { get { return _isGodModeActive; } }
         private bool _neverWanted = ConfigManager.GetBool("Player", "NeverWanted", false);
-        private bool _copsIgnore = ConfigManager.GetBool("Player", "CopsIgnore", false);
         private bool _superJump = ConfigManager.GetBool("Player", "SuperJump", false);
         private bool _fastRun = ConfigManager.GetBool("Player", "FastRun", false);
         private bool _fastSwim = ConfigManager.GetBool("Player", "FastSwim", false);
@@ -35,6 +34,9 @@ namespace AvernesTreiner.Modules
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
+            // Clear the legacy Cops Ignore state from older trainer versions.
+            // Never Wanted is the supported police-related feature.
+            Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, false);
             var playerMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuPlayer", "Player Options"));
 
             // God Mode
@@ -64,18 +66,7 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(neverWantedItem);
             if (_neverWanted) EnableNeverWanted();
 
-            // Cops Ignore Player
-            var copsIgnoreItem = new UIMenuCheckboxItem(Localization.Get("Player", "CopsIgnore", "Cops Ignore Player"), _copsIgnore, Localization.Get("Player", "CopsIgnoreDesc", "Police ignore your crimes"));
-            copsIgnoreItem.CheckboxEvent += (sender, state) =>
-            {
-                _copsIgnore = state;
-
-                ConfigManager.SetBool("Player", "CopsIgnore", _copsIgnore);
-                Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _copsIgnore);
-            };
-            playerMenu.AddItem(copsIgnoreItem);
-
-            // Clear Wanted Level
+cops UI            // Clear Wanted Level
             var clearWantedItem = new UIMenuItem(Localization.Get("Player", "ClearWanted", "Clear Wanted Level"), Localization.Get("Player", "ClearWantedDesc", "Instantly removes wanted stars"));
             clearWantedItem.Activated += (sender, selected) =>
             {
@@ -260,12 +251,10 @@ namespace AvernesTreiner.Modules
             Ped player = Game.Player.Character;
             bool wasGodMode = _isGodModeActive;
             bool wasNeverWanted = _neverWanted;
-            bool wasCopsIgnore = _copsIgnore;
             bool wasInvisible = _isInvisible;
 
             _isGodModeActive = ConfigManager.GetBool("Player", "GodMode", false);
             _neverWanted = ConfigManager.GetBool("Player", "NeverWanted", false);
-            _copsIgnore = ConfigManager.GetBool("Player", "CopsIgnore", false);
             _superJump = ConfigManager.GetBool("Player", "SuperJump", false);
             _fastRun = ConfigManager.GetBool("Player", "FastRun", false);
             _fastSwim = ConfigManager.GetBool("Player", "FastSwim", false);
@@ -279,8 +268,6 @@ namespace AvernesTreiner.Modules
             {
                 if (wasGodMode != _isGodModeActive) player.IsInvincible = _isGodModeActive;
                 if (wasInvisible != _isInvisible) player.IsVisible = !_isInvisible;
-                if (wasCopsIgnore != _copsIgnore)
-                    Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, _copsIgnore);
                 if (!_noRagdoll) player.CanRagdoll = true;
                 if (!_fastSwim) Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.0f);
                 if (!_unlimitedOxygen) Function.Call(Hash.SET_PED_MAX_TIME_UNDERWATER, player, 10.0f);
@@ -319,7 +306,6 @@ namespace AvernesTreiner.Modules
 
             if (IsGodModeActive) player.IsInvincible = true;
             if (_isInvisible) player.IsVisible = false;
-            if (_copsIgnore) Function.Call(Hash.SET_POLICE_IGNORE_PLAYER, Game.Player, true);
             if (_fastSwim) Function.Call(Hash.SET_SWIM_MULTIPLIER_FOR_PLAYER, Game.Player, 1.49f);
             if (_noRagdoll) player.CanRagdoll = false;
             if (_unlimitedStamina) Function.Call(Hash.RESET_PLAYER_STAMINA, Game.Player);
