@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.8.6 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.8.7 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -61,7 +61,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
-      - name: Validate resources and build v0.8.6 installer ZIP
+      - name: Validate resources and build v0.8.7 installer ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -70,7 +70,7 @@ jobs:
           $payload = Join-Path $stage 'files'
           $runtime = Join-Path $payload 'scripts\AvernesTreiner'
           $scripts = Join-Path $payload 'scripts'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.8.6-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.8.7-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           New-Item -ItemType Directory -Path $scripts -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
@@ -86,7 +86,7 @@ jobs:
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing installer file: $f" } }
           $english = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
           $russian = Get-Content (Join-Path $runtime 'Languages\ru-RU.ini') -Raw
-          if ($english -notmatch 'MenuSubtitle=v0.8.6' -or $russian -notmatch 'MenuSubtitle=v0.8.6') { throw 'Both language files must identify v0.8.6.' }
+          if ($english -notmatch 'MenuSubtitle=v0.8.7' -or $russian -notmatch 'MenuSubtitle=v0.8.7') { throw 'Both language files must identify v0.8.7.' }
           $englishKeys = [regex]::Matches($english, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $russianKeys = [regex]::Matches($russian, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $missingRussian = @($englishKeys | Where-Object { $_ -notin $russianKeys })
@@ -97,7 +97,7 @@ jobs:
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
           if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch "GetFolderPath\('MyDocuments'\)") { throw 'Installer legacy backup migration or Windows My Documents path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
-          if ($configSource -notmatch 'Version=v0.8.6' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
+          if ($configSource -notmatch 'Version=v0.8.7' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
@@ -115,6 +115,10 @@ jobs:
           if ($teleportSource -notmatch 'SafeCoordProbeHeights' -or $teleportSource -notmatch 'result, true, false' -or $teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'SET_ENTITY_COORDS_NO_OFFSET' -or $teleportSource -notmatch 'streamingReady' -or $teleportSource -notmatch '_waypointTargetHandle' -or $teleportSource -notmatch 'TeleportEntity') { throw 'Waypoint streaming fallback or original vehicle-handle placement checks failed.' }
           $playerSource = Get-Content (Join-Path $root 'src\Modules\PlayerModule.cs') -Raw
           if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted' -or $playerSource -match '_copsIgnore|CopsIgnore') { throw 'Never Wanted regression checks failed or the redundant Cops Ignore feature remains.' }
+          if ($playerSource -notmatch '_infiniteSpecialAbility' -or $playerSource -notmatch 'SPECIAL_ABILITY_FILL_METER' -or $playerSource -notmatch 'InfiniteSpecialAbility') { throw 'Infinite special ability support is missing.' }
+          foreach ($skill in @('STAMINA','STRENGTH','SHOOTING_ABILITY','STEALTH_ABILITY','FLYING_ABILITY','WHEELIE_ABILITY','LUNG_CAPACITY','SPECIAL_ABILITY')) { if ($playerSource -notmatch [regex]::Escape($skill)) { throw "Max-stat skill missing: $skill" } }
+          if ($playerSource -notmatch 'SP0_' -or $playerSource -notmatch 'SP1_' -or $playerSource -notmatch 'SP2_' -or $playerSource -notmatch 'STAT_SET_INT' -or $playerSource -notmatch 'Hash.GET_HASH_KEY') { throw 'Max all character stats persistence checks failed.' }
+          foreach ($languageFile in @($english, $russian)) { foreach ($key in @('InfiniteSpecialAbility','InfiniteSpecialAbilityDesc','MaxAllStats','MaxAllStatsDesc')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing localization key: $key" } } }
           foreach ($languageFile in @($english, $russian)) { if ($languageFile -match '(?m)^CopsIgnore(?:Desc)?=') { throw 'Removed Cops Ignore localization keys remain.' } }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
           if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Weapon attachment regression checks failed.' }
@@ -139,7 +143,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.8.6-GTA5-Legacy
-          path: AvernesTreiner-0.8.6-GTA5-Legacy.zip
+          name: AvernesTreiner-0.8.7-GTA5-Legacy
+          path: AvernesTreiner-0.8.7-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
