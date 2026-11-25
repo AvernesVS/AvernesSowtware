@@ -148,6 +148,16 @@ namespace AvernesTreiner.Modules
             menu.AddItem(item);
         }
 
+        public void ReloadSettings()
+        {
+            bool wasFreezeTime = _freezeTime;
+            bool wasMoonGravity = _moonGravity;
+            _freezeTime = ConfigManager.GetBool("World", "FreezeTime", false);
+            _moonGravity = ConfigManager.GetBool("World", "MoonGravity", false);
+            if (wasFreezeTime && !_freezeTime) Function.Call(Hash.PAUSE_CLOCK, false);
+            if (wasMoonGravity && !_moonGravity) World.GravityLevel = 0;
+        }
+
         public void OnTick() { }
     }
 }
