@@ -866,14 +866,16 @@ namespace AvernesTreiner.Modules
                 Vehicle v = player.CurrentVehicle;
                 if (v != null && v.Exists())
                 {
-                    if (_vehicleGodMode && maintenanceTick)
+                    if (_vehicleGodMode)
                     {
-                        ApplyVehicleGodMode(v, true);
-                        // Re-fix deformation while God Mode is active; health proofs alone
-                        // do not stop all collision deformation on every vehicle type.
+                        if (maintenanceTick)
+                            ApplyVehicleGodMode(v, true);
+                        // Collision deformation can be applied between maintenance ticks.
+                        // Reapply the deformation fix each script tick without using
+                        // SET_VEHICLE_FIXED, which can reset vehicle customization.
                         Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, v.Handle);
                     }
-                    else if (!_vehicleGodMode && _godModeVehicle != null)
+                    else if (_godModeVehicle != null)
                         RestoreVehicleGodMode();
 
                     // Auto repair runs once per vehicle entry, never as a continuous repair loop.
