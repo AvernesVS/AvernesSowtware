@@ -27,6 +27,17 @@ namespace AvernesTreiner.Modules
         private bool _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
         private bool _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
+        private bool _maxStatsEnabled = ConfigManager.GetBool("Player", "MaxAllStatsEnabled", false);
+        private int _lastSpecialAbilityRefillTime = 0;
+        private int _lastPlayerModelCheckTime = 0;
+        private int _lastObservedPedHandle = 0;
+        private int _currentPlayerModelHash = 0;
+        private int _lastStatsPedHandle = 0;
+        private int _lastStatsModelHash = 0;
+        private static bool _characterModelHashesInitialized = false;
+        private static int _michaelModelHash = 0;
+        private static int _franklinModelHash = 0;
+        private static int _trevorModelHash = 0;
         private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
         private static readonly string[] MaxSkillStatNames = new string[]
         {
@@ -185,8 +196,7 @@ namespace AvernesTreiner.Modules
             {
                 _infiniteSpecialAbility = state;
                 ConfigManager.SetBool("Player", "InfiniteSpecialAbility", _infiniteSpecialAbility);
-                if (_infiniteSpecialAbility)
-                    Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, Game.Player, true);
+                _lastSpecialAbilityRefillTime = 0;
             };
             playerMenu.AddItem(specialAbilityItem);
 
@@ -236,34 +246,58 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(suicideItem);
         }
 
+        private static void EnsureCharacterModelHashes()
+        {
+            if (_characterModelHashesInitialized) return;
+            _michaelModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
+            _franklinModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
+            _trevorModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
+            _characterModelHashesInitialized = true;
+        }
+
+        private static string GetCharacterStatPrefix(int modelHash)
+        {
+            EnsureCharacterModelHashes();
+            if (modelHash == _michaelModelHash) return "SP0_";
+            if (modelHash == _franklinModelHash) return "SP1_";
+            if (modelHash == _trevorModelHash) return "SP2_";
+            return null;
+        }
+
+        private void ApplyStatsForPrefix(string prefix, ref int updated, ref int verified)
+        {
+            for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
+            {
+                string statName = prefix + MaxSkillStatNames[statIndex];
+                Hash statHash = (Hash)Function.Call<int>(Hash.GET_HASH_KEY, statName);
+                bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
+                if (applied) updated++;
+
+                using (OutputArgument statValue = new OutputArgument())
+                {
+                    bool readBack = Function.Call<bool>(Hash.STAT_GET_INT, statHash, statValue, -1);
+                    if (readBack && statValue.GetResult<int>() >= 100) verified++;
+                }
+            }
+        }
+
         private void MaxAllCharacterStats()
         {
+            _maxStatsEnabled = true;
+            ConfigManager.SetBool("Player", "MaxAllStatsEnabled", true);
+
             int updated = 0;
             int verified = 0;
 
-            // Story Mode stat slots: SP0 = Michael, SP1 = Franklin, SP2 = Trevor.
-            // Read every write back: never report success based only on a setter return.
+            // Write all three Story Mode slots. The active protagonist is also
+            // reapplied after startup and every character/model switch because
+            // Story Mode may only refresh the currently loaded protagonist slot.
             for (int characterIndex = 0; characterIndex < CharacterStatPrefixes.Length; characterIndex++)
-            {
-                for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
-                {
-                    string statName = CharacterStatPrefixes[characterIndex] + MaxSkillStatNames[statIndex];
-                    int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
-                    bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
-                    if (applied) updated++;
+                ApplyStatsForPrefix(CharacterStatPrefixes[characterIndex], ref updated, ref verified);
 
-                    using (OutputArgument statValue = new OutputArgument())
-                    {
-                        bool readBack = Function.Call<bool>(Hash.STAT_GET_INT, statHash, statValue, -1);
-                        if (readBack && statValue.GetResult<int>() >= 100) verified++;
-                    }
-                }
-            }
-
-            if (verified == CharacterStatPrefixes.Length * MaxSkillStatNames.Length)
-                UI.Notify("~g~All 24 Story Mode skill bars verified at 100%!");
-            else
-                UI.Notify("~y~Stats updated: " + updated + "/24; verified at 100%: " + verified + "/24. Some Story Mode stats were not accepted.");
+            _lastStatsPedHandle = 0;
+            _lastStatsModelHash = 0;
+            UI.Notify("~g~Max stats requested for all 3 heroes. Verified: " + verified + "/24; active hero will be reapplied.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
@@ -320,6 +354,13 @@ namespace AvernesTreiner.Modules
             _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
             _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
             _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
+            _maxStatsEnabled = ConfigManager.GetBool("Player", "MaxAllStatsEnabled", false);
+            _lastSpecialAbilityRefillTime = 0;
+            _lastPlayerModelCheckTime = 0;
+            _lastObservedPedHandle = 0;
+            _currentPlayerModelHash = 0;
+            _lastStatsPedHandle = 0;
+            _lastStatsModelHash = 0;
             _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
             _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
 
@@ -344,7 +385,6 @@ namespace AvernesTreiner.Modules
 
             // These natives are explicitly frame-scoped and must run every frame.
             if (_superJump) Game.Player.SetSuperJumpThisFrame();
-            if (_infiniteSpecialAbility) Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, Game.Player, true);
             if (_fastRun) Game.Player.SetRunSpeedMultThisFrame(1.49f);
 
             // Never Wanted is enforced every frame to prevent transient stars and
@@ -361,6 +401,47 @@ namespace AvernesTreiner.Modules
 
             // Persistent states and maintenance do not need per-frame native calls.
             int now = Game.GameTime;
+
+            if (_maxStatsEnabled || _infiniteSpecialAbility)
+            {
+                if (player.Handle != _lastObservedPedHandle || now - _lastPlayerModelCheckTime >= 500)
+                {
+                    _lastObservedPedHandle = player.Handle;
+                    _lastPlayerModelCheckTime = now;
+                    _currentPlayerModelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
+                }
+                EnsureCharacterModelHashes();
+            }
+
+            if (_maxStatsEnabled &&
+                (player.Handle != _lastStatsPedHandle || _currentPlayerModelHash != _lastStatsModelHash))
+            {
+                string activePrefix = GetCharacterStatPrefix(_currentPlayerModelHash);
+                if (!string.IsNullOrEmpty(activePrefix))
+                {
+                    int activeUpdated = 0;
+                    int activeVerified = 0;
+                    ApplyStatsForPrefix(activePrefix, ref activeUpdated, ref activeVerified);
+                    _lastStatsPedHandle = player.Handle;
+                    _lastStatsModelHash = _currentPlayerModelHash;
+                }
+            }
+
+            // Refill only after the special ability has ended. In Michael's case,
+            // do not touch the meter while he is aiming: this avoids repeatedly
+            // forcing his weapon/upper-body aiming state.
+            if (_infiniteSpecialAbility && now - _lastSpecialAbilityRefillTime >= 250)
+            {
+                _lastSpecialAbilityRefillTime = now;
+                bool abilityActive = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_ACTIVE, Game.Player);
+                bool meterFull = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_METER_FULL, Game.Player);
+                bool michaelAiming = _currentPlayerModelHash == _michaelModelHash &&
+                    Function.Call<bool>(Hash.IS_PED_AIMING, player.Handle);
+
+                if (!abilityActive && !meterFull && !michaelAiming)
+                    Function.Call(Hash.SPECIAL_ABILITY_CHARGE_NORMALIZED, Game.Player, 1.0f, true);
+            }
+
             if (now - _lastMaintenanceTime < 250) return;
             _lastMaintenanceTime = now;
 
