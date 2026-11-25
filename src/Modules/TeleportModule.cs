@@ -222,6 +222,7 @@ namespace AvernesTreiner.Modules
         private void CancelWaypointTeleport()
         {
             _waypointTeleportPending = false;
+            _waypointTargetHandle = 0;
             StopWaypointStreaming();
         }
 

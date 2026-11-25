@@ -66,7 +66,7 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(neverWantedItem);
             if (_neverWanted) EnableNeverWanted();
 
-cops UI            // Clear Wanted Level
+            // Clear Wanted Level
             var clearWantedItem = new UIMenuItem(Localization.Get("Player", "ClearWanted", "Clear Wanted Level"), Localization.Get("Player", "ClearWantedDesc", "Instantly removes wanted stars"));
             clearWantedItem.Activated += (sender, selected) =>
             {
