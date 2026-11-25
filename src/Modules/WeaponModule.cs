@@ -26,6 +26,8 @@ namespace AvernesTreiner.Modules
         private bool _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
         private bool _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
         private int _lastAmmoRefreshTime = 0;
+        private int _lastClipRefreshTime = 0;
+        private int _lastWeaponPedHandle = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -157,7 +159,7 @@ namespace AvernesTreiner.Modules
 
         public void OnTick()
         {
-            bool needsUpdate = _infiniteAmmo || _explosiveAmmo || _fireAmmo || _superDamage ||
+            bool needsUpdate = _infiniteAmmo || _infiniteClip || _explosiveAmmo || _fireAmmo || _superDamage ||
                                _teleportGun || _forceGun || _rpgAmmo;
             if (!needsUpdate) return;
 
@@ -165,7 +167,22 @@ namespace AvernesTreiner.Modules
             if (player == null || !player.Exists()) return;
 
             int now = Game.GameTime;
-            if (_infiniteAmmo && now - _lastAmmoRefreshTime >= 150)
+            bool characterChanged = player.Handle != _lastWeaponPedHandle;
+            if (characterChanged)
+            {
+                _lastWeaponPedHandle = player.Handle;
+                // Player-specific weapon flags are not inherited when Story Mode swaps characters.
+                Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, player.Handle, _infiniteClip);
+                _lastClipRefreshTime = now;
+                _lastAmmoRefreshTime = 0;
+            }
+            else if (_infiniteClip && now - _lastClipRefreshTime >= 500)
+            {
+                Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, player.Handle, true);
+                _lastClipRefreshTime = now;
+            }
+
+            if (_infiniteAmmo && (characterChanged || now - _lastAmmoRefreshTime >= 150))
             {
                 _lastAmmoRefreshTime = now;
                 if (player.Weapons.Current != null)

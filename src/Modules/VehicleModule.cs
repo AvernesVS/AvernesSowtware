@@ -1004,6 +1004,7 @@ namespace AvernesTreiner.Modules
                         // Reapply the deformation fix each script tick without using
                         // SET_VEHICLE_FIXED, which can reset vehicle customization.
                         Function.Call(Hash.SET_VEHICLE_DEFORMATION_FIXED, v.Handle);
+                        Function.Call((Hash)0x4E20D2A627011E8E, v.Handle, 0.0f);
                     }
                     else if (_godModeVehicle != null)
                         RestoreVehicleGodMode();

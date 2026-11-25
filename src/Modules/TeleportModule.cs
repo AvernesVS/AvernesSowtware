@@ -27,6 +27,7 @@ namespace AvernesTreiner.Modules
         private bool _waypointFocusActive;
         private int _waypointLastCollisionRequestTime;
         private int _waypointLastProbeTime;
+        private static readonly float[] SafeCoordProbeHeights = new float[] { 1000.0f, 750.0f, 500.0f, 250.0f, 100.0f, 50.0f, 0.0f, -50.0f };
         private static readonly float[] WaypointProbeHeights = new float[] {
             1200.0f, 1000.0f, 900.0f, 800.0f, 700.0f, 600.0f, 500.0f,
             400.0f, 300.0f, 200.0f, 150.0f, 100.0f, 50.0f, 20.0f, 0.0f, -50.0f, -100.0f
@@ -170,13 +171,16 @@ namespace AvernesTreiner.Modules
 
                 // Ask the game for a nearby navmesh-safe position if the exact point
                 // is on an unusable slope or surface. Never accept a distant fallback.
-                Vector3 safePosition = World.GetSafeCoordForPed(
-                    new Vector3(_waypointX, _waypointY, 1000.0f), false, 0);
-                if (safePosition != Vector3.Zero &&
-                    Math.Abs(safePosition.X - _waypointX) <= 25.0f &&
-                    Math.Abs(safePosition.Y - _waypointY) <= 25.0f &&
-                    safePosition.Z > -200.0f && safePosition.Z < 1200.0f)
+                for (int i = 0; i < SafeCoordProbeHeights.Length; i++)
                 {
+                    Vector3 safePosition = World.GetSafeCoordForPed(
+                        new Vector3(_waypointX, _waypointY, SafeCoordProbeHeights[i]), false, 0);
+                    if (safePosition == Vector3.Zero ||
+                        Math.Abs(safePosition.X - _waypointX) > 25.0f ||
+                        Math.Abs(safePosition.Y - _waypointY) > 25.0f ||
+                        safePosition.Z <= -200.0f || safePosition.Z >= 1200.0f)
+                        continue;
+
                     CompleteWaypointTeleport(safePosition + new Vector3(0.0f, 0.0f, 1.0f),
                         "~g~Teleported to the nearest safe ground near waypoint.");
                     return;
@@ -244,6 +248,14 @@ namespace AvernesTreiner.Modules
                 OutputArgument result = new OutputArgument();
                 bool found = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD,
                     x, y, WaypointProbeHeights[i], result, false, false);
+                if (!found)
+                {
+                    // Some streamed surfaces are reported only when water is included
+                    // in the ground query. Keep the explicit water-height fallback too.
+                    result = new OutputArgument();
+                    found = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD,
+                        x, y, WaypointProbeHeights[i], result, true, false);
+                }
                 if (!found) continue;
 
                 float z = result.GetResult<float>();
