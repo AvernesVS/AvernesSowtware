@@ -111,6 +111,8 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(authorItem);
         }
 
+        public void ReloadSettings() { }
+
         public void OnTick() { }
     }
 }
