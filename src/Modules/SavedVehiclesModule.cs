@@ -331,6 +331,8 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        public void ReloadSettings() { }
+
         public void OnTick() { }
     }
 
