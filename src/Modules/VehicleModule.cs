@@ -239,7 +239,7 @@ namespace AvernesTreiner.Modules
             // -------------------------------------------------------------
             // AUTOPILOT SUBMENU
             // -------------------------------------------------------------
-            var autoMenu = menuPool.AddSubMenu(vehMenu, "Smart Autopilot (Waypoint)");
+            var autoMenu = menuPool.AddSubMenu(vehMenu, Localization.Get("Vehicle", "AutopilotMenu", "Smart Autopilot (Waypoint)"));
 
             var autoToggle = new UIMenuItem(Localization.Get("Vehicle", "StartAutopilot", "Start Autopilot"), Localization.Get("Vehicle", "StartAutopilotDesc", "Drives to the GPS waypoint"));
             autoToggle.Activated += (sender, selected) =>
@@ -255,7 +255,7 @@ namespace AvernesTreiner.Modules
             };
             autoMenu.AddItem(autoCancel);
 
-            var styleList = new List<dynamic> { "Safe / Legal (Follows Rules)", "Fast / Avoids Traffic", "Escape / Aggressive (Insane / No Stops)" };
+            var styleList = new List<dynamic> { Localization.Get("Vehicle", "StyleSafe", "Safe / Legal (Follows Rules)"), Localization.Get("Vehicle", "StyleFast", "Fast / Avoids Traffic"), Localization.Get("Vehicle", "StyleAggressive", "Escape / Aggressive (Insane / No Stops)") };
             var styleItem = new UIMenuListItem(Localization.Get("Vehicle", "DrivingStyle", "Driving Style"), styleList, 0, Localization.Get("Vehicle", "DrivingStyleDesc", "Changes AI traffic behavior"));
             styleItem.OnListChanged += (sender, index) =>
             {
@@ -290,7 +290,7 @@ namespace AvernesTreiner.Modules
  ConfigManager.SetBool("Vehicle", "TrafficRammer", _trafficRammer); };
             autoMenu.AddItem(rammerItem);
 
-            var speedList = new List<dynamic> { "60 KM/H (Cruise)", "90 KM/H (Default)", "130 KM/H (Fast)", "180 KM/H (Maximum)" };
+            var speedList = new List<dynamic> { Localization.Get("Vehicle", "Cruise60", "60 KM/H (Cruise)"), Localization.Get("Vehicle", "Cruise90", "90 KM/H (Default)"), Localization.Get("Vehicle", "Cruise130", "130 KM/H (Fast)"), Localization.Get("Vehicle", "Cruise180", "180 KM/H (Maximum)") };
             var speedVals = new[] { 17.0f, 25.0f, 36.0f, 50.0f };
             var speedItem = new UIMenuListItem(Localization.Get("Vehicle", "CruiseSpeed", "Cruise Speed"), speedList, 1, Localization.Get("Vehicle", "CruiseSpeedDesc", "Sets the AI target speed"));
             speedItem.OnListChanged += (sender, index) =>
@@ -346,7 +346,7 @@ namespace AvernesTreiner.Modules
             };
             vehMenu.AddItem(openDoors);
 
-            var closeDoors = new UIMenuItem(Localization.Get("Vehicle", "CloseAllDoors", "Close All Doors"), "Closes all doors");
+            var closeDoors = new UIMenuItem(Localization.Get("Vehicle", "CloseAllDoors", "Close All Doors"), Localization.Get("Vehicle", "CloseAllDoorsDesc", "Closes all doors"));
             closeDoors.Activated += (sender, selected) =>
             {
                 Ped player = Game.Player.Character;
