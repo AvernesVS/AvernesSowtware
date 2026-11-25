@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.5
+# AvernesTreiner v0.8.6
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,11 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.8.6 fixes
+- Waypoint probing now checks additional ground-query modes and several navmesh reference heights before giving up, while keeping the safe-position distance limit.
+- Infinite Clip is reapplied to the currently active Story Mode character and refreshed after character swaps; Infinite Ammo refreshes immediately after a character swap.
+- Vehicle God Mode continues to reapply deformation protection while active.
 
 ## v0.8.5 bug fixes
 - Remove the redundant Cops Ignore Player toggle and its repeated police-ignore native calls. Clear the legacy police-ignore state on startup; Never Wanted remains the supported police feature.
