@@ -55,7 +55,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.8.5 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.8.6 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -71,7 +71,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.8.5");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.8.6");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
