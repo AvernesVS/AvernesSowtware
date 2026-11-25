@@ -65,9 +65,9 @@ namespace AvernesTreiner.Modules
             };
             neonMenu.AddItem(toggleNeons);
 
-            var neonColorList = new List<dynamic> { "Blue", "Red", "Green", "Yellow", "Purple", "Orange", "White", "Pink", "Cyan" };
+            var neonColorList = new List<dynamic> { Localization.Get("Customization", "ColorBlue", "Blue"), Localization.Get("Customization", "ColorRed", "Red"), Localization.Get("Customization", "ColorGreen", "Green"), Localization.Get("Customization", "ColorYellow", "Yellow"), Localization.Get("Customization", "ColorPurple", "Purple"), Localization.Get("Customization", "ColorOrange", "Orange"), Localization.Get("Customization", "ColorWhite", "White"), Localization.Get("Customization", "ColorPink", "Pink"), Localization.Get("Customization", "ColorCyan", "Cyan") };
             var neonColors = new[] { Color.DeepSkyBlue, Color.Red, Color.LimeGreen, Color.Yellow, Color.Purple, Color.Orange, Color.White, Color.HotPink, Color.Cyan };
-            var neonColorItem = new UIMenuListItem(Localization.Get("Customization", "NeonColor", "Neon Color"), neonColorList, 0, "Changes the neon color");
+            var neonColorItem = new UIMenuListItem(Localization.Get("Customization", "NeonColor", "Neon Color"), neonColorList, 0, Localization.Get("Customization", "NeonColorDesc", "Changes the neon color"));
             neonColorItem.OnListChanged += (sender, index) =>
             {
                 Vehicle v = GetPlayerVehicle();
@@ -80,9 +80,9 @@ namespace AvernesTreiner.Modules
 
             // 5. Window Tint
             var tintMenu = menuPool.AddSubMenu(customMenu, Localization.Get("Customization", "WindowTintMenu", "Window Tint"));
-            var tintList = new List<dynamic> { "None", "Light Smoke", "Dark Smoke", "Limo", "Pure Black", "Green" };
+            var tintList = new List<dynamic> { Localization.Get("Customization", "TintNone", "None"), Localization.Get("Customization", "TintLightSmoke", "Light Smoke"), Localization.Get("Customization", "TintDarkSmoke", "Dark Smoke"), Localization.Get("Customization", "TintLimo", "Limo"), Localization.Get("Customization", "TintPureBlack", "Pure Black"), Localization.Get("Customization", "TintGreen", "Green") };
             var tintValues = new[] { VehicleWindowTint.None, VehicleWindowTint.LightSmoke, VehicleWindowTint.DarkSmoke, VehicleWindowTint.Limo, VehicleWindowTint.PureBlack, VehicleWindowTint.Green };
-            var tintItem = new UIMenuListItem(Localization.Get("Customization", "WindowTint", "Tint Shade"), tintList, 0, "Changes the window tint");
+            var tintItem = new UIMenuListItem(Localization.Get("Customization", "WindowTint", "Tint Shade"), tintList, 0, Localization.Get("Customization", "WindowTintDesc", "Changes the window tint"));
             tintItem.OnListChanged += (sender, index) =>
             {
                 Vehicle v = GetPlayerVehicle();
@@ -95,7 +95,7 @@ namespace AvernesTreiner.Modules
 
             // 6. Wheels & Tires
             var wheelsMenu = menuPool.AddSubMenu(customMenu, Localization.Get("Customization", "WheelsMenu", "Wheels & Tires"));
-            var bpTires = new UIMenuCheckboxItem(Localization.Get("Customization", "BulletproofTires", "Bulletproof Tires"), false, "Never puncture");
+            var bpTires = new UIMenuCheckboxItem(Localization.Get("Customization", "BulletproofTires", "Bulletproof Tires"), false, Localization.Get("Customization", "BulletproofTiresDesc", "Never puncture"));
             bpTires.CheckboxEvent += (sender, state) =>
             {
                 Vehicle v = GetPlayerVehicle();
@@ -108,8 +108,8 @@ namespace AvernesTreiner.Modules
 
             // 7. License Plates
             var plateMenu = menuPool.AddSubMenu(customMenu, Localization.Get("Customization", "PlateMenu", "Vehicle License Plate"));
-            var plateStyles = new List<dynamic> { "Blue on White", "Yellow on Black", "Yellow on Blue", "Blue on White 2", "North Yankton", "San Andreas Black" };
-            var plateItem = new UIMenuListItem(Localization.Get("Customization", "PlateStyle", "Plate Style"), plateStyles, 0, "Changes the license plate style");
+            var plateStyles = new List<dynamic> { Localization.Get("Customization", "PlateBlueWhite", "Blue on White"), Localization.Get("Customization", "PlateYellowBlack", "Yellow on Black"), Localization.Get("Customization", "PlateYellowBlue", "Yellow on Blue"), Localization.Get("Customization", "PlateBlueWhite2", "Blue on White 2"), Localization.Get("Customization", "PlateNorthYankton", "North Yankton"), Localization.Get("Customization", "PlateSanAndreas", "San Andreas Black") };
+            var plateItem = new UIMenuListItem(Localization.Get("Customization", "PlateStyle", "Plate Style"), plateStyles, 0, Localization.Get("Customization", "PlateStyleDesc", "Changes the license plate style"));
             plateItem.OnListChanged += (sender, index) =>
             {
                 Vehicle v = GetPlayerVehicle();
@@ -189,10 +189,10 @@ namespace AvernesTreiner.Modules
 
         private void AddColorSelector(UIMenu menu, string label, bool isPrimary)
         {
-            var colorNames = new List<dynamic> { "Black", "White", "Red", "Blue", "Yellow", "Verde Lima", "Orange", "Pure Gold", "Silver", "Purple" };
+            var colorNames = new List<dynamic> { Localization.Get("Customization", "PaintBlack", "Black"), Localization.Get("Customization", "PaintWhite", "White"), Localization.Get("Customization", "PaintRed", "Red"), Localization.Get("Customization", "PaintBlue", "Blue"), Localization.Get("Customization", "PaintYellow", "Yellow"), Localization.Get("Customization", "PaintLime", "Lime Green"), Localization.Get("Customization", "PaintOrange", "Orange"), Localization.Get("Customization", "PaintGold", "Pure Gold"), Localization.Get("Customization", "PaintSilver", "Silver"), Localization.Get("Customization", "PaintPurple", "Purple") };
             var colorValues = new[] { VehicleColor.MetallicBlack, VehicleColor.PureWhite, VehicleColor.MetallicFormulaRed, VehicleColor.MetallicBlue, VehicleColor.MetallicTaxiYellow, VehicleColor.MatteLimeGreen, VehicleColor.MetallicOrange, VehicleColor.PureGold, VehicleColor.MetallicSilver, VehicleColor.MetallicSpinnakerBlue };
 
-            var item = new UIMenuListItem(label, colorNames, 0, "Changes " + label);
+            var item = new UIMenuListItem(label, colorNames, 0, Localization.Get("Customization", "PaintColorDesc", "Changes the selected paint color"));
             item.OnListChanged += (sender, index) =>
             {
                 Vehicle v = GetPlayerVehicle();
