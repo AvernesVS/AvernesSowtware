@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.6
+# AvernesTreiner v0.8.7
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,10 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.8.7 additions
+- Infinite Special Ability refills the active protagonist's special meter while enabled.
+- Max All Character Stats sets all eight Story Mode skills to 100% for Michael, Franklin and Trevor, using per-protagonist stat slots and persistent writes.
 
 ## v0.8.6 fixes
 - Waypoint probing now checks additional ground-query modes and several navmesh reference heights before giving up, while keeping the safe-position distance limit.

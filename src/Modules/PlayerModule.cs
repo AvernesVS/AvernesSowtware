@@ -26,6 +26,13 @@ namespace AvernesTreiner.Modules
         private bool _noRagdoll = ConfigManager.GetBool("Player", "NoRagdoll", false);
         private bool _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
+        private bool _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
+        private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
+        private static readonly string[] MaxSkillStatNames = new string[]
+        {
+            "STAMINA", "STRENGTH", "SHOOTING_ABILITY", "STEALTH_ABILITY",
+            "FLYING_ABILITY", "WHEELIE_ABILITY", "LUNG_CAPACITY", "SPECIAL_ABILITY"
+        };
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
         private int _lastMaintenanceTime = 0;
@@ -169,6 +176,27 @@ namespace AvernesTreiner.Modules
  ConfigManager.SetBool("Player", "UnlimitedOxygen", _unlimitedOxygen); };
             playerMenu.AddItem(oxyItem);
 
+            // Infinite Special Ability
+            var specialAbilityItem = new UIMenuCheckboxItem(
+                Localization.Get("Player", "InfiniteSpecialAbility", "Infinite Special Ability"),
+                _infiniteSpecialAbility,
+                Localization.Get("Player", "InfiniteSpecialAbilityDesc", "Keep the special ability meter filled while enabled"));
+            specialAbilityItem.CheckboxEvent += (sender, state) =>
+            {
+                _infiniteSpecialAbility = state;
+                ConfigManager.SetBool("Player", "InfiniteSpecialAbility", _infiniteSpecialAbility);
+                if (_infiniteSpecialAbility)
+                    Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, Game.Player, true);
+            };
+            playerMenu.AddItem(specialAbilityItem);
+
+            // Max all protagonist skills
+            var maxStatsItem = new UIMenuItem(
+                Localization.Get("Player", "MaxAllStats", "Max All Character Stats"),
+                Localization.Get("Player", "MaxAllStatsDesc", "Set all eight skills to 100% for Michael, Franklin and Trevor"));
+            maxStatsItem.Activated += (sender, selected) => MaxAllCharacterStats();
+            playerMenu.AddItem(maxStatsItem);
+
             // Money Submenu
             var moneyMenu = menuPool.AddSubMenu(playerMenu, Localization.Get("Player", "MoneyGenerator", "Money Generator"));
             AddCashOption(moneyMenu, "Add +$100,000", 100000);
@@ -206,6 +234,28 @@ namespace AvernesTreiner.Modules
                 }
             };
             playerMenu.AddItem(suicideItem);
+        }
+
+        private void MaxAllCharacterStats()
+        {
+            bool allSucceeded = true;
+
+            // Story Mode stat slots: SP0 = Michael, SP1 = Franklin, SP2 = Trevor.
+            for (int characterIndex = 0; characterIndex < CharacterStatPrefixes.Length; characterIndex++)
+            {
+                for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
+                {
+                    string statName = CharacterStatPrefixes[characterIndex] + MaxSkillStatNames[statIndex];
+                    int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
+                    bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
+                    if (!applied) allSucceeded = false;
+                }
+            }
+
+            if (allSucceeded)
+                UI.Notify("~g~All skills set to 100% for Michael, Franklin and Trevor!");
+            else
+                UI.Notify("~y~Some stats could not be updated. Check Story Mode and try again.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
@@ -261,6 +311,7 @@ namespace AvernesTreiner.Modules
             _noRagdoll = ConfigManager.GetBool("Player", "NoRagdoll", false);
             _unlimitedStamina = ConfigManager.GetBool("Player", "UnlimitedStamina", false);
             _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
+            _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
             _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
             _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
 
@@ -285,6 +336,7 @@ namespace AvernesTreiner.Modules
 
             // These natives are explicitly frame-scoped and must run every frame.
             if (_superJump) Game.Player.SetSuperJumpThisFrame();
+            if (_infiniteSpecialAbility) Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, Game.Player, true);
             if (_fastRun) Game.Player.SetRunSpeedMultThisFrame(1.49f);
 
             // Never Wanted is enforced every frame to prevent transient stars and
