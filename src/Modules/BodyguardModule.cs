@@ -317,6 +317,16 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        public void ReloadSettings()
+        {
+            _godModeSquad = ConfigManager.GetBool("Bodyguards", "GodModeSquad", false);
+            for (int i = 0; i < _bodyguards.Count; i++)
+            {
+                Ped guard = _bodyguards[i];
+                if (guard != null && guard.Exists()) guard.IsInvincible = _godModeSquad;
+            }
+        }
+
         public void OnTick()
         {
             int now = Game.GameTime;
