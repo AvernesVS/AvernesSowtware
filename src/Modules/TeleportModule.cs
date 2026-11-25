@@ -26,6 +26,10 @@ namespace AvernesTreiner.Modules
         private bool _waypointFocusActive;
         private int _waypointLastCollisionRequestTime;
         private int _waypointLastProbeTime;
+        private static readonly float[] WaypointProbeHeights = new float[] {
+            1200.0f, 1000.0f, 900.0f, 800.0f, 700.0f, 600.0f, 500.0f,
+            400.0f, 300.0f, 200.0f, 150.0f, 100.0f, 50.0f, 20.0f, 0.0f, -50.0f, -100.0f
+        };
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -214,20 +218,16 @@ namespace AvernesTreiner.Modules
 
         private bool TryGetGroundHeight(float x, float y, out float groundZ)
         {
-            float[] probeHeights = new float[] {
-                1200.0f, 1000.0f, 900.0f, 800.0f, 700.0f, 600.0f, 500.0f,
-                400.0f, 300.0f, 200.0f, 150.0f, 100.0f, 50.0f, 20.0f, 0.0f, -50.0f, -100.0f
-            };
-            for (int i = 0; i < probeHeights.Length; i++)
+            for (int i = 0; i < WaypointProbeHeights.Length; i++)
             {
                 OutputArgument result = new OutputArgument();
                 bool found = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD,
-                    x, y, probeHeights[i], result, false, false);
+                    x, y, WaypointProbeHeights[i], result, false, false);
                 if (!found) continue;
 
                 float z = result.GetResult<float>();
                 if (float.IsNaN(z) || float.IsInfinity(z)) continue;
-                if (z > probeHeights[i] + 1.0f || z < -200.0f) continue;
+                if (z > WaypointProbeHeights[i] + 1.0f || z < -200.0f) continue;
                 groundZ = z;
                 return true;
             }

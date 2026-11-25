@@ -29,8 +29,11 @@ namespace AvernesTreiner.Modules
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
             _menuPool = menuPool;
-            _serializer = new JavaScriptSerializer();
-            _serializer.MaxJsonLength = int.MaxValue;
+            if (_serializer == null)
+            {
+                _serializer = new JavaScriptSerializer();
+                _serializer.MaxJsonLength = int.MaxValue;
+            }
             LoadFromDisk();
 
             _savedMenu = menuPool.AddSubMenu(mainMenu,
@@ -55,6 +58,8 @@ namespace AvernesTreiner.Modules
         {
             try
             {
+                // Menu rebuilds reuse this module instance; replace, do not append, cached records.
+                _saved.Clear();
                 string directory = Path.GetDirectoryName(StoragePath);
                 if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
                 if (!File.Exists(StoragePath))
@@ -265,7 +270,7 @@ namespace AvernesTreiner.Modules
 
                 Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, vehicle.Handle, true, true);
                 vehicle.IsPersistent = true;
-                VehicleModule.TrackSpawnedVehicle(vehicle);
+                VehicleModule.TrackSpawnedVehicle(vehicle, true);
                 ApplyCustomization(vehicle, data);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 vehicle.PlaceOnGround();
