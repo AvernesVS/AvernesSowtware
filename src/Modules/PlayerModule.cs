@@ -238,9 +238,11 @@ namespace AvernesTreiner.Modules
 
         private void MaxAllCharacterStats()
         {
-            bool allSucceeded = true;
+            int updated = 0;
+            int verified = 0;
 
             // Story Mode stat slots: SP0 = Michael, SP1 = Franklin, SP2 = Trevor.
+            // Read every write back: never report success based only on a setter return.
             for (int characterIndex = 0; characterIndex < CharacterStatPrefixes.Length; characterIndex++)
             {
                 for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
@@ -248,14 +250,20 @@ namespace AvernesTreiner.Modules
                     string statName = CharacterStatPrefixes[characterIndex] + MaxSkillStatNames[statIndex];
                     int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
                     bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
-                    if (!applied) allSucceeded = false;
+                    if (applied) updated++;
+
+                    using (OutputArgument statValue = new OutputArgument())
+                    {
+                        bool readBack = Function.Call<bool>(Hash.STAT_GET_INT, statHash, statValue, -1);
+                        if (readBack && statValue.GetResult<int>() >= 100) verified++;
+                    }
                 }
             }
 
-            if (allSucceeded)
-                UI.Notify("~g~All skills set to 100% for Michael, Franklin and Trevor!");
+            if (verified == CharacterStatPrefixes.Length * MaxSkillStatNames.Length)
+                UI.Notify("~g~All 24 Story Mode skill bars verified at 100%!");
             else
-                UI.Notify("~y~Some stats could not be updated. Check Story Mode and try again.");
+                UI.Notify("~y~Stats updated: " + updated + "/24; verified at 100%: " + verified + "/24. Some Story Mode stats were not accepted.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
