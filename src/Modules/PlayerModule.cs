@@ -108,7 +108,7 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(healItem);
 
             // Mobile Radio (Listen on foot)
-            var radioItem = new UIMenuCheckboxItem("Mobile Radio on Foot", _mobileRadio, "Allows listening to GTA V radio while walking, running, or swimming");
+            var radioItem = new UIMenuCheckboxItem(Localization.Get("Player", "MobileRadio", "Mobile Radio on Foot"), _mobileRadio, Localization.Get("Player", "MobileRadioDesc", "Allows listening to radio on foot"));
             radioItem.CheckboxEvent += (sender, state) =>
             {
                 _mobileRadio = state;
@@ -179,13 +179,13 @@ namespace AvernesTreiner.Modules
             playerMenu.AddItem(oxyItem);
 
             // Money Submenu
-            var moneyMenu = menuPool.AddSubMenu(playerMenu, "Money Generator");
+            var moneyMenu = menuPool.AddSubMenu(playerMenu, Localization.Get("Player", "MoneyGenerator", "Money Generator"));
             AddCashOption(moneyMenu, "Add +$100,000", 100000);
             AddCashOption(moneyMenu, "Add +$1,000,000 (1 Million)", 1000000);
             AddCashOption(moneyMenu, "Add +$10,000,000 (10 Million)", 10000000);
             AddCashOption(moneyMenu, "Add +$100,000,000 (100 Million)", 100000000);
 
-            var maxCashItem = new UIMenuItem("Maximum Money ($2,147,483,647)", "Sets your bank account to the GTA V maximum amount");
+            var maxCashItem = new UIMenuItem(Localization.Get("Player", "MaximumMoney", "Maximum Money ($2,147,483,647)"), Localization.Get("Player", "MaximumMoneyDesc", "Sets your bank account to the maximum amount"));
             maxCashItem.Activated += (sender, selected) =>
             {
                 Game.Player.Money = 2147483647;
