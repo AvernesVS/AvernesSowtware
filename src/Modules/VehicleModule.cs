@@ -53,7 +53,12 @@ namespace AvernesTreiner.Modules
         private static readonly Dictionary<int, Vehicle> _trackedSpawnedVehicles = new Dictionary<int, Vehicle>();
         private static readonly Dictionary<int, int> _abandonedSince = new Dictionary<int, int>();
         private static readonly HashSet<int> _missionSpawnedVehicles = new HashSet<int>();
+        private static readonly HashSet<int> _protectedSavedVehicles = new HashSet<int>();
+        private readonly Queue<int> _vehicleDeletionQueue = new Queue<int>();
+        private readonly HashSet<int> _pendingVehicleDeletion = new HashSet<int>();
+        private readonly List<int> _trackedVehicleRemovalBuffer = new List<int>();
         private int _lastSpawnCleanupTime = 0;
+        private int _lastVehicleDeletionTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -667,13 +672,16 @@ namespace AvernesTreiner.Modules
             }
         }
 
-        public static void TrackSpawnedVehicle(Vehicle vehicle)
+        public static void TrackSpawnedVehicle(Vehicle vehicle, bool protectFromCleanup = false)
         {
             if (vehicle == null || !vehicle.Exists()) return;
-            _trackedSpawnedVehicles[vehicle.Handle] = vehicle;
+            int handle = vehicle.Handle;
+            _trackedSpawnedVehicles[handle] = vehicle;
+            if (protectFromCleanup) _protectedSavedVehicles.Add(handle);
+            else _protectedSavedVehicles.Remove(handle);
             if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
-                _missionSpawnedVehicles.Add(vehicle.Handle);
-            _abandonedSince.Remove(vehicle.Handle);
+                _missionSpawnedVehicles.Add(handle);
+            _abandonedSince.Remove(handle);
         }
 
         private void CleanupAbandonedSpawnedVehicles(Ped player, int now)
@@ -681,24 +689,34 @@ namespace AvernesTreiner.Modules
             if (player == null || !player.Exists()) return;
 
             // Do not clean up trainer vehicles while a story mission is active.
-            // Reset the grace timers so an old abandoned vehicle is not deleted as soon as the mission ends.
+            // Reset the grace timers so old abandoned vehicles are not deleted immediately after it ends.
             if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
             {
                 _abandonedSince.Clear();
                 return;
             }
 
-            var remove = new List<int>();
+            _trackedVehicleRemovalBuffer.Clear();
             foreach (var entry in _trackedSpawnedVehicles)
             {
-                Vehicle vehicle = entry.Value;
                 int handle = entry.Key;
-                if (vehicle == null || !vehicle.Exists())
+                Vehicle vehicle = entry.Value;
+                if (vehicle == null || !vehicle.Exists() ||
+                    !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
                 {
-                    remove.Add(handle);
-                    _missionSpawnedVehicles.Remove(handle);
+                    _trackedVehicleRemovalBuffer.Add(handle);
                     continue;
                 }
+
+                // Vehicles spawned from the Saved Vehicles catalog are user-managed
+                // and must never be removed by automatic abandoned-vehicle cleanup.
+                if (_protectedSavedVehicles.Contains(handle))
+                {
+                    _abandonedSince.Remove(handle);
+                    continue;
+                }
+
+                if (_pendingVehicleDeletion.Contains(handle)) continue;
 
                 if (player.IsInVehicle() && player.CurrentVehicle.Handle == handle)
                 {
@@ -706,35 +724,21 @@ namespace AvernesTreiner.Modules
                     continue;
                 }
 
-                // Vehicles created during a mission are cleaned up as soon as that
-                // mission ends, instead of being left behind as persistent entities.
-                // Occupied vehicles are never deleted; they are checked again after exit.
                 int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1);
                 int passengerCount = Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, handle);
+                bool occupied = driverHandle != 0 || passengerCount > 0;
+
+                // Mission vehicles are queued as soon as the mission ends, but only
+                // after confirming that no player or NPC is inside.
                 if (_missionSpawnedVehicles.Contains(handle))
                 {
-                    if (driverHandle != 0 || passengerCount > 0)
+                    if (occupied)
                     {
                         _abandonedSince.Remove(handle);
                         continue;
                     }
-                    try
-                    {
-                        vehicle.IsPersistent = true;
-                        using (OutputArgument vehicleHandle = new OutputArgument(vehicle))
-                        {
-                            Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
-                        }
-                    }
-                    catch
-                    {
-                        try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
-                    }
-                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
-                    {
-                        remove.Add(handle);
-                        _missionSpawnedVehicles.Remove(handle);
-                    }
+
+                    QueueVehicleDeletion(handle);
                     continue;
                 }
 
@@ -745,7 +749,7 @@ namespace AvernesTreiner.Modules
                 }
 
                 // Never remove a trainer vehicle that is occupied or still moving.
-                if (driverHandle != 0 || passengerCount > 0 || vehicle.Speed > 0.5f)
+                if (occupied || vehicle.Speed > 0.5f)
                 {
                     _abandonedSince.Remove(handle);
                     continue;
@@ -759,34 +763,118 @@ namespace AvernesTreiner.Modules
                 }
 
                 if (now - abandonedAt >= 60000)
-                {
-                    try
-                    {
-                        // Keep the vehicle as a mission entity until DELETE_VEHICLE receives its handle by reference.
-                        vehicle.IsPersistent = true;
-                        using (OutputArgument vehicleHandle = new OutputArgument(vehicle))
-                        {
-                            Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
-                        }
-                    }
-                    catch
-                    {
-                        try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
-                    }
+                    QueueVehicleDeletion(handle);
+            }
 
-                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
-                        remove.Add(handle);
-                    else
-                        _abandonedSince[handle] = now;
+            for (int i = 0; i < _trackedVehicleRemovalBuffer.Count; i++)
+                ForgetTrackedVehicle(_trackedVehicleRemovalBuffer[i]);
+        }
+
+        private void QueueVehicleDeletion(int handle)
+        {
+            if (_pendingVehicleDeletion.Add(handle))
+                _vehicleDeletionQueue.Enqueue(handle);
+        }
+
+        private void ProcessNextVehicleDeletion(Ped player, int now)
+        {
+            if (_vehicleDeletionQueue.Count == 0) return;
+
+            int handle = _vehicleDeletionQueue.Dequeue();
+            Vehicle vehicle;
+            if (!_trackedSpawnedVehicles.TryGetValue(handle, out vehicle) ||
+                vehicle == null || !vehicle.Exists() ||
+                !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+            {
+                ForgetTrackedVehicle(handle);
+                return;
+            }
+
+            // Revalidate all safety conditions immediately before deletion. The
+            // player or an NPC may have entered the vehicle while it was queued.
+            if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
+            {
+                _pendingVehicleDeletion.Remove(handle);
+                return;
+            }
+
+            if (player == null || !player.Exists())
+            {
+                _pendingVehicleDeletion.Remove(handle);
+                return;
+            }
+
+            if (player.IsInVehicle() && player.CurrentVehicle.Handle == handle)
+            {
+                _abandonedSince.Remove(handle);
+                _pendingVehicleDeletion.Remove(handle);
+                return;
+            }
+
+            int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1);
+            int passengerCount = Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, handle);
+            if (driverHandle != 0 || passengerCount > 0)
+            {
+                _abandonedSince.Remove(handle);
+                _pendingVehicleDeletion.Remove(handle);
+                return;
+            }
+
+            bool missionVehicle = _missionSpawnedVehicles.Contains(handle);
+            if (!missionVehicle)
+            {
+                if (_protectedSavedVehicles.Contains(handle) ||
+                    World.GetDistance(player.Position, vehicle.Position) <= 150.0f ||
+                    vehicle.Speed > 0.5f)
+                {
+                    _abandonedSince.Remove(handle);
+                    _pendingVehicleDeletion.Remove(handle);
+                    return;
+                }
+
+                int abandonedAt;
+                if (!_abandonedSince.TryGetValue(handle, out abandonedAt) ||
+                    now - abandonedAt < 60000)
+                {
+                    _pendingVehicleDeletion.Remove(handle);
+                    return;
                 }
             }
 
-            for (int i = 0; i < remove.Count; i++)
+            try
             {
-                _trackedSpawnedVehicles.Remove(remove[i]);
-                _abandonedSince.Remove(remove[i]);
-                _missionSpawnedVehicles.Remove(remove[i]);
+                vehicle.IsPersistent = true;
+                using (OutputArgument vehicleHandle = new OutputArgument(vehicle))
+                    Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
             }
+            catch { }
+
+            // Some entity wrappers/native calls can fail without deleting the
+            // entity. Verify the actual game handle, then try the wrapper fallback.
+            if (Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+            {
+                try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
+            }
+
+            if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+            {
+                ForgetTrackedVehicle(handle);
+                return;
+            }
+
+            // Keep the handle tracked and retry on the next queue interval.
+            // The original abandonment timestamp is retained, so retries do not
+            // restart the 60-second eligibility period.
+            _vehicleDeletionQueue.Enqueue(handle);
+        }
+
+        private void ForgetTrackedVehicle(int handle)
+        {
+            _trackedSpawnedVehicles.Remove(handle);
+            _abandonedSince.Remove(handle);
+            _missionSpawnedVehicles.Remove(handle);
+            _protectedSavedVehicles.Remove(handle);
+            _pendingVehicleDeletion.Remove(handle);
         }
 
         private void ApplyVehicleGodMode(Vehicle vehicle, bool enabled)
@@ -884,6 +972,11 @@ namespace AvernesTreiner.Modules
             {
                 _lastSpawnCleanupTime = currentTime;
                 CleanupAbandonedSpawnedVehicles(player, currentTime);
+            }
+            if (_vehicleDeletionQueue.Count > 0 && currentTime - _lastVehicleDeletionTime >= 500)
+            {
+                _lastVehicleDeletionTime = currentTime;
+                ProcessNextVehicleDeletion(player, currentTime);
             }
             bool maintenanceTick = currentTime - _lastMaintenanceTime >= 250;
             if (maintenanceTick) _lastMaintenanceTime = currentTime;
