@@ -57,8 +57,10 @@ namespace AvernesTreiner.Modules
         private readonly Queue<int> _vehicleDeletionQueue = new Queue<int>();
         private readonly HashSet<int> _pendingVehicleDeletion = new HashSet<int>();
         private readonly List<int> _trackedVehicleRemovalBuffer = new List<int>();
+        private readonly List<int> _explodedVehicleRemovalBuffer = new List<int>();
         private int _lastSpawnCleanupTime = 0;
         private int _lastVehicleDeletionTime = 0;
+        private int _lastExplodedVehicleCheckTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -152,7 +154,7 @@ namespace AvernesTreiner.Modules
             vehMenu.AddItem(tuneItem);
 
             // Speed Boost / NOS
-            var boostItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "Nitro", "Nitro Boost / NOS (RIGHT SHIFT or X)"), _speedBoost, Localization.Get("Vehicle", "NitroDesc", "Hold RIGHT SHIFT or press X to activate nitro"));
+            var boostItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "Nitro", "Nitro Boost / NOS (NUMPAD 0)"), _speedBoost, Localization.Get("Vehicle", "NitroDesc", "Hold NUMPAD 0 to activate nitro"));
             boostItem.CheckboxEvent += (sender, state) => { _speedBoost = state;
  ConfigManager.SetBool("Vehicle", "SpeedBoost", _speedBoost); };
             vehMenu.AddItem(boostItem);
@@ -684,6 +686,48 @@ namespace AvernesTreiner.Modules
             _abandonedSince.Remove(handle);
         }
 
+        private void CleanupExplodedSpawnedVehicles(int now)
+        {
+            if (now - _lastExplodedVehicleCheckTime < 250) return;
+            _lastExplodedVehicleCheckTime = now;
+            _explodedVehicleRemovalBuffer.Clear();
+
+            foreach (var entry in _trackedSpawnedVehicles)
+            {
+                int handle = entry.Key;
+                Vehicle vehicle = entry.Value;
+                if (vehicle == null || !vehicle.Exists() ||
+                    !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                {
+                    _explodedVehicleRemovalBuffer.Add(handle);
+                    continue;
+                }
+
+                // Only inspect entities explicitly registered as trainer-spawned.
+                bool exploded = Function.Call<bool>(Hash.IS_ENTITY_DEAD, handle) ||
+                    Function.Call<float>(Hash.GET_VEHICLE_ENGINE_HEALTH, handle) <= -4000.0f;
+                if (!exploded) continue;
+
+                try
+                {
+                    Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, handle, true, true);
+                    using (OutputArgument vehicleHandle = new OutputArgument(handle))
+                        Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
+                }
+                catch { }
+
+                if (Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                {
+                    try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
+                }
+
+                _explodedVehicleRemovalBuffer.Add(handle);
+            }
+
+            for (int i = 0; i < _explodedVehicleRemovalBuffer.Count; i++)
+                ForgetTrackedVehicle(_explodedVehicleRemovalBuffer[i]);
+        }
+
         private void CleanupAbandonedSpawnedVehicles(Ped player, int now)
         {
             if (player == null || !player.Exists()) return;
@@ -971,6 +1015,7 @@ namespace AvernesTreiner.Modules
             if (player == null || !player.Exists()) return;
 
             int currentTime = Game.GameTime;
+            CleanupExplodedSpawnedVehicles(currentTime);
             if (currentTime - _lastSpawnCleanupTime >= 1000)
             {
                 _lastSpawnCleanupTime = currentTime;
@@ -1024,9 +1069,9 @@ namespace AvernesTreiner.Modules
                         UI.Notify("~g~Vehicle repaired on entry.");
                     }
 
-                    // Right Shift is the primary trigger; X remains as a reliable fallback key.
+                    // Nitro is bound to the dedicated numeric keypad 0 key.
                     // Keep the original force and speed cap, with horizontal force to avoid unwanted lift.
-                    if (_speedBoost && (Game.IsKeyPressed(Keys.RShiftKey) || Game.IsKeyPressed(Keys.X)))
+                    if (_speedBoost && Game.IsKeyPressed(Keys.NumPad0))
                     {
                         Vector3 forward = v.ForwardVector;
                         float horizontalLength = (float)Math.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
