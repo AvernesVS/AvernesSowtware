@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.9
+# AvernesTreiner v0.9.0
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -65,6 +65,13 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
+## v0.9.0 fixes and changes
+- Infinite Special Ability now refills after an ability use instead of forcing the meter every frame; it does not refill during Michael's aiming state.
+- Max All Character Stats writes all three Story Mode stat slots and reapplies the active protagonist's eight skills when the game switches characters or models.
+- Mission cleanup now captures unsaved trainer-spawned vehicles that were already present when a mission starts, not only vehicles spawned during the mission. Saved vehicles and occupied vehicles remain protected.
+- Waypoint teleport settles land vehicles on the ground after placement while leaving boats and aircraft untouched.
+- Vehicle God Mode continues to reapply deformation and damage-scale protection; residual cosmetic scuffs remain a known limitation pending in-game verification.
+
 ## v0.8.9 additions
 - Infinite Special Ability refills the active protagonist's special meter while enabled.
 - Max All Character Stats sets all eight Story Mode skills to 100% for Michael, Franklin and Trevor, using per-protagonist stat slots and persistent writes.
@@ -130,5 +137,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This development branch targets version **0.8.4**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This development branch targets version **0.9.0**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer

@@ -108,15 +108,25 @@ namespace AvernesTreiner.Modules
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
             int targetHandle = player.IsInVehicle() ? player.CurrentVehicle.Handle : player.Handle;
-            TeleportEntity(targetHandle, pos);
+            TeleportEntity(targetHandle, pos, true);
         }
 
-        private void TeleportEntity(int targetHandle, Vector3 pos)
+        private void TeleportEntity(int targetHandle, Vector3 pos, bool settleLandVehicle)
         {
             if (targetHandle == 0 || !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, targetHandle)) return;
             Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z);
             Function.Call(Hash.SET_ENTITY_COORDS_NO_OFFSET, targetHandle,
                 pos.X, pos.Y, pos.Z, false, false, false);
+
+            // Cars and motorcycles can otherwise remain slightly below/above the
+            // streamed road surface after a distant teleport. Do not ground boats,
+            // helicopters, planes, trains or other special vehicle classes.
+            if (settleLandVehicle && Function.Call<bool>(Hash.IS_ENTITY_A_VEHICLE, targetHandle))
+            {
+                int vehicleClass = Function.Call<int>(Hash.GET_VEHICLE_CLASS, targetHandle);
+                if (vehicleClass >= 0 && vehicleClass <= 13)
+                    Function.Call<bool>(Hash.SET_VEHICLE_ON_GROUND_PROPERLY, targetHandle, 5.0f);
+            }
         }
 
         public void ReloadSettings() { }
@@ -164,7 +174,7 @@ namespace AvernesTreiner.Modules
                         waterZ > -200.0f && waterZ < 1200.0f)
                     {
                         CompleteWaypointTeleport(new Vector3(_waypointX, _waypointY, waterZ + 1.0f),
-                            "~g~Teleported to waypoint at water level.");
+                            "~g~Teleported to waypoint at water level.", false);
                         return;
                     }
                 }
@@ -204,14 +214,14 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.REQUEST_COLLISION_AT_COORD, _waypointX, _waypointY, 0.0f);
         }
 
-        private void CompleteWaypointTeleport(Vector3 destination, string message)
+        private void CompleteWaypointTeleport(Vector3 destination, string message, bool settleLandVehicle = true)
         {
             _waypointTeleportPending = false;
             bool targetExists = _waypointTargetHandle != 0 &&
                 Function.Call<bool>(Hash.DOES_ENTITY_EXIST, _waypointTargetHandle);
             if (targetExists)
             {
-                TeleportEntity(_waypointTargetHandle, destination);
+                TeleportEntity(_waypointTargetHandle, destination, settleLandVehicle);
                 StopWaypointStreaming();
                 UI.Notify(message);
             }
