@@ -19,13 +19,14 @@ namespace AvernesTreiner.Modules
 
         private bool _freezeTime = ConfigManager.GetBool("World", "FreezeTime", false);
         private bool _moonGravity = ConfigManager.GetBool("World", "MoonGravity", false);
+        private int _lastWorldSettingsApplyTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
             var worldMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuWorld", "World & Time"));
 
             // Bullet Time / Slow Motion
-            var bulletMenu = menuPool.AddSubMenu(worldMenu, "Slow Motion / Bullet Time (Matrix Mode)");
+            var bulletMenu = menuPool.AddSubMenu(worldMenu, Localization.Get("World", "BulletTimeMenu", "Slow Motion / Bullet Time (Matrix Mode)"));
             AddBulletTimeOption(bulletMenu, "Normal Speed (1.0x)", 1.0f);
             AddBulletTimeOption(bulletMenu, "Light Slow Motion (0.7x)", 0.7f);
             AddBulletTimeOption(bulletMenu, "Medium Slow Motion (0.4x)", 0.4f);
@@ -43,14 +44,14 @@ namespace AvernesTreiner.Modules
             AddWeatherOption(weatherMenu, Localization.Get("World", "SetHalloween", "Halloween"), Weather.Halloween);
 
             // Visual Filters
-            var filterMenu = menuPool.AddSubMenu(worldMenu, "Camera Visual Filters (Timecycle)");
+            var filterMenu = menuPool.AddSubMenu(worldMenu, Localization.Get("World", "VisualFiltersMenu", "Camera Visual Filters (Timecycle)"));
             AddFilterItem(filterMenu, "Matrix Effect (Futuristic Green)", "spectator5");
             AddFilterItem(filterMenu, "Black & White (Film Noir)", "cinema");
             AddFilterItem(filterMenu, "Dramatic Sunset (Vivid Colors)", "v_sundown");
             AddFilterItem(filterMenu, "Eerie Fog (Silent Hill)", "prologue_fog");
             AddFilterItem(filterMenu, "Sepia / Old West Filter", "hud_def_desat_cold");
 
-            var resetFilterItem = new UIMenuItem("Restore Normal Visuals", "Disables all camera filters");
+            var resetFilterItem = new UIMenuItem(Localization.Get("World", "RestoreVisuals", "Restore Normal Visuals"), Localization.Get("World", "RestoreVisualsDesc", "Disables all camera filters"));
             resetFilterItem.Activated += (sender, selected) =>
             {
                 Function.Call(Hash.CLEAR_TIMECYCLE_MODIFIER);
@@ -148,6 +149,23 @@ namespace AvernesTreiner.Modules
             menu.AddItem(item);
         }
 
-        public void OnTick() { }
+        public void ReloadSettings()
+        {
+            bool wasFreezeTime = _freezeTime;
+            bool wasMoonGravity = _moonGravity;
+            _freezeTime = ConfigManager.GetBool("World", "FreezeTime", false);
+            _moonGravity = ConfigManager.GetBool("World", "MoonGravity", false);
+            if (wasFreezeTime && !_freezeTime) Function.Call(Hash.PAUSE_CLOCK, false);
+            if (wasMoonGravity && !_moonGravity) World.GravityLevel = 0;
+        }
+
+        public void OnTick()
+        {
+            int now = Game.GameTime;
+            if (now - _lastWorldSettingsApplyTime < 250) return;
+            _lastWorldSettingsApplyTime = now;
+            if (_freezeTime) Function.Call(Hash.PAUSE_CLOCK, true);
+            if (_moonGravity) World.GravityLevel = 1;
+        }
     }
 }

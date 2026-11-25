@@ -8,6 +8,13 @@ namespace AvernesTreiner.Modules
 {
     public class SettingsModule : IAvernesModule
     {
+        private readonly Action<bool> _requestMenuRebuild;
+
+        public SettingsModule(Action<bool> requestMenuRebuild)
+        {
+            _requestMenuRebuild = requestMenuRebuild;
+        }
+
         public string Name { get { return "Settings"; } }
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
@@ -25,11 +32,18 @@ namespace AvernesTreiner.Modules
             {
                 ConfigManager.Language = index == 1 ? "ru-RU" : "en-US";
                 Localization.LoadLanguage(ConfigManager.Language);
-                UI.Notify("~b~Language saved selection. Press Save Settings, then reload the trainer script.");
+                bool saved = ConfigManager.Save();
+                if (!saved)
+                {
+                    UI.Notify("~r~Could not save language: " + ConfigManager.LastError);
+                    return;
+                }
+                UI.Notify(Localization.Get("Settings", "LanguageChanged", "Language changed."));
+                if (_requestMenuRebuild != null) _requestMenuRebuild(false);
             };
             settingsMenu.AddItem(languageItem);
 
-            var unitList = new List<dynamic> { "KM/H (Metric)", "MPH (Imperial)" };
+            var unitList = new List<dynamic> { Localization.Get("Settings", "SpeedMetric", "KM/H (Metric)"), Localization.Get("Settings", "SpeedImperial", "MPH (Imperial)") };
             int currentUnitIdx = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             var unitItem = new UIMenuListItem(
                 Localization.Get("Settings", "SpeedUnit", "Speed Unit"),
@@ -46,7 +60,7 @@ namespace AvernesTreiner.Modules
 
             var saveItem = new UIMenuItem(
                 Localization.Get("Settings", "SaveSettings", "Save Settings"),
-                "Writes the current settings to Config.ini");
+                Localization.Get("Settings", "SaveSettingsDesc", "Writes the current settings to Config.ini"));
             saveItem.Activated += (sender, selected) =>
             {
                 bool saved = ConfigManager.Save();
@@ -58,14 +72,16 @@ namespace AvernesTreiner.Modules
 
             var loadItem = new UIMenuItem(
                 Localization.Get("Settings", "LoadSettings", "Load Settings"),
-                "Reloads saved settings from Config.ini");
+                Localization.Get("Settings", "LoadSettingsDesc", "Reloads saved settings from Config.ini"));
             loadItem.Activated += (sender, selected) =>
             {
                 if (ConfigManager.Load())
                 {
+                    Localization.LoadLanguage(ConfigManager.Language);
                     unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                    UI.Notify("~g~Settings loaded. Restart the trainer script to apply saved toggle states.");
+                    UI.Notify(Localization.Get("Settings", "SettingsLoaded", "Settings loaded."));
+                    if (_requestMenuRebuild != null) _requestMenuRebuild(true);
                 }
                 else
                 {
@@ -76,7 +92,7 @@ namespace AvernesTreiner.Modules
 
             var reloadAddonsItem = new UIMenuItem(
                 Localization.Get("Settings", "ReloadAddons", "Reload addons.json"),
-                "Refreshes the vehicle list from scripts/AvernesTreiner/addons.json");
+                Localization.Get("Settings", "ReloadAddonsDesc", "Refreshes the vehicle list from Documents/AvernesTreiner/addons.json"));
             reloadAddonsItem.Activated += (sender, selected) =>
             {
                 AddonManager.Load();
@@ -85,15 +101,17 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.8.2"),
-                "Official AvernesTreiner version");
+                Localization.Get("Settings", "VersionLabel", "Version: v0.8.3"),
+                Localization.Get("Settings", "VersionDesc", "Official AvernesTreiner version"));
             settingsMenu.AddItem(verItem);
 
             var authorItem = new UIMenuItem(
                 Localization.Get("Settings", "CreatorLabel", "Created by Avernes"),
-                "Official AvernesTreiner");
+                Localization.Get("Settings", "CreatorDesc", "Official AvernesTreiner"));
             settingsMenu.AddItem(authorItem);
         }
+
+        public void ReloadSettings() { }
 
         public void OnTick() { }
     }

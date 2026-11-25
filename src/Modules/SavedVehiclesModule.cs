@@ -38,13 +38,13 @@ namespace AvernesTreiner.Modules
 
             var saveItem = new UIMenuItem(
                 Localization.Get("Vehicle", "SaveCurrentVehicle", "Save Current Vehicle"),
-                "Save the vehicle you are driving, including installed tuning and visual customization.");
+                Localization.Get("Vehicle", "SaveCurrentVehicleDesc", "Save the vehicle you are driving, including installed tuning and visual customization."));
             saveItem.Activated += (sender, selected) => SaveCurrentVehicle();
             _savedMenu.AddItem(saveItem);
 
             var infoItem = new UIMenuItem(
-                "Saved cars: " + _saved.Count,
-                "Saved vehicles are stored separately in SavedVehicles.json.");
+                Localization.Get("Vehicle", "SavedCars", "Saved cars: ") + _saved.Count,
+                Localization.Get("Vehicle", "SavedCarsDesc", "Saved vehicles are stored separately in SavedVehicles.json."));
             infoItem.Enabled = false;
             _savedMenu.AddItem(infoItem);
 
@@ -232,7 +232,7 @@ namespace AvernesTreiner.Modules
         private void AddSavedVehicleItem(SavedVehicleData data)
         {
             string label = data.Name + "  [" + data.ModelHash.ToString("X8") + "]";
-            var item = new UIMenuItem(label, "Spawn this saved vehicle with its stored tuning and appearance.");
+            var item = new UIMenuItem(label, Localization.Get("Vehicle", "SpawnSavedVehicleDesc", "Spawn this saved vehicle with its stored tuning and appearance."));
             item.Activated += (sender, selected) => SpawnSavedVehicle(data);
             _savedMenu.AddItem(item);
         }
@@ -330,6 +330,8 @@ namespace AvernesTreiner.Modules
                 }
             }
         }
+
+        public void ReloadSettings() { }
 
         public void OnTick() { }
     }

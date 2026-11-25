@@ -80,7 +80,7 @@ namespace AvernesTreiner.Modules
             weapMenu.AddItem(infAmmo);
 
             // Bottomless Clip (No reload)
-            var clipItem = new UIMenuCheckboxItem("Infinite Clip (Never Reload)", _infiniteClip, "Fire continuously without changing magazines");
+            var clipItem = new UIMenuCheckboxItem(Localization.Get("Weapons", "InfiniteClip", "Infinite Clip (Never Reload)"), _infiniteClip, Localization.Get("Weapons", "InfiniteClipDesc", "Fire without changing magazines"));
             clipItem.CheckboxEvent += (sender, state) =>
             {
                 _infiniteClip = state;
@@ -101,19 +101,19 @@ namespace AvernesTreiner.Modules
             }
 
             // Teleport Gun
-            var teleGunItem = new UIMenuCheckboxItem("Teleport Gun", _teleportGun, "Teleports the player to wherever the shot hits");
+            var teleGunItem = new UIMenuCheckboxItem(Localization.Get("Weapons", "TeleportGun", "Teleport Gun"), _teleportGun, Localization.Get("Weapons", "TeleportGunDesc", "Teleports the player to the shot impact"));
             teleGunItem.CheckboxEvent += (sender, state) => { _teleportGun = state;
  ConfigManager.SetBool("Weapons", "TeleportGun", _teleportGun); };
             weapMenu.AddItem(teleGunItem);
 
             // Force Gun
-            var forceGunItem = new UIMenuCheckboxItem("Force / Gravity Gun", _forceGun, "Blasts vehicles and people hit by the shot away");
+            var forceGunItem = new UIMenuCheckboxItem(Localization.Get("Weapons", "ForceGun", "Force / Gravity Gun"), _forceGun, Localization.Get("Weapons", "ForceGunDesc", "Pushes vehicles and people hit by the shot"));
             forceGunItem.CheckboxEvent += (sender, state) => { _forceGun = state;
  ConfigManager.SetBool("Weapons", "ForceGun", _forceGun); };
             weapMenu.AddItem(forceGunItem);
 
             // RPG Ammo
-            var rpgAmmoItem = new UIMenuCheckboxItem("RPG Ammo (Real Explosive Rounds)", _rpgAmmo, "Each shot causes a real missile explosion");
+            var rpgAmmoItem = new UIMenuCheckboxItem(Localization.Get("Weapons", "RpgAmmo", "RPG Ammo (Real Explosive Rounds)"), _rpgAmmo, Localization.Get("Weapons", "RpgAmmoDesc", "Each shot causes a missile explosion"));
             rpgAmmoItem.CheckboxEvent += (sender, state) => { _rpgAmmo = state;
  ConfigManager.SetBool("Weapons", "RpgAmmo", _rpgAmmo); };
             weapMenu.AddItem(rpgAmmoItem);
@@ -141,6 +141,18 @@ namespace AvernesTreiner.Modules
             weapMenu.AddItem(superDmg);
             if (_superDamage)
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
+        }
+
+        public void ReloadSettings()
+        {
+            _infiniteAmmo = ConfigManager.GetBool("Weapons", "InfiniteAmmo", false);
+            _explosiveAmmo = ConfigManager.GetBool("Weapons", "ExplosiveAmmo", false);
+            _fireAmmo = ConfigManager.GetBool("Weapons", "FireAmmo", false);
+            _superDamage = ConfigManager.GetBool("Weapons", "SuperDamage", false);
+            _teleportGun = ConfigManager.GetBool("Weapons", "TeleportGun", false);
+            _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
+            _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
+            _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
         }
 
         public void OnTick()

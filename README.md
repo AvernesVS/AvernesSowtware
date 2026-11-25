@@ -1,4 +1,4 @@
-# AvernesTreiner v0.8.2
+# AvernesTreiner v0.8.3
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -65,11 +65,15 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
-## v0.8.2 changes
-- Use `Documents/AvernesTreiner` as persistent storage for configuration, saved vehicles and add-on lists; migrate existing game-local files without overwriting an existing Documents copy.
-- Parse localization INI files explicitly as UTF-8 so Russian text is not silently lost by the runtime INI reader.
-- Strengthen Auto Repair on Entry with direct vehicle repair, deformation, dirt, engine, body and petrol-tank repair natives.
-- Reapply deformation repair while Vehicle God Mode is enabled. In-game validation is still required.
+## v0.8.3 changes
+- Apply language changes immediately: the menu is rebuilt in the selected language without restarting GTA V. Reload Settings refreshes the existing module instances and menu controls, preserving active runtime objects while applying saved checkbox states.
+- Expand Russian and English localization coverage across the main menus, including Vehicle, vehicle customization, autopilot choices, bodyguards, weapons, world options and settings.
+- Persist checkbox settings as they change, retain a `.bak` copy of Config.ini, and restore from that backup if the primary configuration is missing, empty or cannot be loaded.
+- Resolve the installer's user-data folder through Windows' actual My Documents location so it matches the path used by the trainer, including redirected Documents folders.
+- Move distant waypoint placement to the native coordinate setter after collision streaming, avoiding the ScriptHookVDotNet vehicle safe-placement setter that can reject a requested vehicle position.
+- Track vehicles spawned during story missions and remove them when the mission ends, once they are unoccupied. Vehicles currently occupied by the player or NPCs are not deleted.
+- Reapply vehicle deformation repair each script tick while Vehicle God Mode is active without calling the full vehicle repair native, which could reset customization.
+- GitHub Actions successfully compiled the .NET Framework 4.8 DLL, validated localization key parity and packaged the installer. Target-game behavior still requires in-game testing.
 
 ## v0.8 fixes
 - Nitro accepts **Right Shift** as the primary trigger and **X** as a fallback, restoring the previously working alternate key without bringing back Left Shift. The horizontal boost force and speed cap remain unchanged.
@@ -103,5 +107,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This release is version **0.8.2**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This release is version **0.8.3**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer

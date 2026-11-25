@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.8.2 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.8.3 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -61,7 +61,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
-      - name: Validate resources and build v0.8.2 installer ZIP
+      - name: Validate resources and build v0.8.3 installer ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -70,7 +70,7 @@ jobs:
           $payload = Join-Path $stage 'files'
           $runtime = Join-Path $payload 'scripts\AvernesTreiner'
           $scripts = Join-Path $payload 'scripts'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.8.2-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.8.3-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           New-Item -ItemType Directory -Path $scripts -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
@@ -86,7 +86,7 @@ jobs:
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing installer file: $f" } }
           $english = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
           $russian = Get-Content (Join-Path $runtime 'Languages\ru-RU.ini') -Raw
-          if ($english -notmatch 'MenuSubtitle=v0.8.2' -or $russian -notmatch 'MenuSubtitle=v0.8.2') { throw 'Both language files must identify v0.8.2.' }
+          if ($english -notmatch 'MenuSubtitle=v0.8.3' -or $russian -notmatch 'MenuSubtitle=v0.8.3') { throw 'Both language files must identify v0.8.3.' }
           $englishKeys = [regex]::Matches($english, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $russianKeys = [regex]::Matches($russian, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $missingRussian = @($englishKeys | Where-Object { $_ -notin $russianKeys })
@@ -95,9 +95,9 @@ jobs:
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data must not be shipped: $userFile" }
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
-          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA') { throw 'Installer legacy backup migration or persistent data path is missing.' }
+          if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch "GetFolderPath\('MyDocuments'\)") { throw 'Installer legacy backup migration or Windows My Documents path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
-          if ($configSource -notmatch 'Version=v0.8.2' -or $configSource -notmatch 'SpecialFolder.MyDocuments' -or $configSource -notmatch 'UserDataDirectoryPath') { throw 'Persistent Documents config storage/version is missing.' }
+          if ($configSource -notmatch 'Version=v0.8.3' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
@@ -108,9 +108,9 @@ jobs:
           if ($vehicleSource -match 'SET_DONT_PROCESS_VEHICLE_GLASS|0x1087BC8EC540DAEB|IsPersistent\s*=\s*false\s*;\s*vehicle\.Delete') { throw 'Unsafe or obsolete vehicle protection/cleanup code found.' }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION' -or $core -notmatch 'EnableCameraControls' -or $core -notmatch 'ENABLE_CONTROL_ACTION') { throw 'Menu navigation/camera controls regression checks failed.' }
           $settingsSource = Get-Content (Join-Path $root 'src\Modules\SettingsModule.cs') -Raw
-          if ($settingsSource -notmatch 'languageItem' -or $settingsSource -notmatch 'ConfigManager.Save' -or $settingsSource -notmatch 'Localization.LoadLanguage') { throw 'Language selector or settings save behavior is missing.' }
+          if ($settingsSource -notmatch 'languageItem' -or $settingsSource -notmatch 'ConfigManager.Save' -or $settingsSource -notmatch 'Localization.LoadLanguage' -or $settingsSource -notmatch '_requestMenuRebuild') { throw 'Live language switching or settings reload behavior is missing.' }
           $teleportSource = Get-Content (Join-Path $root 'src\Modules\TeleportModule.cs') -Raw
-          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'sceneLoaded\s*&&' -or $teleportSource -match 'elapsed\s*>=\s*2500') { throw 'Waypoint streaming regression checks failed.' }
+          if ($teleportSource -notmatch 'TryGetGroundHeight' -or $teleportSource -notmatch 'GET_GROUND_Z_FOR_3D_COORD' -or $teleportSource -notmatch 'REQUEST_COLLISION_AT_COORD' -or $teleportSource -notmatch 'NEW_LOAD_SCENE_START' -or $teleportSource -notmatch 'GetSafeCoordForPed' -or $teleportSource -notmatch 'SET_ENTITY_COORDS_NO_OFFSET' -or $teleportSource -notmatch 'sceneLoaded\s*&&' -or $teleportSource -match 'elapsed\s*>=\s*2500') { throw 'Waypoint streaming or direct vehicle placement regression checks failed.' }
           $playerSource = Get-Content (Join-Path $root 'src\Modules\PlayerModule.cs') -Raw
           if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted') { throw 'Never Wanted regression checks failed.' }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
@@ -124,12 +124,18 @@ jobs:
           $savedVehiclesSource = Get-Content (Join-Path $root 'src\Modules\SavedVehiclesModule.cs') -Raw
           if ($savedVehiclesSource -notmatch 'CaptureVehicle' -or $savedVehiclesSource -notmatch 'ApplyCustomization' -or $savedVehiclesSource -notmatch 'SavedVehicles.json' -or $core -notmatch 'new SavedVehiclesModule\(\)') { throw 'Saved vehicle save/spawn registration checks failed.' }
           if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
+          if ($vehicleSource -notmatch '_missionSpawnedVehicles' -or $vehicleSource -notmatch 'Vehicles created during a mission') { throw 'Mission-spawned vehicle cleanup is missing.' }
+          if ($core -notmatch 'BuildMenus\(\)' -or $core -notmatch '_rebuildMenuRequested' -or $core -notmatch '_modules\[i\]\.ReloadSettings\(\)') { throw 'Live menu rebuild or module settings reload support is missing.' }
+          $moduleContract = Get-Content (Join-Path $root 'src\Core\IAvernesModule.cs') -Raw
+          if ($moduleContract -notmatch 'ReloadSettings') { throw 'Module settings reload contract is missing.' }
+          $worldSource = Get-Content (Join-Path $root 'src\Modules\WorldModule.cs') -Raw
+          if ($worldSource -notmatch 'PAUSE_CLOCK' -or $worldSource -notmatch 'GravityLevel' -or $worldSource -notmatch '_lastWorldSettingsApplyTime') { throw 'Loaded world settings are not reapplied.' }
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.8.2-GTA5-Legacy
-          path: AvernesTreiner-0.8.2-GTA5-Legacy.zip
+          name: AvernesTreiner-0.8.3-GTA5-Legacy
+          path: AvernesTreiner-0.8.3-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30

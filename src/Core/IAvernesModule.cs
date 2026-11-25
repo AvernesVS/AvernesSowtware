@@ -18,5 +18,6 @@ namespace AvernesTreiner.Core
         string Name { get; }
         void Initialize(UIMenu mainMenu, MenuPool menuPool);
         void OnTick();
+        void ReloadSettings();
     }
 }

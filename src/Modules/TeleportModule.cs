@@ -99,18 +99,16 @@ namespace AvernesTreiner.Modules
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
 
-            // Ask the game to stream collision before moving the player/entity.
+            // Stream collision, then move the actual entity with the native directly.
+            // SHVDN's Vehicle.Position setter can reject distant waypoint placement when
+            // its internal safe-placement resolver cannot find a vehicle-sized position.
             Function.Call(Hash.REQUEST_COLLISION_AT_COORD, pos.X, pos.Y, pos.Z);
-
-            if (player.IsInVehicle())
-            {
-                player.CurrentVehicle.Position = pos;
-            }
-            else
-            {
-                player.Position = pos;
-            }
+            int targetHandle = player.IsInVehicle() ? player.CurrentVehicle.Handle : player.Handle;
+            Function.Call(Hash.SET_ENTITY_COORDS_NO_OFFSET, targetHandle,
+                pos.X, pos.Y, pos.Z, false, false, false);
         }
+
+        public void ReloadSettings() { }
 
         public void OnTick()
         {

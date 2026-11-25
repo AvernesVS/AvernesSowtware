@@ -21,6 +21,8 @@ namespace AvernesTreiner
         private Keys _toggleKey = Keys.F10;
         private int _lastToggleTime = 0;
         private int _suppressPauseUntil = 0;
+        private bool _rebuildMenuRequested = false;
+        private bool _reloadModuleSettingsRequested = false;
 
         // Menu navigation inputs are read first, then suppressed from gameplay.
         private static readonly GTA.Control[] MenuNavigationControls = new GTA.Control[]
@@ -46,18 +48,35 @@ namespace AvernesTreiner
                     _toggleKey = Keys.F10;
                 }
 
-                _menuPool = new MenuPool();
-                _menuPool.MouseEdgeEnabled = false;
-                // NativeUI 1.9.0 exposes cursor control on each UIMenu, not MenuPool.
-                _menuPool.ResetCursorOnOpen = false;
-                // Keep gameplay and camera controls active while the menu is open.
-                _menuPool.ControlDisablingEnabled = false;
+                BuildMenus();
 
-                string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-                string subtitle = Localization.Get("General", "MenuSubtitle", "v0.8");
-                _mainMenu = new UIMenu(title, subtitle);
-                _menuPool.Add(_mainMenu);
+                Tick += OnTick;
+                KeyDown += OnKeyDown;
 
+                Interval = 0;
+
+                UI.Notify("~b~AvernesTreiner v0.8.3 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+            }
+            catch (Exception ex)
+            {
+                UI.Notify("~r~Error starting AvernesTreiner: " + ex.Message);
+            }
+        }
+
+        private void BuildMenus()
+        {
+            _menuPool = new MenuPool();
+            _menuPool.MouseEdgeEnabled = false;
+            _menuPool.ResetCursorOnOpen = false;
+            _menuPool.ControlDisablingEnabled = false;
+
+            string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.8.3");
+            _mainMenu = new UIMenu(title, subtitle);
+            _menuPool.Add(_mainMenu);
+
+            if (_modules == null)
+            {
                 _modules = new List<IAvernesModule>
                 {
                     new PlayerModule(),
@@ -70,39 +89,27 @@ namespace AvernesTreiner
                     new WeaponModule(),
                     new TeleportModule(),
                     new WorldModule(),
-                    new SettingsModule()
-                };
-
-                foreach (var module in _modules)
-                {
-                    try
+                    new SettingsModule(delegate(bool reloadSettings)
                     {
-                        module.Initialize(_mainMenu, _menuPool);
-                    }
-                    catch { }
-                }
-
-                // Disable the NativeUI cursor on the main menu and every submenu.
-                foreach (UIMenu menu in _menuPool.ToList())
-                {
-                    menu.MouseControlsEnabled = false;
-                    menu.MouseEdgeEnabled = false;
-                    menu.ResetCursorOnOpen = false;
-                }
-
-                _menuPool.RefreshIndex();
-
-                Tick += OnTick;
-                KeyDown += OnKeyDown;
-
-                Interval = 0;
-
-                UI.Notify("~b~AvernesTreiner v0.8.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                        _reloadModuleSettingsRequested = reloadSettings;
+                        _rebuildMenuRequested = true;
+                    })
+                };
             }
-            catch (Exception ex)
+
+            foreach (var module in _modules)
             {
-                UI.Notify("~r~Error starting AvernesTreiner: " + ex.Message);
+                try { module.Initialize(_mainMenu, _menuPool); }
+                catch { }
             }
+
+            foreach (UIMenu menu in _menuPool.ToList())
+            {
+                menu.MouseControlsEnabled = false;
+                menu.MouseEdgeEnabled = false;
+                menu.ResetCursorOnOpen = false;
+            }
+            _menuPool.RefreshIndex();
         }
 
         private void OnTick(object sender, EventArgs e)
@@ -119,6 +126,23 @@ namespace AvernesTreiner
                 _menuPool.Draw();
                 DisableMenuNavigationControls();
                 EnableCameraControls();
+            }
+
+            if (_rebuildMenuRequested)
+            {
+                _rebuildMenuRequested = false;
+                if (_reloadModuleSettingsRequested && _modules != null)
+                {
+                    _reloadModuleSettingsRequested = false;
+                    for (int i = 0; i < _modules.Count; i++)
+                    {
+                        try { _modules[i].ReloadSettings(); }
+                        catch { }
+                    }
+                }
+                BuildMenus();
+                _mainMenu.Visible = true;
+                return;
             }
 
             int now = Game.GameTime;

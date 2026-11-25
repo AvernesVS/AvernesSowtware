@@ -8,14 +8,13 @@ namespace AvernesTreiner.Core
     public static class ConfigManager
     {
         private static readonly string RuntimeDirectory = ResolveRuntimeDirectory();
-        private static readonly string UserConfigDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AvernesTreiner");
+        private static readonly string UserConfigDirectory = ResolveUserDataDirectory();
         private static string _configPath;
         private static ScriptSettings _settings;
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.8.2";
+        private static string _version = "v0.8.3";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -54,12 +53,23 @@ namespace AvernesTreiner.Core
             return Path.Combine(trimmed, "scripts", "AvernesTreiner");
         }
 
+        private static string ResolveUserDataDirectory()
+        {
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (string.IsNullOrEmpty(documents))
+            {
+                string profile = Environment.GetEnvironmentVariable("USERPROFILE");
+                documents = string.IsNullOrEmpty(profile) ? AppDomain.CurrentDomain.BaseDirectory : Path.Combine(profile, "Documents");
+            }
+            return Path.Combine(documents, "AvernesTreiner");
+        }
+
         private static string DefaultConfig()
         {
             return "[General]\r\n" +
                 "Language=en-US\r\n" +
                 "MenuKey=F10\r\n" +
-                "Version=v0.8.2\r\n" +
+                "Version=v0.8.3\r\n" +
                 "Title=AvernesTreiner\r\n" +
                 "SpeedUnit=KM/H\r\n";
         }
@@ -104,7 +114,13 @@ namespace AvernesTreiner.Core
 
             _configPath = Path.Combine(UserConfigDirectory, "Config.ini");
             if (!File.Exists(_configPath) || new FileInfo(_configPath).Length == 0)
-                File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
+            {
+                string backupPath = _configPath + ".bak";
+                if (File.Exists(backupPath) && new FileInfo(backupPath).Length > 0)
+                    File.Copy(backupPath, _configPath, true);
+                else
+                    File.WriteAllText(_configPath, DefaultConfig(), Encoding.UTF8);
+            }
         }
 
         public static bool Load()
@@ -117,7 +133,7 @@ namespace AvernesTreiner.Core
                 if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
                 _menuKey = "F10";
-                _version = "v0.8.2";
+                _version = "v0.8.3";
                 _title = "AvernesTreiner";
                 // Loading must not write the file; saving is explicit through Settings.
                 LastError = null;
@@ -125,6 +141,21 @@ namespace AvernesTreiner.Core
             }
             catch (Exception ex)
             {
+                try
+                {
+                    string backupPath = _configPath + ".bak";
+                    if (File.Exists(backupPath))
+                    {
+                        File.Copy(backupPath, _configPath, true);
+                        _settings = ScriptSettings.Load(_configPath);
+                        _language = _settings.GetValue("General", "Language", "en-US");
+                        if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
+                        _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
+                        LastError = "Config.ini was recovered from its backup.";
+                        return true;
+                    }
+                }
+                catch { }
                 LastError = ex.Message;
                 return false;
             }
@@ -161,6 +192,9 @@ namespace AvernesTreiner.Core
                 }
                 // Keep changes in memory until the user presses Save Settings.
                 _settings.SetValue(section, key, value ? "true" : "false");
+                // Persist feature toggles immediately so reinstalling the DLL cannot
+                // discard the user's last selected state if Save Settings was missed.
+                if (!Save()) throw new IOException(LastError ?? "Could not persist setting.");
             }
             catch (Exception ex)
             {
@@ -178,16 +212,18 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.8.2");
+                _settings.SetValue("General", "Version", "v0.8.3");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
+                string backupPath = _configPath + ".bak";
+                if (File.Exists(_configPath)) File.Copy(_configPath, backupPath, true);
                 _settings.Save();
 
                 if (!File.Exists(_configPath))
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.8.2";
+                _version = "v0.8.3";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
