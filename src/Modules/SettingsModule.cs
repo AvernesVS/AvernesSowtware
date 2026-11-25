@@ -8,6 +8,13 @@ namespace AvernesTreiner.Modules
 {
     public class SettingsModule : IAvernesModule
     {
+        private readonly Action _requestMenuRebuild;
+
+        public SettingsModule(Action requestMenuRebuild)
+        {
+            _requestMenuRebuild = requestMenuRebuild;
+        }
+
         public string Name { get { return "Settings"; } }
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
@@ -25,7 +32,14 @@ namespace AvernesTreiner.Modules
             {
                 ConfigManager.Language = index == 1 ? "ru-RU" : "en-US";
                 Localization.LoadLanguage(ConfigManager.Language);
-                UI.Notify("~b~Language saved selection. Press Save Settings, then reload the trainer script.");
+                bool saved = ConfigManager.Save();
+                if (!saved)
+                {
+                    UI.Notify("~r~Could not save language: " + ConfigManager.LastError);
+                    return;
+                }
+                UI.Notify(Localization.Get("Settings", "LanguageChanged", "Language changed."));
+                if (_requestMenuRebuild != null) _requestMenuRebuild();
             };
             settingsMenu.AddItem(languageItem);
 
@@ -65,7 +79,8 @@ namespace AvernesTreiner.Modules
                 {
                     unitItem.Index = string.Equals(ConfigManager.SpeedUnit, "MPH", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                     languageItem.Index = string.Equals(ConfigManager.Language, "ru-RU", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                    UI.Notify("~g~Settings loaded. Restart the trainer script to apply saved toggle states.");
+                    UI.Notify(Localization.Get("Settings", "SettingsLoaded", "Settings loaded."));
+                    if (_requestMenuRebuild != null) _requestMenuRebuild();
                 }
                 else
                 {
@@ -76,7 +91,7 @@ namespace AvernesTreiner.Modules
 
             var reloadAddonsItem = new UIMenuItem(
                 Localization.Get("Settings", "ReloadAddons", "Reload addons.json"),
-                "Refreshes the vehicle list from scripts/AvernesTreiner/addons.json");
+                "Refreshes the vehicle list from Documents/AvernesTreiner/addons.json");
             reloadAddonsItem.Activated += (sender, selected) =>
             {
                 AddonManager.Load();
@@ -85,7 +100,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.8.2"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.8.3"),
                 "Official AvernesTreiner version");
             settingsMenu.AddItem(verItem);
 
