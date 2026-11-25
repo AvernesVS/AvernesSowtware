@@ -22,6 +22,7 @@ namespace AvernesTreiner
         private int _lastToggleTime = 0;
         private int _suppressPauseUntil = 0;
         private bool _rebuildMenuRequested = false;
+        private bool _reloadModuleSettingsRequested = false;
 
         // Menu navigation inputs are read first, then suppressed from gameplay.
         private static readonly GTA.Control[] MenuNavigationControls = new GTA.Control[]
@@ -74,20 +75,27 @@ namespace AvernesTreiner
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
-            _modules = new List<IAvernesModule>
+            if (_modules == null)
             {
-                new PlayerModule(),
-                new VehicleModule(),
-                new SavedVehiclesModule(),
-                new VehicleCustomizationModule(),
-                new SkinChangerModule(),
-                new BodyguardModule(),
-                new AnimationModule(),
-                new WeaponModule(),
-                new TeleportModule(),
-                new WorldModule(),
-                new SettingsModule(delegate { _rebuildMenuRequested = true; })
-            };
+                _modules = new List<IAvernesModule>
+                {
+                    new PlayerModule(),
+                    new VehicleModule(),
+                    new SavedVehiclesModule(),
+                    new VehicleCustomizationModule(),
+                    new SkinChangerModule(),
+                    new BodyguardModule(),
+                    new AnimationModule(),
+                    new WeaponModule(),
+                    new TeleportModule(),
+                    new WorldModule(),
+                    new SettingsModule(delegate(bool reloadSettings)
+                    {
+                        _reloadModuleSettingsRequested = reloadSettings;
+                        _rebuildMenuRequested = true;
+                    })
+                };
+            }
 
             foreach (var module in _modules)
             {
@@ -123,6 +131,15 @@ namespace AvernesTreiner
             if (_rebuildMenuRequested)
             {
                 _rebuildMenuRequested = false;
+                if (_reloadModuleSettingsRequested && _modules != null)
+                {
+                    _reloadModuleSettingsRequested = false;
+                    for (int i = 0; i < _modules.Count; i++)
+                    {
+                        try { _modules[i].ReloadSettings(); }
+                        catch { }
+                    }
+                }
                 BuildMenus();
                 _mainMenu.Visible = true;
                 return;
