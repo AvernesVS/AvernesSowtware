@@ -52,6 +52,7 @@ namespace AvernesTreiner.Modules
         private readonly List<Prop> _spawnedRamps = new List<Prop>();
         private static readonly Dictionary<int, Vehicle> _trackedSpawnedVehicles = new Dictionary<int, Vehicle>();
         private static readonly Dictionary<int, int> _abandonedSince = new Dictionary<int, int>();
+        private static readonly HashSet<int> _missionSpawnedVehicles = new HashSet<int>();
         private int _lastSpawnCleanupTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
@@ -670,6 +671,8 @@ namespace AvernesTreiner.Modules
         {
             if (vehicle == null || !vehicle.Exists()) return;
             _trackedSpawnedVehicles[vehicle.Handle] = vehicle;
+            if (Function.Call<bool>(Hash.GET_MISSION_FLAG))
+                _missionSpawnedVehicles.Add(vehicle.Handle);
             _abandonedSince.Remove(vehicle.Handle);
         }
 
@@ -693,12 +696,45 @@ namespace AvernesTreiner.Modules
                 if (vehicle == null || !vehicle.Exists())
                 {
                     remove.Add(handle);
+                    _missionSpawnedVehicles.Remove(handle);
                     continue;
                 }
 
                 if (player.IsInVehicle() && player.CurrentVehicle.Handle == handle)
                 {
                     _abandonedSince.Remove(handle);
+                    continue;
+                }
+
+                // Vehicles created during a mission are cleaned up as soon as that
+                // mission ends, instead of being left behind as persistent entities.
+                // Occupied vehicles are never deleted; they are checked again after exit.
+                int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1);
+                int passengerCount = Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, handle);
+                if (_missionSpawnedVehicles.Contains(handle))
+                {
+                    if (driverHandle != 0 || passengerCount > 0)
+                    {
+                        _abandonedSince.Remove(handle);
+                        continue;
+                    }
+                    try
+                    {
+                        vehicle.IsPersistent = true;
+                        using (OutputArgument vehicleHandle = new OutputArgument(vehicle))
+                        {
+                            Function.Call(Hash.DELETE_VEHICLE, vehicleHandle);
+                        }
+                    }
+                    catch
+                    {
+                        try { if (vehicle.Exists()) vehicle.Delete(); } catch { }
+                    }
+                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                    {
+                        remove.Add(handle);
+                        _missionSpawnedVehicles.Remove(handle);
+                    }
                     continue;
                 }
 
@@ -709,8 +745,6 @@ namespace AvernesTreiner.Modules
                 }
 
                 // Never remove a trainer vehicle that is occupied or still moving.
-                int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1);
-                int passengerCount = Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, handle);
                 if (driverHandle != 0 || passengerCount > 0 || vehicle.Speed > 0.5f)
                 {
                     _abandonedSince.Remove(handle);
@@ -751,6 +785,7 @@ namespace AvernesTreiner.Modules
             {
                 _trackedSpawnedVehicles.Remove(remove[i]);
                 _abandonedSince.Remove(remove[i]);
+                _missionSpawnedVehicles.Remove(remove[i]);
             }
         }
 
