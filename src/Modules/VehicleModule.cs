@@ -845,6 +845,7 @@ namespace AvernesTreiner.Modules
             bool wasGodMode = _vehicleGodMode;
             bool wasDriftMode = _driftMode;
             bool wasSeatbelt = _seatbelt;
+            bool wasSuperTorque = _superTorque;
 
             _vehicleGodMode = ConfigManager.GetBool("Vehicle", "VehicleGodMode", false);
             _speedBoost = ConfigManager.GetBool("Vehicle", "SpeedBoost", false);
@@ -868,6 +869,8 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_PED_CONFIG_FLAG, player.Handle, 32, true);
                 Function.Call(Hash.SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE, player.Handle, 0);
             }
+            if (wasSuperTorque && !_superTorque && player != null && player.Exists() && player.IsInVehicle())
+                player.CurrentVehicle.EnginePowerMultiplier = 1.0f;
             _lastEnteredVehicleHandle = 0;
         }
 
