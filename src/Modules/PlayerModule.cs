@@ -34,7 +34,6 @@ namespace AvernesTreiner.Modules
         private int _currentPlayerModelHash = 0;
         private int _lastStatsPedHandle = 0;
         private int _lastStatsModelHash = 0;
-        private int _lastAllStatsRefreshTime = 0;
         private static bool _characterModelHashesInitialized = false;
         private static int _michaelModelHash = 0;
         private static int _franklinModelHash = 0;
@@ -323,7 +322,6 @@ namespace AvernesTreiner.Modules
 
             _lastStatsPedHandle = 0;
             _lastStatsModelHash = 0;
-            _lastAllStatsRefreshTime = 0;
             UI.Notify("~g~Max stats applied to all 3 heroes. Verified: " + verified + "/48; active hero will be reapplied.");
         }
 
@@ -388,7 +386,6 @@ namespace AvernesTreiner.Modules
             _currentPlayerModelHash = 0;
             _lastStatsPedHandle = 0;
             _lastStatsModelHash = 0;
-            _lastAllStatsRefreshTime = 0;
             _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
             _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
 
@@ -439,17 +436,6 @@ namespace AvernesTreiner.Modules
                     _currentPlayerModelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
                 }
                 EnsureCharacterModelHashes();
-            }
-
-            // Story Mode can overwrite skill values while protagonist data is reloaded.
-            // Re-assert all three slots periodically, not only after model changes.
-            if (_maxStatsEnabled && now - _lastAllStatsRefreshTime >= 5000)
-            {
-                _lastAllStatsRefreshTime = now;
-                int allUpdated = 0;
-                int allVerified = 0;
-                for (int i = 0; i < CharacterStatPrefixes.Length; i++)
-                    ApplyStatsForPrefix(CharacterStatPrefixes[i], ref allUpdated, ref allVerified);
             }
 
             if (_maxStatsEnabled &&
