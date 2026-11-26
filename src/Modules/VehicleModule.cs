@@ -62,10 +62,10 @@ namespace AvernesTreiner.Modules
         private int _lastSpawnCleanupTime = 0;
         private int _lastVehicleDeletionTime = 0;
         private int _lastExplodedVehicleCheckTime = 0;
-        private int _pendingRadioVehicleHandle;
-        private int _pendingRadioUntil;
-        private int _lastRadioRetryTime;
-        private string _pendingRadioStation;
+        private static int _pendingRadioVehicleHandle;
+        private static int _pendingRadioUntil;
+        private static int _lastRadioRetryTime;
+        private static string _pendingRadioStation;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -666,10 +666,6 @@ namespace AvernesTreiner.Modules
                 player.SetIntoVehicle(v, VehicleSeat.Driver);
                 v.PlaceOnGround();
                 ActivateVehicleRadio(v);
-                _pendingRadioVehicleHandle = v.Handle;
-                _pendingRadioUntil = Game.GameTime + 3000;
-                _lastRadioRetryTime = 0;
-                _pendingRadioStation = GetCurrentRadioStation();
                 if (_vehicleGodMode)
                     ApplyVehicleGodMode(v, true);
                 UI.Notify("~g~Vehicle " + modelName.ToUpper() + " created!");
@@ -701,6 +697,12 @@ namespace AvernesTreiner.Modules
             Function.Call(Hash.SET_VEH_RADIO_STATION, handle, station);
             Function.Call(Hash.SET_VEHICLE_RADIO_LOUD, handle, true);
             Function.Call(Hash.SET_USER_RADIO_CONTROL_ENABLED, true);
+
+            // Retry briefly after the player enters; some streamed vehicles initialize audio late.
+            _pendingRadioVehicleHandle = handle;
+            _pendingRadioUntil = Game.GameTime + 3000;
+            _lastRadioRetryTime = 0;
+            _pendingRadioStation = station;
         }
 
         private void MaintainSpawnedVehicleRadio(Ped player, int now)
