@@ -27,7 +27,7 @@ namespace AvernesTreiner
         // Menu navigation inputs are read first, then suppressed from gameplay.
         private static readonly GTA.Control[] MenuNavigationControls = new GTA.Control[]
         {
-            GTA.Control.PhoneUp, GTA.Control.PhoneDown, GTA.Control.PhoneLeft, GTA.Control.PhoneRight,
+            GTA.Control.Phone, GTA.Control.PhoneUp, GTA.Control.PhoneDown, GTA.Control.PhoneLeft, GTA.Control.PhoneRight,
             GTA.Control.CursorScrollUp, GTA.Control.CursorScrollDown,
             GTA.Control.FrontendAccept, GTA.Control.PhoneCancel, GTA.Control.FrontendPause
         };
@@ -55,7 +55,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.1 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
