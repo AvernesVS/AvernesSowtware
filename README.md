@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.1
+# AvernesTreiner v0.9.2
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,11 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.2 additions
+- Adds an experimental golf aiming assistant: detects a nearby golf ball and the nearest course flag, aligns the player's heading toward the flag, and draws a visual guide line. The player still controls shot timing and power; no score or result is modified.
+- The first implementation does not calculate wind, slope, club selection or shot power, and exact cup-in performance must be verified in GTA V Legacy 1.0.2245.0.
+- The golf helper is optional and disabled by default.
 
 ## v0.9.1 fixes and changes
 - Max All Character Stats now uses the Story Mode protagonist stat identifiers, including the Driving skill's internal `WHEELIE_ABILITY` stat, and sets the game's per-skill maxed flags for Michael, Franklin and Trevor.
@@ -146,5 +151,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This development branch targets version **0.9.1**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This development branch targets version **0.9.2**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
