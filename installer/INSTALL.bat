@@ -1,12 +1,12 @@
 @echo off
 setlocal
-title AvernesTreiner 0.9.1 Installer
+title AvernesTreiner 0.9.3 Installer
 set "PACKAGE=%~dp0"
 set "TARGET=C:\Program Files (x86)\Grand Theft Auto V"
 if exist "%TARGET%\GTA5.exe" goto target_ok
 set "TARGET=%~dp0"
 if exist "%TARGET%GTA5.exe" goto target_ok
-echo AvernesTreiner 0.9.0 - GTA V Legacy installer
+echo AvernesTreiner 0.9.3 - GTA V Legacy installer
 echo.
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
@@ -35,7 +35,7 @@ if exist "%DATA%\*" xcopy "%DATA%\*" "%BACKUP%\legacy-game-data\" /E /I /Y >nul
 if errorlevel 1 goto backup_failed
 
 rem Migrate from the previous game-local folder without overwriting newer Documents data.
-for %%F in (Config.ini SavedVehicles.json addons.json) do (
+for %%F in (Config.ini SavedVehicles.json WeaponInventory.json addons.json) do (
   if not exist "%USERDATA%\%%F" if exist "%DATA%\%%F" copy "%DATA%\%%F" "%USERDATA%\%%F" >nul
   if errorlevel 1 goto migration_failed
 )
@@ -45,7 +45,7 @@ set "LEGACYBACKUP="
 for /f "delims=" %%D in ('dir /b /ad /o-d "%DOCUMENTS%\AvernesTrainer_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%DOCUMENTS%\AvernesTrainer_Backup\%%D"
 if not defined LEGACYBACKUP for /f "delims=" %%D in ('dir /b /ad /o-d "%DOCUMENTS%\AvernesTreiner_Backup" 2^>nul') do if not defined LEGACYBACKUP set "LEGACYBACKUP=%DOCUMENTS%\AvernesTreiner_Backup\%%D"
 if defined LEGACYBACKUP (
-  for %%F in (Config.ini SavedVehicles.json addons.json) do (
+  for %%F in (Config.ini SavedVehicles.json WeaponInventory.json addons.json) do (
     if not exist "%USERDATA%\%%F" if exist "%LEGACYBACKUP%\%%F" copy "%LEGACYBACKUP%\%%F" "%USERDATA%\%%F" >nul
     if errorlevel 1 goto migration_failed
   )

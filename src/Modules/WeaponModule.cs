@@ -38,6 +38,7 @@ namespace AvernesTreiner.Modules
         private int _restoreInventoryAt;
         private bool _inventoryRestorePending;
         private bool _inventoryFileLoaded;
+        private bool _inventorySaveErrorNotified;
         private static bool _inventoryModelHashesInitialized;
         private static int _michaelInventoryModelHash;
         private static int _franklinInventoryModelHash;
@@ -312,31 +313,64 @@ namespace AvernesTreiner.Modules
         private void LoadWeaponInventories()
         {
             if (_inventoryFileLoaded) return;
-            _inventoryFileLoaded = true;
+
             try
             {
                 string directory = Path.GetDirectoryName(WeaponInventoryPath);
                 if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
-                if (!File.Exists(WeaponInventoryPath)) return;
 
-                string json = File.ReadAllText(WeaponInventoryPath);
-                var loaded = new JavaScriptSerializer().Deserialize<Dictionary<string, WeaponInventoryData>>(json);
-                if (loaded != null)
+                string[] candidates = new string[] { WeaponInventoryPath, WeaponInventoryPath + ".bak" };
+                for (int candidateIndex = 0; candidateIndex < candidates.Length; candidateIndex++)
                 {
-                    foreach (var pair in loaded)
+                    string candidate = candidates[candidateIndex];
+                    if (!File.Exists(candidate)) continue;
+
+                    try
                     {
-                        if (pair.Value != null &&
-                            (pair.Key == "SP0" || pair.Key == "SP1" || pair.Key == "SP2"))
+                        string json = File.ReadAllText(candidate);
+                        var loaded = new JavaScriptSerializer().Deserialize<Dictionary<string, WeaponInventoryData>>(json);
+                        if (loaded == null) continue;
+
+                        _savedInventories.Clear();
+                        foreach (var pair in loaded)
+                        {
+                            if (pair.Value == null ||
+                                (pair.Key != "SP0" && pair.Key != "SP1" && pair.Key != "SP2"))
+                                continue;
+
+                            if (pair.Value.Weapons == null)
+                                pair.Value.Weapons = new List<WeaponInventoryEntry>();
+                            for (int i = 0; i < pair.Value.Weapons.Count; i++)
+                            {
+                                if (pair.Value.Weapons[i] != null && pair.Value.Weapons[i].Components == null)
+                                    pair.Value.Weapons[i].Components = new List<uint>();
+                            }
                             _savedInventories[pair.Key] = pair.Value;
+                        }
+
+                        _lastInventoryJson = json;
+                        if (candidateIndex == 1)
+                        {
+                            // Restore a valid backup over a damaged/missing primary file.
+                            File.Copy(candidate, WeaponInventoryPath, true);
+                        }
+                        return;
+                    }
+                    catch
+                    {
+                        // Try the backup if the primary file is damaged or incompatible.
                     }
                 }
-                _lastInventoryJson = json;
             }
             catch
             {
                 // A damaged optional inventory file must never prevent the trainer from loading.
                 _savedInventories.Clear();
                 _lastInventoryJson = string.Empty;
+            }
+            finally
+            {
+                _inventoryFileLoaded = true;
             }
         }
 
@@ -356,7 +390,6 @@ namespace AvernesTreiner.Modules
                     string backupPath = WeaponInventoryPath + ".bak";
                     if (File.Exists(backupPath)) File.Delete(backupPath);
                     File.Replace(tempPath, WeaponInventoryPath, backupPath);
-                    if (File.Exists(backupPath)) File.Delete(backupPath);
                 }
                 else
                 {
@@ -466,11 +499,17 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 1000)
+            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 500)
             {
                 _lastInventorySnapshotTime = now;
                 _savedInventories[slot] = CaptureWeaponInventory(player);
-                SaveWeaponInventories();
+                if (SaveWeaponInventories())
+                    _inventorySaveErrorNotified = false;
+                else if (!_inventorySaveErrorNotified)
+                {
+                    _inventorySaveErrorNotified = true;
+                    UI.Notify("~r~Weapon inventory could not be saved. Check Documents\\AvernesTreiner.");
+                }
             }
         }
 
@@ -599,16 +638,26 @@ namespace AvernesTreiner.Modules
 
     public class WeaponInventoryData
     {
-        public uint SelectedWeapon;
-        public List<WeaponInventoryEntry> Weapons = new List<WeaponInventoryEntry>();
+        public uint SelectedWeapon { get; set; }
+        public List<WeaponInventoryEntry> Weapons { get; set; }
+
+        public WeaponInventoryData()
+        {
+            Weapons = new List<WeaponInventoryEntry>();
+        }
     }
 
     public class WeaponInventoryEntry
     {
-        public uint WeaponHash;
-        public int Ammo;
-        public int ClipAmmo;
-        public int Tint;
-        public List<uint> Components = new List<uint>();
+        public uint WeaponHash { get; set; }
+        public int Ammo { get; set; }
+        public int ClipAmmo { get; set; }
+        public int Tint { get; set; }
+        public List<uint> Components { get; set; }
+
+        public WeaponInventoryEntry()
+        {
+            Components = new List<uint>();
+        }
     }
 }
