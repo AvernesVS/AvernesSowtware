@@ -377,7 +377,8 @@ namespace AvernesTreiner.Modules
             for (int i = 0; i < _bodyguards.Count; i++)
             {
                 Ped guard = _bodyguards[i];
-                if (guard == null || !guard.Exists() || guard.IsDead) continue;
+                if (guard == null || !guard.Exists() || guard.IsDead ||
+                    Function.Call<bool>((Hash)0x4859F1FC66A6278E, guard.Handle, 0)) continue;
                 float dx = guard.Position.X - player.Position.X;
                 float dy = guard.Position.Y - player.Position.Y;
                 float dz = guard.Position.Z - player.Position.Z;
