@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title AvernesTreiner 0.9.0 Installer
+title AvernesTreiner 0.9.1 Installer
 set "PACKAGE=%~dp0"
 set "TARGET=C:\Program Files (x86)\Grand Theft Auto V"
 if exist "%TARGET%\GTA5.exe" goto target_ok

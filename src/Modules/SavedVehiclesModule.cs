@@ -24,6 +24,7 @@ namespace AvernesTreiner.Modules
         private MenuPool _menuPool;
         private JavaScriptSerializer _serializer;
         private bool _hasLoadedFromDisk;
+        private UIMenuItem _saveCurrentVehicleItem;
 
         public string Name { get { return "Saved Vehicles"; } }
 
@@ -40,19 +41,11 @@ namespace AvernesTreiner.Modules
             _savedMenu = menuPool.AddSubMenu(mainMenu,
                 Localization.Get("General", "SubmenuSavedVehicles", "Saved Vehicles"));
 
-            var saveItem = new UIMenuItem(
+            _saveCurrentVehicleItem = new UIMenuItem(
                 Localization.Get("Vehicle", "SaveCurrentVehicle", "Save Current Vehicle"),
                 Localization.Get("Vehicle", "SaveCurrentVehicleDesc", "Save the vehicle you are driving, including installed tuning and visual customization."));
-            saveItem.Activated += (sender, selected) => SaveCurrentVehicle();
-            _savedMenu.AddItem(saveItem);
-
-            var infoItem = new UIMenuItem(
-                Localization.Get("Vehicle", "SavedCars", "Saved cars: ") + _saved.Count,
-                Localization.Get("Vehicle", "SavedCarsDesc", "Saved vehicles are stored separately in SavedVehicles.json."));
-            infoItem.Enabled = false;
-            _savedMenu.AddItem(infoItem);
-
-            AddSavedVehicleItems();
+            _saveCurrentVehicleItem.Activated += (sender, selected) => SaveCurrentVehicle();
+            RefreshSavedVehicleMenu();
         }
 
         private void LoadFromDisk()
@@ -77,13 +70,27 @@ namespace AvernesTreiner.Modules
                     _hasLoadedFromDisk = true;
                     return;
                 }
+                bool normalized = false;
                 for (int i = 0; i < loaded.Count; i++)
                 {
-                    if (loaded[i] != null && loaded[i].ModelHash != 0 &&
-                        !string.IsNullOrWhiteSpace(loaded[i].Name))
-                        _saved.Add(loaded[i]);
+                    SavedVehicleData item = loaded[i];
+                    if (item == null || item.ModelHash == 0 || string.IsNullOrWhiteSpace(item.Name))
+                    {
+                        normalized = true;
+                        continue;
+                    }
+
+                    string cleanName = item.Name.Trim();
+                    if (!string.Equals(cleanName, item.Name, StringComparison.Ordinal))
+                        normalized = true;
+                    item.Name = MakeUniqueLoadedName(cleanName);
+                    if (!string.Equals(item.Name, cleanName, StringComparison.Ordinal))
+                        normalized = true;
+                    _saved.Add(item);
                 }
+                SortSavedVehicles();
                 _hasLoadedFromDisk = true;
+                if (normalized) SaveToDisk();
             }
             catch
             {
@@ -137,7 +144,17 @@ namespace AvernesTreiner.Modules
             }
 
             string name = Game.GetUserInput(30);
-            if (string.IsNullOrWhiteSpace(name)) return;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                UI.Notify(Localization.Get("Vehicle", "SavedVehicleNameEmpty", "Vehicle name cannot be empty."));
+                return;
+            }
+            name = name.Trim();
+            if (ContainsSavedName(name))
+            {
+                UI.Notify(Localization.Get("Vehicle", "SavedVehicleNameDuplicate", "A saved vehicle with this name already exists."));
+                return;
+            }
 
             Vehicle vehicle = player.CurrentVehicle;
             if (vehicle == null || !vehicle.Exists()) return;
@@ -161,7 +178,8 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            AddSavedVehicleItem(data);
+            SortSavedVehicles();
+            RefreshSavedVehicleMenu();
             UI.Notify("~g~Saved vehicle: ~w~" + data.Name);
         }
 
@@ -236,18 +254,98 @@ namespace AvernesTreiner.Modules
             return data;
         }
 
+        private bool ContainsSavedName(string name)
+        {
+            for (int i = 0; i < _saved.Count; i++)
+            {
+                if (string.Equals(_saved[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private string MakeUniqueLoadedName(string name)
+        {
+            string candidate = name;
+            int suffix = 2;
+            while (ContainsSavedName(candidate))
+            {
+                string ending = " (" + suffix.ToString() + ")";
+                int maxBaseLength = Math.Max(1, 30 - ending.Length);
+                string baseName = name.Length > maxBaseLength ? name.Substring(0, maxBaseLength) : name;
+                candidate = baseName + ending;
+                suffix++;
+            }
+            return candidate;
+        }
+
+        private void SortSavedVehicles()
+        {
+            _saved.Sort(delegate(SavedVehicleData left, SavedVehicleData right)
+            {
+                return StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name);
+            });
+        }
+
+        private void RefreshSavedVehicleMenu()
+        {
+            if (_savedMenu == null) return;
+            _savedMenu.Clear();
+            _savedMenu.AddItem(_saveCurrentVehicleItem);
+
+            var infoItem = new UIMenuItem(
+                Localization.Get("Vehicle", "SavedCars", "Saved cars: ") + _saved.Count,
+                Localization.Get("Vehicle", "SavedCarsDesc", "Saved vehicles are stored separately in SavedVehicles.json."));
+            infoItem.Enabled = false;
+            _savedMenu.AddItem(infoItem);
+            AddSavedVehicleItems();
+        }
+
         private void AddSavedVehicleItems()
         {
             for (int i = 0; i < _saved.Count; i++)
-                AddSavedVehicleItem(_saved[i]);
+                AddSavedVehicleItem(_saved[i], i + 1);
         }
 
-        private void AddSavedVehicleItem(SavedVehicleData data)
+        private void AddSavedVehicleItem(SavedVehicleData data, int number)
         {
-            string label = data.Name + "  [" + data.ModelHash.ToString("X8") + "]";
-            var item = new UIMenuItem(label, Localization.Get("Vehicle", "SpawnSavedVehicleDesc", "Spawn this saved vehicle with its stored tuning and appearance."));
-            item.Activated += (sender, selected) => SpawnSavedVehicle(data);
-            _savedMenu.AddItem(item);
+            string label = number.ToString() + ". " + data.Name + "  [" + data.ModelHash.ToString("X8") + "]";
+            var spawnItem = new UIMenuItem(label, Localization.Get("Vehicle", "SpawnSavedVehicleDesc", "Spawn this saved vehicle with its stored tuning and appearance."));
+            spawnItem.Activated += (sender, selected) => SpawnSavedVehicle(data);
+            _savedMenu.AddItem(spawnItem);
+
+            var deleteItem = new UIMenuItem(
+                string.Format(Localization.Get("Vehicle", "DeleteSavedVehicle", "Delete #{0} - {1}"), number, data.Name),
+                Localization.Get("Vehicle", "DeleteSavedVehicleDesc", "Delete this saved vehicle. Type DELETE to confirm."));
+            deleteItem.Activated += (sender, selected) => ConfirmDeleteSavedVehicle(data);
+            _savedMenu.AddItem(deleteItem);
+        }
+
+        private void ConfirmDeleteSavedVehicle(SavedVehicleData data)
+        {
+            int index = _saved.IndexOf(data);
+            if (index < 0) return;
+
+            UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehiclePrompt", "Type DELETE to confirm the deletion."));
+            string confirmation = Game.GetUserInput(10);
+            if (!string.Equals(confirmation == null ? string.Empty : confirmation.Trim(), "DELETE", StringComparison.OrdinalIgnoreCase))
+            {
+                UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehicleCancelled", "Deletion cancelled."));
+                return;
+            }
+
+            _saved.RemoveAt(index);
+            SortSavedVehicles();
+            if (!SaveToDisk())
+            {
+                _saved.Insert(index, data);
+                SortSavedVehicles();
+                UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehicleFailed", "Could not update SavedVehicles.json. Vehicle was kept."));
+                return;
+            }
+
+            RefreshSavedVehicleMenu();
+            UI.Notify(Localization.Get("Vehicle", "SavedVehicleDeleted", "Saved vehicle deleted. The list has been renumbered."));
         }
 
         private void SpawnSavedVehicle(SavedVehicleData data)
@@ -282,6 +380,7 @@ namespace AvernesTreiner.Modules
                 ApplyCustomization(vehicle, data);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 vehicle.PlaceOnGround();
+                VehicleModule.ActivateVehicleRadio(vehicle);
                 UI.Notify("~g~Saved vehicle loaded: ~w~" + data.Name);
             }
             catch (Exception ex)

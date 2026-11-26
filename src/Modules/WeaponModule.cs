@@ -29,9 +29,149 @@ namespace AvernesTreiner.Modules
         private int _lastClipRefreshTime = 0;
         private int _lastWeaponPedHandle = 0;
         private int _lastForcedReloadTime = 0;
+        private readonly Dictionary<string, WeaponInventoryData> _savedInventories =
+            new Dictionary<string, WeaponInventoryData>(StringComparer.OrdinalIgnoreCase);
+        private string _lastInventoryJson = string.Empty;
+        private int _lastInventoryPedHandle;
+        private int _lastInventoryModelHash;
+        private int _lastInventorySnapshotTime;
+        private int _restoreInventoryAt;
+        private bool _inventoryRestorePending;
+        private bool _inventoryFileLoaded;
+        private static bool _inventoryModelHashesInitialized;
+        private static int _michaelInventoryModelHash;
+        private static int _franklinInventoryModelHash;
+        private static int _trevorInventoryModelHash;
+        // Includes DLC weapon hashes not present in the older SHVDN2 WeaponHash enum.
+        // Unknown hashes are harmless: HAS_PED_GOT_WEAPON filters them on the target game build.
+        private static readonly uint[] KnownWeaponHashes = new uint[]
+        {
+            0xA2719263u, // WEAPON_UNARMED
+            0x99B507EAu, // WEAPON_KNIFE
+            0x678B81B1u, // WEAPON_NIGHTSTICK
+            0x4E875F73u, // WEAPON_HAMMER
+            0x958A4A8Fu, // WEAPON_BAT
+            0x440E4788u, // WEAPON_GOLFCLUB
+            0x84BD7BFDu, // WEAPON_CROWBAR
+            0x1B06D571u, // WEAPON_PISTOL
+            0x5EF9FEC4u, // WEAPON_COMBATPISTOL
+            0x22D8FE39u, // WEAPON_APPISTOL
+            0x99AEEB3Bu, // WEAPON_PISTOL50
+            0x13532244u, // WEAPON_MICROSMG
+            0x2BE6766Bu, // WEAPON_SMG
+            0xEFE7E2DFu, // WEAPON_ASSAULTSMG
+            0xBFEFFF6Du, // WEAPON_ASSAULTRIFLE
+            0x83BF0278u, // WEAPON_CARBINERIFLE
+            0xAF113F99u, // WEAPON_ADVANCEDRIFLE
+            0x9D07F764u, // WEAPON_MG
+            0x7FD62962u, // WEAPON_COMBATMG
+            0x1D073A89u, // WEAPON_PUMPSHOTGUN
+            0x7846A318u, // WEAPON_SAWNOFFSHOTGUN
+            0xE284C527u, // WEAPON_ASSAULTSHOTGUN
+            0x9D61E50Fu, // WEAPON_BULLPUPSHOTGUN
+            0x3656C8C1u, // WEAPON_STUNGUN
+            0x05FC3C11u, // WEAPON_SNIPERRIFLE
+            0x0C472FE2u, // WEAPON_HEAVYSNIPER
+            0xA284510Bu, // WEAPON_GRENADELAUNCHER
+            0x4DD2DC56u, // WEAPON_GRENADELAUNCHER_SMOKE
+            0xB1CA77B1u, // WEAPON_RPG
+            0x42BF8A85u, // WEAPON_MINIGUN
+            0x93E220BDu, // WEAPON_GRENADE
+            0x2C3731D9u, // WEAPON_STICKYBOMB
+            0xFDBC8A50u, // WEAPON_SMOKEGRENADE
+            0xA0973D5Eu, // WEAPON_BZGAS
+            0x24B17070u, // WEAPON_MOLOTOV
+            0x060EC506u, // WEAPON_FIREEXTINGUISHER
+            0x34A67B97u, // WEAPON_PETROLCAN
+            0xFDBADCEDu, // WEAPON_DIGISCANNER
+            0xA720365Cu, // GADGET_NIGHTVISION
+            0xFBAB5776u, // GADGET_PARACHUTE
+            0x88C78EB7u, // WEAPON_BRIEFCASE
+            0x01B79F17u, // WEAPON_BRIEFCASE_02
+            0x23C9F95Cu, // WEAPON_BALL
+            0x497FACC3u, // WEAPON_FLARE
+            0xF9E6AA4Bu, // WEAPON_BOTTLE
+            0xBFD21232u, // WEAPON_SNSPISTOL
+            0xD205520Eu, // WEAPON_HEAVYPISTOL
+            0x7F229F94u, // WEAPON_BULLPUPRIFLE
+            0xC0A3098Du, // WEAPON_SPECIALCARBINE
+            0x88374054u, // WEAPON_SNSPISTOL_MK2
+            0x6A6C02E0u, // WEAPON_MARKSMANRIFLE_MK2
+            0x555AF99Au, // WEAPON_PUMPSHOTGUN_MK2
+            0x84D6FAFDu, // WEAPON_BULLPUPRIFLE_MK2
+            0x969C3D67u, // WEAPON_SPECIALCARBINE_MK2
+            0xF7F1E25Eu, // WEAPON_ACIDPACKAGE
+            0x6589186Au, // WEAPON_CANDYCANE
+            0xFEA23564u, // WEAPON_RAILGUNXM3
+            0x1BC4FDB9u, // WEAPON_PISTOLXM3
+            0xAF3696A1u, // WEAPON_RAYPISTOL
+            0x476BF155u, // WEAPON_RAYCARBINE
+            0xB62D1F67u, // WEAPON_RAYMINIGUN
+            0x97EA20B8u, // WEAPON_DOUBLEACTION
+            0x0787F0BBu, // WEAPON_SNOWBALL
+            0xAB564B93u, // WEAPON_PROXMINE
+            0x63AB0442u, // WEAPON_HOMINGLAUNCHER
+            0xCB96392Fu, // WEAPON_REVOLVER_MK2
+            0x61012683u, // WEAPON_GUSENBERG
+            0x92A27487u, // WEAPON_DAGGER
+            0x083839C4u, // WEAPON_VINTAGEPISTOL
+            0xA89CB99Eu, // WEAPON_MUSKET
+            0x7F7497E5u, // WEAPON_FIREWORK
+            0xF9DCBF2Du, // WEAPON_HATCHET
+            0x6D544C99u, // WEAPON_RAILGUN
+            0x3AABBBAAu, // WEAPON_HEAVYSHOTGUN
+            0xC734385Au, // WEAPON_MARKSMANRIFLE
+            0x2B5EF5ECu, // WEAPON_CERAMICPISTOL
+            0x9D1F17E6u, // WEAPON_MILITARYRIFLE
+            0x05A96BA4u, // WEAPON_COMBATSHOTGUN
+            0xBA536372u, // WEAPON_HAZARDCAN
+            0x47757124u, // WEAPON_FLAREGUN
+            0x57A4368Cu, // WEAPON_GADGETPISTOL
+            0x917F6C8Cu, // WEAPON_NAVYREVOLVER
+            0xD8DF3C3Cu, // WEAPON_KNUCKLE
+            0x0A3D4D34u, // WEAPON_COMBATPDW
+            0xDC4DB296u, // WEAPON_MARKSMANPISTOL
+            0xEF951FBBu, // WEAPON_DBSHOTGUN
+            0xDD5DF8D9u, // WEAPON_MACHETE
+            0xDB1AA450u, // WEAPON_MACHINEPISTOL
+            0x624FE830u, // WEAPON_COMPACTRIFLE
+            0x8BB05FD7u, // WEAPON_FLASHLIGHT
+            0xDFE37640u, // WEAPON_SWITCHBLADE
+            0xC1B3C3D1u, // WEAPON_REVOLVER
+            0x0781FE4Au, // WEAPON_COMPACTLAUNCHER
+            0xBD248B55u, // WEAPON_MINISMG
+            0x19044EE0u, // WEAPON_WRENCH
+            0x12E82D3Du, // WEAPON_AUTOSHOTGUN
+            0x94117305u, // WEAPON_POOLCUE
+            0xCD274149u, // WEAPON_BATTLEAXE
+            0xBA45E8B8u, // WEAPON_PIPEBOMB
+            0xFAD1F1C9u, // WEAPON_CARBINERIFLE_MK2
+            0xDBBD7280u, // WEAPON_COMBATMG_MK2
+            0x78A97CD0u, // WEAPON_SMG_MK2
+            0x394F415Cu, // WEAPON_ASSAULTRIFLE_MK2
+            0x0A914799u, // WEAPON_HEAVYSNIPER_MK2
+            0xBFE256D4u, // WEAPON_PISTOL_MK2
+            0x3813FC08u, // WEAPON_STONE_HATCHET
+            0xD1D5F52Bu, // WEAPON_TACTICALRIFLE
+            0xDBA2E809u, // WEAPON_METALDETECTOR
+            0x6E7DDDECu, // WEAPON_PRECISIONRIFLE
+            0xC78D71B4u, // WEAPON_HEAVYRIFLE
+            0x184140A1u, // WEAPON_FERTILIZERCAN
+            0xDB26713Au, // WEAPON_EMPLAUNCHER
+            0x45CD9CF3u, // WEAPON_STUNGUN_MP
+            0x14E5AFD5u, // WEAPON_TECPISTOL
+            0x03BF5575u, // WEAPON_SNOWLAUNCHER
+            0x72B66B11u, // WEAPON_BATTLERIFLE
+            0x1CF5FA48u, // WEAPON_HACKINGDEVICE
+        };
+        private static string WeaponInventoryPath
+        {
+            get { return Path.Combine(ConfigManager.UserDataDirectoryPath, "WeaponInventory.json"); }
+        }
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
+            LoadWeaponInventories();
             var weapMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuWeapons", "Weapons & Ammo"));
 
             // Give All Weapons
@@ -151,6 +291,189 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
         }
 
+        private static void EnsureInventoryModelHashes()
+        {
+            if (_inventoryModelHashesInitialized) return;
+            _michaelInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
+            _franklinInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
+            _trevorInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
+            _inventoryModelHashesInitialized = true;
+        }
+
+        private static string GetInventorySlot(int modelHash)
+        {
+            EnsureInventoryModelHashes();
+            if (modelHash == _michaelInventoryModelHash) return "SP0";
+            if (modelHash == _franklinInventoryModelHash) return "SP1";
+            if (modelHash == _trevorInventoryModelHash) return "SP2";
+            return null;
+        }
+
+        private void LoadWeaponInventories()
+        {
+            if (_inventoryFileLoaded) return;
+            _inventoryFileLoaded = true;
+            try
+            {
+                string directory = Path.GetDirectoryName(WeaponInventoryPath);
+                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                if (!File.Exists(WeaponInventoryPath)) return;
+
+                string json = File.ReadAllText(WeaponInventoryPath);
+                var loaded = new JavaScriptSerializer().Deserialize<Dictionary<string, WeaponInventoryData>>(json);
+                if (loaded != null)
+                {
+                    foreach (var pair in loaded)
+                    {
+                        if (pair.Value != null &&
+                            (pair.Key == "SP0" || pair.Key == "SP1" || pair.Key == "SP2"))
+                            _savedInventories[pair.Key] = pair.Value;
+                    }
+                }
+                _lastInventoryJson = json;
+            }
+            catch
+            {
+                // A damaged optional inventory file must never prevent the trainer from loading.
+                _savedInventories.Clear();
+                _lastInventoryJson = string.Empty;
+            }
+        }
+
+        private bool SaveWeaponInventories()
+        {
+            try
+            {
+                string json = new JavaScriptSerializer().Serialize(_savedInventories);
+                if (string.Equals(json, _lastInventoryJson, StringComparison.Ordinal)) return true;
+
+                string directory = Path.GetDirectoryName(WeaponInventoryPath);
+                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                string tempPath = WeaponInventoryPath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                if (File.Exists(WeaponInventoryPath))
+                {
+                    string backupPath = WeaponInventoryPath + ".bak";
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Replace(tempPath, WeaponInventoryPath, backupPath);
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                }
+                else
+                {
+                    File.Move(tempPath, WeaponInventoryPath);
+                }
+                _lastInventoryJson = json;
+                return true;
+            }
+            catch
+            {
+                try
+                {
+                    string tempPath = WeaponInventoryPath + ".tmp";
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                }
+                catch { }
+                return false;
+            }
+        }
+
+        private WeaponInventoryData CaptureWeaponInventory(Ped player)
+        {
+            WeaponInventoryData snapshot = new WeaponInventoryData();
+            snapshot.SelectedWeapon = Function.Call<uint>(Hash.GET_SELECTED_PED_WEAPON, player.Handle);
+            HashSet<uint> seenWeapons = new HashSet<uint>();
+            foreach (uint weaponHash in KnownWeaponHashes)
+            {
+                if (weaponHash == 0 || !seenWeapons.Add(weaponHash)) continue;
+                if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false))
+                    continue;
+
+                WeaponInventoryEntry entry = new WeaponInventoryEntry();
+                entry.WeaponHash = weaponHash;
+                entry.Ammo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
+                entry.Tint = Function.Call<int>(Hash.GET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash);
+                using (OutputArgument clip = new OutputArgument())
+                {
+                    entry.ClipAmmo = Function.Call<bool>(Hash.GET_AMMO_IN_CLIP, player.Handle, weaponHash, clip)
+                        ? clip.GetResult<int>() : -1;
+                }
+
+                // The game normally persists weapon components itself. Keep this
+                // snapshot focused on ownership, ammo and tint to avoid thousands of
+                // component-probe natives during periodic inventory saves.
+                snapshot.Weapons.Add(entry);
+            }
+            return snapshot;
+        }
+
+        private void RestoreWeaponInventory(Ped player, WeaponInventoryData snapshot)
+        {
+            if (snapshot == null || snapshot.Weapons == null) return;
+            for (int i = 0; i < snapshot.Weapons.Count; i++)
+            {
+                WeaponInventoryEntry entry = snapshot.Weapons[i];
+                if (entry == null || entry.WeaponHash == 0) continue;
+                uint weaponHash = entry.WeaponHash;
+                bool hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                if (!hasWeapon)
+                {
+                    Function.Call(Hash.GIVE_WEAPON_TO_PED, player.Handle, weaponHash, Math.Max(0, entry.Ammo), false, false);
+                    hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                }
+                if (!hasWeapon) continue;
+
+                Function.Call(Hash.SET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash, entry.Tint);
+                int currentAmmo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
+                if (entry.Ammo > currentAmmo)
+                    Function.Call(Hash.SET_PED_AMMO, player.Handle, weaponHash, entry.Ammo, false);
+
+                uint ammoType = Function.Call<uint>((Hash)0x7FEAD38B326B9F74, player.Handle, weaponHash);
+                if (ammoType != 0 && entry.Ammo > Function.Call<int>(Hash.GET_PED_AMMO_BY_TYPE, player.Handle, ammoType))
+                    Function.Call(Hash.SET_PED_AMMO_BY_TYPE, player.Handle, ammoType, entry.Ammo);
+
+                if (entry.ClipAmmo >= 0)
+                    Function.Call(Hash.SET_AMMO_IN_CLIP, player.Handle, weaponHash, entry.ClipAmmo);
+            }
+
+            if (snapshot.SelectedWeapon != 0 &&
+                Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, snapshot.SelectedWeapon, false))
+                Function.Call(Hash.SET_CURRENT_PED_WEAPON, player.Handle, snapshot.SelectedWeapon, true);
+        }
+
+        private void MaintainStoryModeWeaponInventory(Ped player, int now)
+        {
+            if (!_inventoryFileLoaded) LoadWeaponInventories();
+            int modelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
+            string slot = GetInventorySlot(modelHash);
+            if (slot == null) return;
+
+            if (player.Handle != _lastInventoryPedHandle || modelHash != _lastInventoryModelHash)
+            {
+                _lastInventoryPedHandle = player.Handle;
+                _lastInventoryModelHash = modelHash;
+                _inventoryRestorePending = true;
+                _restoreInventoryAt = now + 2500;
+                _lastInventorySnapshotTime = now;
+            }
+
+            if (_inventoryRestorePending && now >= _restoreInventoryAt)
+            {
+                WeaponInventoryData saved;
+                if (_savedInventories.TryGetValue(slot, out saved))
+                    RestoreWeaponInventory(player, saved);
+                _inventoryRestorePending = false;
+                _lastInventorySnapshotTime = now;
+                return;
+            }
+
+            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 1000)
+            {
+                _lastInventorySnapshotTime = now;
+                _savedInventories[slot] = CaptureWeaponInventory(player);
+                SaveWeaponInventories();
+            }
+        }
+
         public void ReloadSettings()
         {
             _infiniteAmmo = ConfigManager.GetBool("Weapons", "InfiniteAmmo", false);
@@ -218,6 +541,10 @@ namespace AvernesTreiner.Modules
 
         public void OnTick()
         {
+            Ped inventoryPlayer = Game.Player.Character;
+            if (inventoryPlayer != null && inventoryPlayer.Exists())
+                MaintainStoryModeWeaponInventory(inventoryPlayer, Game.GameTime);
+
             bool needsUpdate = _infiniteAmmo || _infiniteClip || _explosiveAmmo || _fireAmmo || _superDamage ||
                                _teleportGun || _forceGun || _rpgAmmo;
             if (!needsUpdate) return;
@@ -268,5 +595,20 @@ namespace AvernesTreiner.Modules
                 }
             }
         }
+    }
+
+    public class WeaponInventoryData
+    {
+        public uint SelectedWeapon;
+        public List<WeaponInventoryEntry> Weapons = new List<WeaponInventoryEntry>();
+    }
+
+    public class WeaponInventoryEntry
+    {
+        public uint WeaponHash;
+        public int Ammo;
+        public int ClipAmmo;
+        public int Tint;
+        public List<uint> Components = new List<uint>();
     }
 }
