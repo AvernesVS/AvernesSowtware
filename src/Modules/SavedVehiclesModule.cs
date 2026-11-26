@@ -146,13 +146,13 @@ namespace AvernesTreiner.Modules
             string name = Game.GetUserInput(30);
             if (string.IsNullOrWhiteSpace(name))
             {
-                UI.Notify("~r~Vehicle name cannot be empty.");
+                UI.Notify(Localization.Get("Vehicle", "SavedVehicleNameEmpty", "Vehicle name cannot be empty."));
                 return;
             }
             name = name.Trim();
             if (ContainsSavedName(name))
             {
-                UI.Notify("~r~A saved vehicle with this name already exists.");
+                UI.Notify(Localization.Get("Vehicle", "SavedVehicleNameDuplicate", "A saved vehicle with this name already exists."));
                 return;
             }
 
@@ -314,8 +314,9 @@ namespace AvernesTreiner.Modules
             spawnItem.Activated += (sender, selected) => SpawnSavedVehicle(data);
             _savedMenu.AddItem(spawnItem);
 
-            var deleteItem = new UIMenuItem("Delete #" + number.ToString() + " - " + data.Name,
-                "Delete this saved vehicle. You will be asked to type DELETE to confirm.");
+            var deleteItem = new UIMenuItem(
+                string.Format(Localization.Get("Vehicle", "DeleteSavedVehicle", "Delete #{0} - {1}"), number, data.Name),
+                Localization.Get("Vehicle", "DeleteSavedVehicleDesc", "Delete this saved vehicle. Type DELETE to confirm."));
             deleteItem.Activated += (sender, selected) => ConfirmDeleteSavedVehicle(data);
             _savedMenu.AddItem(deleteItem);
         }
@@ -325,10 +326,11 @@ namespace AvernesTreiner.Modules
             int index = _saved.IndexOf(data);
             if (index < 0) return;
 
+            UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehiclePrompt", "Type DELETE to confirm the deletion."));
             string confirmation = Game.GetUserInput(10);
             if (!string.Equals(confirmation == null ? string.Empty : confirmation.Trim(), "DELETE", StringComparison.OrdinalIgnoreCase))
             {
-                UI.Notify("~y~Deletion cancelled.");
+                UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehicleCancelled", "Deletion cancelled."));
                 return;
             }
 
@@ -338,12 +340,12 @@ namespace AvernesTreiner.Modules
             {
                 _saved.Insert(index, data);
                 SortSavedVehicles();
-                UI.Notify("~r~Could not update SavedVehicles.json. Vehicle was kept.");
+                UI.Notify(Localization.Get("Vehicle", "DeleteSavedVehicleFailed", "Could not update SavedVehicles.json. Vehicle was kept."));
                 return;
             }
 
             RefreshSavedVehicleMenu();
-            UI.Notify("~g~Saved vehicle deleted. The list has been renumbered.");
+            UI.Notify(Localization.Get("Vehicle", "SavedVehicleDeleted", "Saved vehicle deleted. The list has been renumbered."));
         }
 
         private void SpawnSavedVehicle(SavedVehicleData data)
