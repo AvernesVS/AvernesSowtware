@@ -58,7 +58,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.3 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.4 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -74,7 +74,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.3");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.4");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
@@ -90,9 +90,9 @@ namespace AvernesTreiner
                     new BodyguardModule(),
                     new AnimationModule(),
                     new WeaponModule(),
+                    new AimBotModule(),
                     new TeleportModule(),
                     new WorldModule(),
-                    new GolfAssistModule(),
                     new SettingsModule(delegate(bool reloadSettings)
                     {
                         _reloadModuleSettingsRequested = reloadSettings;
@@ -118,13 +118,22 @@ namespace AvernesTreiner
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (_menuPool != null && _menuPool.IsAnyMenuOpen() && Game.IsKeyPressed(Keys.Escape))
+            int now = Game.GameTime;
+            bool menuOpen = _menuPool != null && _menuPool.IsAnyMenuOpen();
+
+            // Block the pause/map control before NativeUI processes the frame. Escape is
+            // reserved for closing the trainer and must never leak through to GTA's map.
+            if (menuOpen)
+                DisableFrontendPauseControl();
+
+            if (menuOpen && Game.IsKeyPressed(Keys.Escape))
             {
                 _menuPool.CloseAllMenus();
-                _suppressPauseUntil = Game.GameTime + 500;
+                _suppressPauseUntil = now + 1000;
+                menuOpen = false;
             }
 
-            if (_menuPool != null && _menuPool.IsAnyMenuOpen())
+            if (menuOpen && _menuPool != null)
             {
                 // NativeUI consumes its navigation inputs first. Restore gameplay controls
                 // afterwards so movement, aiming, weapon selection and radio remain available.
@@ -151,11 +160,10 @@ namespace AvernesTreiner
                 return;
             }
 
-            int now = Game.GameTime;
             if (_suppressPauseUntil != 0)
             {
                 if (now <= _suppressPauseUntil)
-                    Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, (int)GTA.Control.FrontendPause);
+                    DisableFrontendPauseControl();
                 else
                     _suppressPauseUntil = 0;
             }
@@ -168,6 +176,12 @@ namespace AvernesTreiner
                     catch { }
                 }
             }
+        }
+
+        private void DisableFrontendPauseControl()
+        {
+            for (int inputGroup = 0; inputGroup <= 2; inputGroup++)
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, inputGroup, (int)GTA.Control.FrontendPause);
         }
 
         private void DisableMenuNavigationControls()
@@ -201,7 +215,7 @@ namespace AvernesTreiner
             if (e.KeyCode == Keys.Escape && _menuPool != null && _menuPool.IsAnyMenuOpen())
             {
                 _menuPool.CloseAllMenus();
-                _suppressPauseUntil = Game.GameTime + 500;
+                _suppressPauseUntil = Game.GameTime + 1000;
                 e.Handled = true;
                 e.SuppressKeyPress = true;
                 return;
