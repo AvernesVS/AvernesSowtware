@@ -61,9 +61,18 @@ The single GitHub Actions workflow `.github/workflows/build-avernes-treiner.yml`
 For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEUI_DLL` to the full paths of the dependency DLLs, then run `build.bat`. The compiled DLL is written to the repository's `build/` directory.
 
 ## Install
-Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
+Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.1 fixes and changes
+- Max All Character Stats now uses the Story Mode protagonist stat identifiers, including the Driving skill's internal `WHEELIE_ABILITY` stat, and sets the game's per-skill maxed flags for Michael, Franklin and Trevor.
+- DLC weapon persistence tracks each protagonist separately in `Documents/AvernesTreiner/WeaponInventory.json`; missing owned weapons are restored after character changes and game startup.
+- Normal gameplay controls are re-enabled after NativeUI processes menu navigation, while trainer navigation controls remain suppressed to avoid double-triggering.
+- Saved vehicle names are trimmed, blank and duplicate names are rejected, entries are sorted and renumbered, and deletion requires typing `DELETE`.
+- Spawned and saved vehicles receive radio initialization with short retries for delayed audio setup.
+- Teleportation and existing vehicle-cleanup logic are preserved; their source modules are not rewritten in this release.
+- CI compiles the project for .NET Framework 4.8 and packages the installer. The new behavior still requires in-game testing on GTA V Legacy 1.0.2245.0.
 
 ## v0.9.0 fixes and changes
 - Infinite Special Ability now refills after an ability use instead of forcing the meter every frame; it does not refill during Michael's aiming state.
