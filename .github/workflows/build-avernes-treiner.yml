@@ -44,7 +44,7 @@ jobs:
           New-Item -ItemType Directory -Path $build -Force | Out-Null
           $dll = Join-Path $build 'AvernesTreiner.dll'
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
-          if ($sources.Count -ne 17) { throw "Expected 16 retained C# source files, found $($sources.Count)." }
+          if ($sources.Count -ne 17) { throw "Expected 17 retained C# source files, found $($sources.Count)." }
           $removedFeatureHits = Select-String -Path $sources -Pattern 'NoClip|No-Clip|SET_ENTITY_VELOCITY|SET_ENTITY_GRAVITY|SET_ENTITY_HAS_GRAVITY'
           if ($removedFeatureHits) { throw 'NoClip/Power-Vision code or related entity velocity/gravity calls remain.' }
           $references = @(
