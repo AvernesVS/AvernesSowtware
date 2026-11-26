@@ -15,6 +15,15 @@ namespace AvernesTreiner.Modules
         private const float MinimumAimDot = 0.76f;
         private const int AimControl = 25;
         private const int HeadBone = 31086;
+        private static readonly int[] RangeTargetModelHashes = new int[]
+        {
+            new Model("prop_range_target_01").Hash,
+            new Model("prop_range_target_02").Hash,
+            new Model("prop_range_target_03").Hash,
+            new Model("prop_range_target_04").Hash,
+            new Model("prop_range_target_05").Hash,
+            new Model("prop_range_target_06").Hash
+        };
         private const int ScanInterval = 100;
         private const float MaximumYawStep = 3.2f;
         private const float MaximumPitchStep = 2.4f;
@@ -22,6 +31,9 @@ namespace AvernesTreiner.Modules
         private bool _enabled = ConfigManager.GetBool("Combat", "AimBotEnabled", false);
         private int _lastScanTime;
         private int _targetHandle;
+        private bool _targetIsRangeObject;
+        private int _lastLoggedTargetHandle;
+        private int _lastTargetLogTime;
         private int _consecutiveErrors;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
@@ -98,10 +110,26 @@ namespace AvernesTreiner.Modules
             if (_targetHandle == 0 || now - _lastScanTime >= ScanInterval)
             {
                 _lastScanTime = now;
-                SetTarget(FindBestTarget(player));
+                bool isRangeTarget;
+                int nextTarget = FindBestTarget(player, out isRangeTarget);
+                SetTarget(nextTarget, isRangeTarget);
             }
 
             if (_targetHandle == 0) return;
+
+            if (_targetIsRangeObject)
+            {
+                Prop rangeTarget = new Prop(_targetHandle);
+                if (!rangeTarget.Exists() || !IsRangeTarget(rangeTarget) ||
+                    !Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, rangeTarget.Handle) ||
+                    !Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY, player.Handle, rangeTarget.Handle, 17))
+                {
+                    SetTarget(0);
+                    return;
+                }
+                MoveAimTowardPosition(player, rangeTarget.Position + new Vector3(0.0f, 0.0f, 0.8f));
+                return;
+            }
 
             Ped target = new Ped(_targetHandle);
             if (!target.Exists() || target.IsDead || !IsEnemy(target, player))
@@ -113,23 +141,35 @@ namespace AvernesTreiner.Modules
             MoveAimToward(player, target);
         }
 
-        private void SetTarget(int handle)
+        private void SetTarget(int handle, bool isRangeObject = false)
         {
-            if (_targetHandle == handle) return;
+            if (_targetHandle == handle && _targetIsRangeObject == isRangeObject) return;
             _targetHandle = handle;
-            if (handle == 0)
-                DiagnosticsManager.LogDetail("AimBot", "Aim target cleared.");
+            _targetIsRangeObject = handle != 0 && isRangeObject;
+
+            int now = Game.GameTime;
+            if (handle != 0)
+            {
+                if (_lastLoggedTargetHandle == handle && now - _lastTargetLogTime < 10000) return;
+                _lastLoggedTargetHandle = handle;
+                _lastTargetLogTime = now;
+                DiagnosticsManager.LogDetail("AimBot", (_targetIsRangeObject ? "Range target selected. Entity handle: " :
+                    "Hostile target selected. Entity handle: ") + handle + ".");
+            }
             else
-                DiagnosticsManager.LogDetail("AimBot", "Hostile target selected. Entity handle: " + handle + ".");
+            {
+                DiagnosticsManager.LogDetail("AimBot", "Aim target cleared.");
+            }
         }
 
-        private int FindBestTarget(Ped player)
+        private int FindBestTarget(Ped player, out bool isRangeObject)
         {
             Ped[] peds = World.GetAllPeds();
             Vector3 cameraPosition = Function.Call<Vector3>((Hash)0x14D6F5678D8F1B37);
             Vector3 cameraDirection = GameplayCamera.Direction;
             float bestScore = float.MinValue;
             int bestHandle = 0;
+            bool bestIsRangeObject = false;
             float maxDistanceSquared = MaximumRange * MaximumRange;
 
             for (int i = 0; i < peds.Length; i++)
@@ -165,13 +205,65 @@ namespace AvernesTreiner.Modules
                 }
             }
 
+            // Ammu-Nation shooting-range targets are props, not peds. Only a narrow
+            // model whitelist is eligible so Aim Bot cannot lock onto arbitrary scenery.
+            Prop[] props = World.GetAllProps();
+            for (int i = 0; i < props.Length; i++)
+            {
+                Prop candidate = props[i];
+                if (candidate == null || !candidate.Exists() || !IsRangeTarget(candidate)) continue;
+                Vector3 targetPosition = candidate.Position + new Vector3(0.0f, 0.0f, 0.8f);
+                float dx = targetPosition.X - cameraPosition.X;
+                float dy = targetPosition.Y - cameraPosition.Y;
+                float dz = targetPosition.Z - cameraPosition.Z;
+                float distanceSquared = dx * dx + dy * dy + dz * dz;
+                if (distanceSquared <= 0.01f || distanceSquared > maxDistanceSquared) continue;
+                if (!Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, candidate.Handle) ||
+                    !Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY, player.Handle, candidate.Handle, 17))
+                    continue;
+
+                float distance = (float)Math.Sqrt(distanceSquared);
+                float dot = cameraDirection.X * dx / distance +
+                    cameraDirection.Y * dy / distance + cameraDirection.Z * dz / distance;
+                if (dot < MinimumAimDot) continue;
+                float score = dot * 3.0f - distance / MaximumRange;
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestHandle = candidate.Handle;
+                    bestIsRangeObject = true;
+                }
+            }
+
+            isRangeObject = bestIsRangeObject;
             return bestHandle;
+        }
+
+        private bool IsRangeTarget(Prop prop)
+        {
+            if (prop == null || !prop.Exists()) return false;
+            int modelHash = prop.Model.Hash;
+            for (int i = 0; i < RangeTargetModelHashes.Length; i++)
+                if (modelHash == RangeTargetModelHashes[i]) return true;
+            return false;
         }
 
         private bool IsEnemy(Ped candidate, Ped player)
         {
             if (candidate == null || !candidate.Exists() || candidate.Handle == player.Handle ||
                 candidate.IsDead)
+                return false;
+
+            // Aim Bot is for human opponents only: explicitly reject wildlife and pets.
+            if (!Function.Call<bool>((Hash)0xB980061DA992779D, candidate.Handle))
+                return false;
+
+            // Never select the player's own relationship group, current squad members,
+            // or peds that the game identifies as friends.
+            int playerGroup = player.CurrentPedGroup.Handle;
+            if (candidate.RelationshipGroup == player.RelationshipGroup ||
+                Function.Call<bool>((Hash)0x9BB01E3834671191, candidate.Handle, playerGroup) ||
+                Function.Call<bool>((Hash)0x6F972C1AB75A1ED0, candidate.Handle, player.Handle))
                 return false;
 
             if (Function.Call<bool>((Hash)0x12534C348C6CB68B, candidate.Handle))
@@ -213,8 +305,12 @@ namespace AvernesTreiner.Modules
 
         private void MoveAimToward(Ped player, Ped target)
         {
+            MoveAimTowardPosition(player, GetHeadPosition(target));
+        }
+
+        private void MoveAimTowardPosition(Ped player, Vector3 head)
+        {
             Vector3 cameraPosition = Function.Call<Vector3>((Hash)0x14D6F5678D8F1B37);
-            Vector3 head = GetHeadPosition(target);
             float dx = head.X - cameraPosition.X;
             float dy = head.Y - cameraPosition.Y;
             float dz = head.Z - cameraPosition.Z;

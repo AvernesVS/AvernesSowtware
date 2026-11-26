@@ -12,7 +12,7 @@ namespace AvernesTreiner.Core
     public static class DiagnosticsManager
     {
         private const int MaxBufferedEntries = 256;
-        private const int FlushIntervalMilliseconds = 5000;
+        private const int FlushIntervalMilliseconds = 1000;
         private const long MaxLogBytes = 2097152;
         private const int MaxEntryCharacters = 2000;
 
@@ -77,11 +77,18 @@ namespace AvernesTreiner.Core
             try
             {
                 if (File.Exists(_sessionMarkerPath))
-                    LogWarning("System", "Previous session marker found. The previous GTA V session may have ended unexpectedly.");
+                {
+                    string previousMarker = "";
+                    try { previousMarker = File.ReadAllText(_sessionMarkerPath, Encoding.UTF8).Trim(); }
+                    catch { }
+                    LogWarning("System", "Previous session marker found; clean shutdown was not recorded. " +
+                        (string.IsNullOrEmpty(previousMarker) ? "" : "Marker: " + previousMarker) +
+                        " This can indicate a crash, forced process termination, or script unload without cleanup.");
+                }
 
                 File.WriteAllText(_sessionMarkerPath,
                     "Session started UTC: " + DateTime.UtcNow.ToString("o") + Environment.NewLine,
-                    Encoding.UTF8);
+                    new UTF8Encoding(false));
                 EnsureMonitoringHooks();
                 _sessionStarted = true;
                 LogInfo("System", "Diagnostics started. Buffer=256 entries; flush=5 seconds; log cap=2 MB per file.");
@@ -220,7 +227,13 @@ namespace AvernesTreiner.Core
                             File.Move(_logPath, _previousLogPath);
                         }
                     }
-                    File.AppendAllText(_logPath, payload, Encoding.UTF8);
+                    byte[] bytes = new UTF8Encoding(false).GetBytes(payload);
+                    using (FileStream stream = new FileStream(_logPath, FileMode.Append,
+                        FileAccess.Write, FileShare.ReadWrite))
+                    {
+                        stream.Write(bytes, 0, bytes.Length);
+                        stream.Flush(true);
+                    }
                     LastError = null;
                 }
                 catch (Exception ex)
@@ -336,6 +349,14 @@ namespace AvernesTreiner.Core
                 Enqueue("FATAL", "Unhandled", args.ExceptionObject == null ? "Unknown unhandled exception." : args.ExceptionObject.ToString());
                 Flush();
             }
+        }
+
+        public static void OnScriptAborted()
+        {
+            if (!_enabled || !_sessionStarted) return;
+            LogInfo("System", "Trainer script aborted/unloaded; flushing diagnostics and closing session marker.");
+            Flush();
+            RemoveSessionMarker();
         }
 
         private static void OnProcessExit(object sender, EventArgs args)

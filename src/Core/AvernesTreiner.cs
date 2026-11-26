@@ -56,10 +56,11 @@ namespace AvernesTreiner
 
                 Tick += OnTick;
                 KeyDown += OnKeyDown;
+                Aborted += OnAborted;
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.6 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.7 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -75,7 +76,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.6");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.7");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
@@ -179,6 +180,11 @@ namespace AvernesTreiner
                     catch (Exception ex) { DiagnosticsManager.LogException(_modules[i].Name, ex); }
                 }
             }
+        }
+
+        private void OnAborted(object sender, EventArgs e)
+        {
+            DiagnosticsManager.OnScriptAborted();
         }
 
         private void DisableFrontendPauseControl()

@@ -14,7 +14,7 @@ namespace AvernesTreiner.Core
 
         private static string _language = "en-US";
         private static string _menuKey = "F10";
-        private static string _version = "v0.9.6";
+        private static string _version = "v0.9.7";
         private static string _title = "AvernesTreiner";
         private static string _speedUnit = "KM/H";
 
@@ -69,7 +69,7 @@ namespace AvernesTreiner.Core
             return "[General]\r\n" +
                 "Language=en-US\r\n" +
                 "MenuKey=F10\r\n" +
-                "Version=v0.9.6\r\n" +
+                "Version=v0.9.7\r\n" +
                 "Title=AvernesTreiner\r\n" +
                 "SpeedUnit=KM/H\r\n" +
                 "\r\n[Diagnostics]\r\n" +
@@ -136,7 +136,7 @@ namespace AvernesTreiner.Core
                 if (!string.Equals(_language, "ru-RU", StringComparison.OrdinalIgnoreCase)) _language = "en-US";
                 _speedUnit = _settings.GetValue("General", "SpeedUnit", "KM/H");
                 _menuKey = "F10";
-                _version = "v0.9.6";
+                _version = "v0.9.7";
                 _title = "AvernesTreiner";
                 // Loading must not write the file; saving is explicit through Settings.
                 LastError = null;
@@ -215,7 +215,7 @@ namespace AvernesTreiner.Core
 
                 _settings.SetValue("General", "Language", _language);
                 _settings.SetValue("General", "MenuKey", "F10");
-                _settings.SetValue("General", "Version", "v0.9.6");
+                _settings.SetValue("General", "Version", "v0.9.7");
                 _settings.SetValue("General", "Title", "AvernesTreiner");
                 _settings.SetValue("General", "SpeedUnit", _speedUnit);
                 string backupPath = _configPath + ".bak";
@@ -226,7 +226,7 @@ namespace AvernesTreiner.Core
                     throw new IOException("Config.ini was not created.");
 
                 _menuKey = "F10";
-                _version = "v0.9.6";
+                _version = "v0.9.7";
                 _title = "AvernesTreiner";
                 LastError = null;
                 return true;
