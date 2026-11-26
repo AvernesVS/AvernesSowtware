@@ -99,7 +99,7 @@ namespace AvernesTreiner.Core
 
             // Migrate existing files from the old game-local folder only when the
             // permanent Documents copy does not already exist. Never overwrite user data.
-            string[] userFiles = new string[] { "Config.ini", "SavedVehicles.json", "addons.json" };
+            string[] userFiles = new string[] { "Config.ini", "SavedVehicles.json", "WeaponInventory.json", "addons.json" };
             for (int i = 0; i < userFiles.Length; i++)
             {
                 string destination = Path.Combine(UserConfigDirectory, userFiles[i]);
