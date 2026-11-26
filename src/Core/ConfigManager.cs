@@ -71,7 +71,10 @@ namespace AvernesTreiner.Core
                 "MenuKey=F10\r\n" +
                 "Version=v0.9.5\r\n" +
                 "Title=AvernesTreiner\r\n" +
-                "SpeedUnit=KM/H\r\n";
+                "SpeedUnit=KM/H\r\n" +
+                "\r\n[Diagnostics]\r\n" +
+                "Enabled=true\r\n" +
+                "DetailedLogging=false\r\n";
         }
 
         private static bool TryPrepareWritablePath(string path)

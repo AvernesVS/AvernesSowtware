@@ -150,6 +150,7 @@ namespace AvernesTreiner.Core
                 }
                 else
                 {
+                    if (ExceptionWindows.Count >= 64) ExceptionWindows.Clear();
                     window = new ExceptionThrottle();
                     window.LastWrittenUtc = now;
                     ExceptionWindows[key] = window;
@@ -227,7 +228,7 @@ namespace AvernesTreiner.Core
                     lock (SyncRoot)
                     {
                         string[] lines = payload.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                        for (int i = lines.Length - 1; i >= 0 && PendingEntries.Count < MaxBufferedEntries; i--)
+                        for (int i = 0; i < lines.Length && PendingEntries.Count < MaxBufferedEntries; i++)
                             PendingEntries.Enqueue(lines[i]);
                     }
                 }
