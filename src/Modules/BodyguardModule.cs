@@ -33,6 +33,7 @@ namespace AvernesTreiner.Modules
             AddSingleBgItem(singleMenu, "Ballas Member", "g_m_y_ballaorig_01", WeaponHash.MicroSMG);
             AddSingleBgItem(singleMenu, "Families Member (Grove Street)", "g_m_y_famdnf_01", WeaponHash.PumpShotgun);
             AddSingleBgItem(singleMenu, "Vagos Member", "g_m_y_salvagoon_01", WeaponHash.CombatPistol);
+            AddSingleBgItem(singleMenu, Localization.Get("Bodyguards", "SpawnSniper", "Sniper Bodyguard"), "s_m_y_blackops_01", WeaponHash.SniperRifle);
 
             // 2. Squads
             var squadMenu = menuPool.AddSubMenu(bgMenu, Localization.Get("Bodyguards", "SpawnSquad", "Spawn Full Gang Squad"));
@@ -50,6 +51,9 @@ namespace AvernesTreiner.Modules
             AddWeaponEquipItem(armoryMenu, "Equip Submachine Guns (SMG)", WeaponHash.SMG);
             AddWeaponEquipItem(armoryMenu, "Equip Rocket Launcher (RPG)", WeaponHash.RPG);
             AddWeaponEquipItem(armoryMenu, "Equip Minigun", WeaponHash.Minigun);
+            AddWeaponEquipItem(armoryMenu,
+                Localization.Get("Bodyguards", "EquipSniperRifles", "Equip Sniper Rifles"),
+                WeaponHash.SniperRifle);
 
             var armorAllItem = new UIMenuItem(Localization.Get("Bodyguards", "FullGangArmor", "Full Gang Armor (100% Armor)"), Localization.Get("Bodyguards", "FullGangArmorDesc", "Restores all members health and armor"));
             armorAllItem.Activated += (sender, selected) =>
@@ -229,7 +233,8 @@ namespace AvernesTreiner.Modules
                         bg.MaxHealth = 200;
                         bg.Weapons.Give(weapon, 9999, true, true);
                         bg.NeverLeavesGroup = true;
-                        bg.Accuracy = 85;
+                        bool sniper = weapon == WeaponHash.SniperRifle;
+                        bg.Accuracy = sniper ? 95 : 85;
                         bg.RelationshipGroup = player.RelationshipGroup;
 
                         player.CurrentPedGroup.Add(bg, false);
@@ -241,11 +246,17 @@ namespace AvernesTreiner.Modules
                         if (_godModeSquad) bg.IsInvincible = true;
 
                         _bodyguards.Add(bg);
+                        DiagnosticsManager.LogInfo("Bodyguards", (sniper ? "Sniper bodyguard" : "Bodyguard") +
+                            " spawned. Active count: " + _bodyguards.Count + ".");
                     }
                 }
                 model.MarkAsNoLongerNeeded();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DiagnosticsManager.LogException("Bodyguards.Spawn", ex);
+                UI.Notify("~r~Could not spawn bodyguard: " + ex.Message);
+            }
         }
 
         private void StartGangWar()
