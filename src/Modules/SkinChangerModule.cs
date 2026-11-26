@@ -25,7 +25,7 @@ namespace AvernesTreiner.Modules
 
             if (Game.Player.Character != null && Game.Player.Character.Exists())
             {
-                _originalModelHash = Game.Player.Character.Model.Hash;
+                if (_originalModelHash == 0) _originalModelHash = Game.Player.Character.Model.Hash;
             }
 
             var restoreItem = new UIMenuItem(
@@ -61,29 +61,29 @@ namespace AvernesTreiner.Modules
             AddSkinOption(authMenu, "SWAT Officer", "s_m_y_swat_01");
             AddSkinOption(authMenu, "Marine / Army", "s_m_y_marine_01");
             AddSkinOption(authMenu, "Air Force Pilot", "s_m_m_pilot_02");
-            AddSkinOption(authMenu, "Agente FIB", "s_m_m_fbi_01");
+            AddSkinOption(authMenu, Localization.Get("Skins", "FibAgent", "FIB Agent"), "s_m_m_fbi_01");
             AddSkinOption(authMenu, "Paramedic", "s_m_m_paramedic_01");
-            AddSkinOption(authMenu, "Bombeiro", "s_m_y_fireman_01");
+            AddSkinOption(authMenu, Localization.Get("Skins", "Firefighter", "Firefighter"), "s_m_y_fireman_01");
             AddSkinOption(authMenu, "Private Security", "s_m_m_security_01");
-            AddSkinOption(authMenu, "Guarda Prisional", "s_m_m_prisguard_01");
+            AddSkinOption(authMenu, Localization.Get("Skins", "PrisonGuard", "Prison Guard"), "s_m_m_prisguard_01");
 
             var animalsMenu = menuPool.AddSubMenu(skinMenu, Localization.Get("Skins", "Animals", "Animals"));
             AddSkinOption(animalsMenu, "Chop (Rottweiler)", "a_c_chop");
-            AddSkinOption(animalsMenu, "Gato", "a_c_cat_01");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Cat", "Cat"), "a_c_cat_01");
             AddSkinOption(animalsMenu, "Chimpanzee", "a_c_chimp");
-            AddSkinOption(animalsMenu, "Gaivota", "a_c_seagull");
-            AddSkinOption(animalsMenu, "Pombo", "a_c_pigeon");
-            AddSkinOption(animalsMenu, "Corvo", "a_c_crow");
-            AddSkinOption(animalsMenu, "Galinha", "a_c_hen");
-            AddSkinOption(animalsMenu, "Veado", "a_c_deer");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Seagull", "Seagull"), "a_c_seagull");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Pigeon", "Pigeon"), "a_c_pigeon");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Crow", "Crow"), "a_c_crow");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Chicken", "Chicken"), "a_c_hen");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Deer", "Deer"), "a_c_deer");
             AddSkinOption(animalsMenu, "Husky", "a_c_husky");
             AddSkinOption(animalsMenu, "Golden Retriever", "a_c_retriever");
             AddSkinOption(animalsMenu, "German Shepherd", "a_c_shepherd");
             AddSkinOption(animalsMenu, "Poodle", "a_c_poodle");
             AddSkinOption(animalsMenu, "Pug", "a_c_pug");
-            AddSkinOption(animalsMenu, "Coiote", "a_c_coyote");
-            AddSkinOption(animalsMenu, "Javali", "a_c_boar");
-            AddSkinOption(animalsMenu, "Coelho", "a_c_rabbit_01");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Coyote", "Coyote"), "a_c_coyote");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Boar", "Boar"), "a_c_boar");
+            AddSkinOption(animalsMenu, Localization.Get("Skins", "Rabbit", "Rabbit"), "a_c_rabbit_01");
             AddSkinOption(animalsMenu, "Tiger Shark (Immune out of water)", "a_c_sharktiger");
             AddSkinOption(animalsMenu, "Dolphin (Immune out of water)", "a_c_dolphin");
             AddSkinOption(animalsMenu, "Orca / Whale (Immune out of water)", "a_c_killerwhale");
@@ -115,7 +115,7 @@ namespace AvernesTreiner.Modules
 
                 Model model = new Model(modelName);
                 model.Request(2500);
-                if (model.IsInCdImage && model.IsValid)
+                if (model.IsInCdImage && model.IsValid && model.IsLoaded)
                 {
                     // Heal before changing
                     player.Health = player.MaxHealth;
@@ -167,7 +167,7 @@ namespace AvernesTreiner.Modules
 
                 Model model = new Model(modelHash);
                 model.Request(2500);
-                if (model.IsInCdImage && model.IsValid)
+                if (model.IsInCdImage && model.IsValid && model.IsLoaded)
                 {
                     player.Health = player.MaxHealth;
                     player.ClearBloodDamage();

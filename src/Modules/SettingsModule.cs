@@ -99,7 +99,7 @@ namespace AvernesTreiner.Modules
             settingsMenu.AddItem(reloadAddonsItem);
 
             var verItem = new UIMenuItem(
-                Localization.Get("Settings", "VersionLabel", "Version: v0.8.5"),
+                Localization.Get("Settings", "VersionLabel", "Version: v0.9.0"),
                 Localization.Get("Settings", "VersionDesc", "Official AvernesTreiner version"));
             settingsMenu.AddItem(verItem);
 

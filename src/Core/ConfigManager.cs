@@ -254,8 +254,8 @@ namespace AvernesTreiner.Core
             string section = "";
             foreach (string rawLine in File.ReadAllLines(path, Encoding.UTF8))
             {
-                string line = rawLine.Trim().TrimStart('\uFEFF');
-                if (line.Length == 0 || line.StartsWith(";") || line.StartsWith("#")) continue;
+                string line = rawLine.TrimStart('\uFEFF').TrimStart();
+                if (line.Trim().Length == 0 || line.StartsWith(";") || line.StartsWith("#")) continue;
                 if (line.StartsWith("[") && line.EndsWith("]"))
                 {
                     section = line.Substring(1, line.Length - 2).Trim();
@@ -264,7 +264,7 @@ namespace AvernesTreiner.Core
                 int separator = line.IndexOf('=');
                 if (separator <= 0) continue;
                 string key = line.Substring(0, separator).Trim();
-                string value = line.Substring(separator + 1).Trim();
+                string value = line.Substring(separator + 1).TrimStart();
                 Values[section + "." + key] = value;
             }
         }

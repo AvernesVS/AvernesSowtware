@@ -157,6 +157,7 @@ namespace AvernesTreiner.Modules
             _explosiveAmmo = ConfigManager.GetBool("Weapons", "ExplosiveAmmo", false);
             _fireAmmo = ConfigManager.GetBool("Weapons", "FireAmmo", false);
             _superDamage = ConfigManager.GetBool("Weapons", "SuperDamage", false);
+            Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, _superDamage ? 100.0f : 1.0f);
             _teleportGun = ConfigManager.GetBool("Weapons", "TeleportGun", false);
             _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
             _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
@@ -249,7 +250,6 @@ namespace AvernesTreiner.Modules
             // These natives are frame-scoped and must remain in the frame tick.
             if (_explosiveAmmo) Game.Player.SetExplosiveAmmoThisFrame();
             if (_fireAmmo) Game.Player.SetFireAmmoThisFrame();
-            if (_superDamage) Game.Player.SetSuperJumpThisFrame();
 
             // Avoid querying the impact coordinate unless a shot-triggered feature is enabled.
             if ((_teleportGun || _forceGun || _rpgAmmo) && player.IsShooting)

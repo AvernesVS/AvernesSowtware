@@ -91,12 +91,15 @@ jobs:
           $russianKeys = [regex]::Matches($russian, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $missingRussian = @($englishKeys | Where-Object { $_ -notin $russianKeys })
           if ($missingRussian.Count -gt 0) { throw ('Russian localization is missing keys: ' + ($missingRussian -join ', ')) }
+          $missingEnglish = @($russianKeys | Where-Object { $_ -notin $englishKeys })
+          if ($missingEnglish.Count -gt 0) { throw ('English localization is missing keys: ' + ($missingEnglish -join ', ')) }
           foreach ($userFile in @('Config.ini','SavedVehicles.json','addons.json')) {
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data must not be shipped: $userFile" }
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
           if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch "GetFolderPath\('MyDocuments'\)") { throw 'Installer legacy backup migration or Windows My Documents path is missing.' }
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
+          if ($configSource -notmatch 'rawLine\.TrimStart' -or $configSource -notmatch 'Substring\(separator \+ 1\)\.TrimStart\(\)') { throw 'Localization parser must preserve intentional trailing spaces in values.' }
           if ($configSource -notmatch 'Version=v0.9.0' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
@@ -125,12 +128,17 @@ jobs:
           if ($weaponSource -notmatch '_infiniteAmmo \|\| _infiniteClip' -or $weaponSource -notmatch 'characterChanged' -or $weaponSource -notmatch 'SET_PED_INFINITE_AMMO_CLIP') { throw 'Weapon ammo options must be reapplied to the active character.' }
           foreach ($ammoToken in @('GET_SELECTED_PED_WEAPON','GET_PED_AMMO_TYPE_FROM_WEAPON','GET_PED_AMMO_BY_TYPE','ADD_PED_AMMO_BY_TYPE','SET_PED_AMMO_BY_TYPE','0x585847C5E4E11709','GET_AMMO_IN_CLIP','MAKE_PED_RELOAD','REFILL_AMMO_INSTANTLY')) { if ($weaponSource -notmatch [regex]::Escape($ammoToken)) { throw "DLC/Mk II infinite ammo type handling missing: $ammoToken" } }
           if ($weaponSource -match 'player\.Weapons\.Current\.Ammo\s*=') { throw 'Infinite ammo must use the active ammo-type pool, not the base weapon ammo setter.' }
+          if ($weaponSource -match 'SetSuperJumpThisFrame' -or $weaponSource -notmatch 'SET_PLAYER_WEAPON_DAMAGE_MODIFIER') { throw 'Super Damage must not trigger Super Jump and must restore its weapon damage modifier.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
           $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
           if ($databaseModels.Count -ne 246) { throw "Expected 246 additional vehicle models, found $($databaseModels.Count)." }
           foreach ($model in @('calico','dominator7','dominator8','euros','remus','zr350','jester4','rt3000','vectre','futo2','previon','sultan3','tailgater2','comet6','growler','cypher','warrener2','astron','buffalo4','champion','cinquemila','deity','ignus','jubilee','zeno','baller7','patriot3','comet7','shinobi','iwagen','granger2','reever','mule5')) {
             if ($vehicleDatabase -match ('"' + $model + '"')) { throw "Post-1.0.2245.0 vehicle model found: $model" }
           }
+          $skinSource = Get-Content (Join-Path $root 'src\Modules\SkinChangerModule.cs') -Raw
+          if ($skinSource -notmatch '_originalModelHash == 0' -or $skinSource -notmatch 'model\.IsLoaded') { throw 'Skin changer must preserve the original protagonist and wait for model loading.' }
+          $animationSource = Get-Content (Join-Path $root 'src\Modules\AnimationModule.cs') -Raw
+          if ($animationSource -notmatch 'ScenarioStarted' -or $animationSource -match 'Executando') { throw 'Animation notifications must use localization, not stray Portuguese text.' }
           $savedVehiclesSource = Get-Content (Join-Path $root 'src\Modules\SavedVehiclesModule.cs') -Raw
           if ($savedVehiclesSource -notmatch 'CaptureVehicle' -or $savedVehiclesSource -notmatch 'ApplyCustomization' -or $savedVehiclesSource -notmatch 'SavedVehicles.json' -or $core -notmatch 'new SavedVehiclesModule\(\)') { throw 'Saved vehicle save/spawn registration checks failed.' }
           if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
