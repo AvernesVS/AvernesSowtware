@@ -74,7 +74,7 @@ jobs:
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           New-Item -ItemType Directory -Path $scripts -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
-          foreach ($userFile in @('Config.ini','SavedVehicles.json','addons.json')) {
+          foreach ($userFile in @('Config.ini','SavedVehicles.json','WeaponInventory.json','addons.json')) {
             $userPath = Join-Path $runtime $userFile
             if (Test-Path $userPath) { Remove-Item $userPath -Force }
           }
@@ -93,7 +93,7 @@ jobs:
           if ($missingRussian.Count -gt 0) { throw ('Russian localization is missing keys: ' + ($missingRussian -join ', ')) }
           $missingEnglish = @($russianKeys | Where-Object { $_ -notin $englishKeys })
           if ($missingEnglish.Count -gt 0) { throw ('English localization is missing keys: ' + ($missingEnglish -join ', ')) }
-          foreach ($userFile in @('Config.ini','SavedVehicles.json','addons.json')) {
+          foreach ($userFile in @('Config.ini','SavedVehicles.json','WeaponInventory.json','addons.json')) {
             if (Test-Path (Join-Path $runtime $userFile)) { throw "User data must not be shipped: $userFile" }
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
@@ -130,6 +130,7 @@ jobs:
           if ($weaponSource -notmatch '_infiniteAmmo \|\| _infiniteClip' -or $weaponSource -notmatch 'characterChanged' -or $weaponSource -notmatch 'SET_PED_INFINITE_AMMO_CLIP') { throw 'Weapon ammo options must be reapplied to the active character.' }
           foreach ($ammoToken in @('GET_SELECTED_PED_WEAPON','GET_PED_AMMO_TYPE_FROM_WEAPON','GET_PED_AMMO_BY_TYPE','ADD_PED_AMMO_BY_TYPE','SET_PED_AMMO_BY_TYPE','0x585847C5E4E11709','GET_AMMO_IN_CLIP','MAKE_PED_RELOAD','REFILL_AMMO_INSTANTLY')) { if ($weaponSource -notmatch [regex]::Escape($ammoToken)) { throw "DLC/Mk II infinite ammo type handling missing: $ammoToken" } }
           if ($weaponSource -match 'player\.Weapons\.Current\.Ammo\s*=') { throw 'Infinite ammo must use the active ammo-type pool, not the base weapon ammo setter.' }
+          foreach ($inventoryToken in @('WeaponInventory.json','MaintainStoryModeWeaponInventory','CaptureWeaponInventory','RestoreWeaponInventory','GIVE_WEAPON_TO_PED','HAS_PED_GOT_WEAPON','SET_PED_WEAPON_TINT_INDEX','SP0','SP1','SP2')) { if ($weaponSource -notmatch [regex]::Escape($inventoryToken)) { throw "Story Mode weapon persistence check missing: $inventoryToken" } }
           if ($weaponSource -match 'SetSuperJumpThisFrame' -or $weaponSource -notmatch 'SET_PLAYER_WEAPON_DAMAGE_MODIFIER') { throw 'Super Damage must not trigger Super Jump and must restore its weapon damage modifier.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
           $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
