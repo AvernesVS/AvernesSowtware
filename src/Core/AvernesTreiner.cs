@@ -41,6 +41,7 @@ namespace AvernesTreiner
             {
                 ConfigManager.Load();
                 Localization.LoadLanguage(ConfigManager.Language);
+                DiagnosticsManager.Initialize();
 
                 try
                 {
@@ -58,7 +59,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.4 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.5 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -74,7 +75,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.4");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.5");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
@@ -93,6 +94,7 @@ namespace AvernesTreiner
                     new AimBotModule(),
                     new TeleportModule(),
                     new WorldModule(),
+                    new DiagnosticsModule(),
                     new SettingsModule(delegate(bool reloadSettings)
                     {
                         _reloadModuleSettingsRequested = reloadSettings;
@@ -104,7 +106,7 @@ namespace AvernesTreiner
             foreach (var module in _modules)
             {
                 try { module.Initialize(_mainMenu, _menuPool); }
-                catch { }
+                catch (Exception ex) { DiagnosticsManager.LogException(module.Name, ex); }
             }
 
             foreach (UIMenu menu in _menuPool.ToList())
@@ -119,6 +121,7 @@ namespace AvernesTreiner
         private void OnTick(object sender, EventArgs e)
         {
             int now = Game.GameTime;
+            DiagnosticsManager.OnTick(now);
             bool menuOpen = _menuPool != null && _menuPool.IsAnyMenuOpen();
 
             // Block the pause/map control before NativeUI processes the frame. Escape is
@@ -152,7 +155,7 @@ namespace AvernesTreiner
                     for (int i = 0; i < _modules.Count; i++)
                     {
                         try { _modules[i].ReloadSettings(); }
-                        catch { }
+                        catch (Exception ex) { DiagnosticsManager.LogException(_modules[i].Name, ex); }
                     }
                 }
                 BuildMenus();
@@ -173,7 +176,7 @@ namespace AvernesTreiner
                 for (int i = 0; i < _modules.Count; i++)
                 {
                     try { _modules[i].OnTick(); }
-                    catch { }
+                    catch (Exception ex) { DiagnosticsManager.LogException(_modules[i].Name, ex); }
                 }
             }
         }
@@ -231,10 +234,12 @@ namespace AvernesTreiner
                     if (_menuPool.IsAnyMenuOpen())
                     {
                         _menuPool.CloseAllMenus();
+                        DiagnosticsManager.LogInfo("Menu", "Trainer menu closed.");
                     }
                     else
                     {
                         _mainMenu.Visible = true;
+                        DiagnosticsManager.LogInfo("Menu", "Trainer menu opened.");
                     }
                 }
             }
