@@ -172,6 +172,7 @@ namespace AvernesTreiner
             {
                 int control = (int)MenuNavigationControls[i];
                 Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, control);
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 1, control);
                 Function.Call(Hash.DISABLE_CONTROL_ACTION, 2, control);
             }
         }
