@@ -42,7 +42,7 @@ namespace AvernesTreiner.Modules
             int ball = FindClosestGolfBall(ballOrigin, 18.0f);
             if (ball == 0) { if (notifyFailure) UI.Notify(Localization.Get("Minigames", "GolfNoBall", "No nearby golf ball found")); return; }
             Vector3 ballPosition = Function.Call<Vector3>(Hash.GET_ENTITY_COORDS, ball, true);
-            int flag = Function.Call<int>((Hash)GetClosestObjectOfType, ballPosition.X, ballPosition.Y, ballPosition.Z, 180.0f, (int)GolfFlag, false, false, false);
+            int flag = Function.Call<int>((Hash)GetClosestObjectOfType, ballPosition.X, ballPosition.Y, ballPosition.Z, 180.0f, unchecked((int)GolfFlag), false, false, false);
             if (flag == 0 || !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, flag)) { if (notifyFailure) UI.Notify(Localization.Get("Minigames", "GolfNoFlag", "Golf ball found, but no nearby hole flag was detected")); return; }
             Vector3 target = Function.Call<Vector3>(Hash.GET_ENTITY_COORDS, flag, true);
             float dx = target.X - ballPosition.X; float dy = target.Y - ballPosition.Y; float dz = target.Z - ballPosition.Z;
