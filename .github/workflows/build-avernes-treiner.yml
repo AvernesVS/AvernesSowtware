@@ -148,6 +148,9 @@ jobs:
           if ($vehicleSource -match '_stuckCounter' -or $vehicleSource -notmatch '_lastTrafficRammerCheckTime') { throw 'Autopilot tick-throttling check failed.' }
           if ($vehicleSource -notmatch '_missionSpawnedVehicles' -or $vehicleSource -notmatch '_missionCleanupTrackingActive' -or $vehicleSource -notmatch 'trackedEntry' -or $vehicleSource -notmatch 'Mission vehicles are queued as soon as the mission ends') { throw 'Mission-start vehicle snapshot and cleanup are missing.' }
           if ($core -notmatch 'BuildMenus\(\)' -or $core -notmatch '_rebuildMenuRequested' -or $core -notmatch '_modules\[i\]\.ReloadSettings\(\)') { throw 'Live menu rebuild or module settings reload support is missing.' }
+          $golfSource = Get-Content (Join-Path $root 'src\Modules\GolfAssistModule.cs') -Raw
+          foreach ($golfToken in @('prop_golf_ball','prop_golfflag','GET_CLOSEST_OBJECT_OF_TYPE','SET_ENTITY_HEADING','DRAW_LINE','GolfAimNow','GolfAssist')) { if ($golfSource -notmatch [regex]::Escape($golfToken)) { throw "Golf assist check missing: $golfToken" } }
+          if ($core -notmatch 'new GolfAssistModule\(\)' -or $core -notmatch 'SubmenuMinigames') { throw 'Golf assistant is not registered in the main menu.' }
           $moduleContract = Get-Content (Join-Path $root 'src\Core\IAvernesModule.cs') -Raw
           if ($moduleContract -notmatch 'ReloadSettings') { throw 'Module settings reload contract is missing.' }
           $worldSource = Get-Content (Join-Path $root 'src\Modules\WorldModule.cs') -Raw
