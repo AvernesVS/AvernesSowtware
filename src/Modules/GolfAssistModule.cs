@@ -35,6 +35,7 @@ namespace AvernesTreiner.Modules
             0xB5E60C50u  // prop_golf_ball_tee
         };
         private const uint GolfFlagModel = 0x8C60CCE5u; // prop_golfflag
+        // GET_CLOSEST_OBJECT_OF_TYPE (native hash from the GTA V object namespace).
         private const ulong GetClosestObjectOfTypeNative = 0xE143FA2249364369UL;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
