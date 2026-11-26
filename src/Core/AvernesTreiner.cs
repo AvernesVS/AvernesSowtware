@@ -32,6 +32,9 @@ namespace AvernesTreiner
             GTA.Control.FrontendAccept, GTA.Control.PhoneCancel, GTA.Control.FrontendPause
         };
 
+        // PC phone-open input is separate from the phone navigation axes.
+        private static readonly int[] PhoneOpenControls = new int[] { 27 };
+
         public AvernesTreinerScript()
         {
             try
@@ -55,7 +58,7 @@ namespace AvernesTreiner
 
                 Interval = 0;
 
-                UI.Notify("~b~AvernesTreiner v0.9.1 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
+                UI.Notify("~b~AvernesTreiner v0.9.2 ~w~loaded!\nPress ~g~" + _toggleKey.ToString() + " ~w~to open.");
             }
             catch (Exception ex)
             {
@@ -71,7 +74,7 @@ namespace AvernesTreiner
             _menuPool.ControlDisablingEnabled = false;
 
             string title = Localization.Get("General", "MenuTitle", "AvernesTreiner");
-            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.1");
+            string subtitle = Localization.Get("General", "MenuSubtitle", "v0.9.2");
             _mainMenu = new UIMenu(title, subtitle);
             _menuPool.Add(_mainMenu);
 
@@ -89,6 +92,7 @@ namespace AvernesTreiner
                     new WeaponModule(),
                     new TeleportModule(),
                     new WorldModule(),
+                    new GolfAssistModule(),
                     new SettingsModule(delegate(bool reloadSettings)
                     {
                         _reloadModuleSettingsRequested = reloadSettings;
@@ -174,6 +178,12 @@ namespace AvernesTreiner
                 Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, control);
                 Function.Call(Hash.DISABLE_CONTROL_ACTION, 1, control);
                 Function.Call(Hash.DISABLE_CONTROL_ACTION, 2, control);
+            }
+            for (int i = 0; i < PhoneOpenControls.Length; i++)
+            {
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 0, PhoneOpenControls[i]);
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 1, PhoneOpenControls[i]);
+                Function.Call(Hash.DISABLE_CONTROL_ACTION, 2, PhoneOpenControls[i]);
             }
         }
 
