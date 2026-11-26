@@ -17,6 +17,8 @@ namespace AvernesTreiner.Modules
     {
         public string Name { get { return "Bodyguards"; } }
         private int _lastCleanupTime = 0;
+        private int _lastFollowMaintenanceTime = 0;
+        private bool _followOrdersActive = true;
 
         private List<Ped> _bodyguards = new List<Ped>();
         private bool _godModeSquad = ConfigManager.GetBool("Bodyguards", "GodModeSquad", false);
@@ -102,6 +104,7 @@ namespace AvernesTreiner.Modules
 
                 if (target != null && target is Ped)
                 {
+                    _followOrdersActive = false;
                     foreach (var bg in _bodyguards)
                     {
                         if (bg != null && bg.Exists())
@@ -121,6 +124,7 @@ namespace AvernesTreiner.Modules
             var holdItem = new UIMenuItem(Localization.Get("Bodyguards", "HoldPosition", "Hold Position (Stay Put)"), Localization.Get("Bodyguards", "HoldPositionDesc", "Members defend the current area"));
             holdItem.Activated += (sender, selected) =>
             {
+                _followOrdersActive = false;
                 foreach (var bg in _bodyguards)
                 {
                     if (bg != null && bg.Exists())
@@ -135,6 +139,7 @@ namespace AvernesTreiner.Modules
             var followItem = new UIMenuItem(Localization.Get("Bodyguards", "FollowPlayer", "Regroup and Follow Player"), Localization.Get("Bodyguards", "FollowPlayerDesc", "Cancels previous orders and resumes following"));
             followItem.Activated += (sender, selected) =>
             {
+                _followOrdersActive = true;
                 Ped player = Game.Player.Character;
                 foreach (var bg in _bodyguards)
                 {
@@ -144,6 +149,7 @@ namespace AvernesTreiner.Modules
                         Function.Call(Hash.SET_PED_AS_GROUP_MEMBER, bg.Handle, player.CurrentPedGroup.Handle);
                     }
                 }
+                MaintainBodyguardFollow(player, true);
                 UI.Notify("~g~Gang regrouped with the player.");
             };
             cmdMenu.AddItem(followItem);
@@ -198,15 +204,30 @@ namespace AvernesTreiner.Modules
             item.Activated += (sender, selected) =>
             {
                 int count = 0;
+                int failed = 0;
                 foreach (var bg in _bodyguards)
                 {
-                    if (bg != null && bg.Exists())
+                    if (bg != null && bg.Exists() && !bg.IsDead)
                     {
-                        bg.Weapons.Give(weapon, 9999, true, true);
-                        count++;
+                        try
+                        {
+                            bg.Weapons.Give(weapon, 9999, true, true);
+                            Function.Call((Hash)0xADF692B254977C0C, bg.Handle, (uint)weapon, true);
+                            if (Function.Call<bool>((Hash)0x8DECB02F88F428BC, bg.Handle, (uint)weapon, false))
+                                count++;
+                            else
+                                failed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            failed++;
+                            DiagnosticsManager.LogException("Bodyguards.EquipWeapon", ex);
+                        }
                     }
                 }
-                UI.Notify("~g~" + count + " members equipped with " + label + "!");
+                DiagnosticsManager.LogInfo("Bodyguards", "Armory command " + label +
+                    " completed. Equipped: " + count + "; failed: " + failed + ".");
+                UI.Notify("~g~" + count + " members equipped; ~r~" + failed + " failed.");
             };
             menu.AddItem(item);
         }
@@ -228,12 +249,14 @@ namespace AvernesTreiner.Modules
                     Ped bg = World.CreatePed(model, spawnPos, player.Heading);
                     if (bg != null && bg.Exists())
                     {
-                        bg.Armor = 100;
-                        bg.Health = 200;
-                        bg.MaxHealth = 200;
-                        bg.Weapons.Give(weapon, 9999, true, true);
-                        bg.NeverLeavesGroup = true;
                         bool sniper = weapon == WeaponHash.SniperRifle;
+                        bg.MaxHealth = sniper ? 400 : 200;
+                        bg.Health = sniper ? 400 : 200;
+                        bg.Armor = 100;
+                        bg.Weapons.Give(weapon, 9999, true, true);
+                        if (sniper)
+                            Function.Call((Hash)0xADF692B254977C0C, bg.Handle, (uint)weapon, true);
+                        bg.NeverLeavesGroup = true;
                         bg.Accuracy = sniper ? 95 : 85;
                         bg.RelationshipGroup = player.RelationshipGroup;
 
@@ -247,7 +270,9 @@ namespace AvernesTreiner.Modules
 
                         _bodyguards.Add(bg);
                         DiagnosticsManager.LogInfo("Bodyguards", (sniper ? "Sniper bodyguard" : "Bodyguard") +
-                            " spawned. Active count: " + _bodyguards.Count + ".");
+                            " spawned. Entity handle: " + bg.Handle + "; active count: " + _bodyguards.Count +
+                            "; health: " + bg.MaxHealth + "; armor: " + bg.Armor + ".");
+                        if (_followOrdersActive) MaintainBodyguardFollow(player, true);
                     }
                 }
                 model.MarkAsNoLongerNeeded();
@@ -308,18 +333,22 @@ namespace AvernesTreiner.Modules
         {
             try
             {
+                _followOrdersActive = false;
                 int count = 0;
                 for (int i = _bodyguards.Count - 1; i >= 0; i--)
                 {
                     Ped bg = _bodyguards[i];
                     if (bg != null && bg.Exists())
                     {
+                        int handle = bg.Handle;
                         bg.LeaveGroup();
                         bg.Delete();
                         count++;
+                        DiagnosticsManager.LogInfo("Bodyguards", "Bodyguard dismissed/deleted. Entity handle: " + handle + ".");
                     }
                 }
                 _bodyguards.Clear();
+                DiagnosticsManager.LogInfo("Bodyguards", "Dismiss all completed. Removed: " + count + "; active count: 0.");
                 UI.Notify("~y~" + count + " members dismissed.");
             }
             catch (Exception ex)
@@ -338,17 +367,49 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        private void MaintainBodyguardFollow(Ped player, bool force)
+        {
+            if (!_followOrdersActive || player == null || !player.Exists() || !player.IsOnFoot) return;
+            int now = Game.GameTime;
+            if (!force && now - _lastFollowMaintenanceTime < 3000) return;
+            _lastFollowMaintenanceTime = now;
+
+            for (int i = 0; i < _bodyguards.Count; i++)
+            {
+                Ped guard = _bodyguards[i];
+                if (guard == null || !guard.Exists() || guard.IsDead) continue;
+                float dx = guard.Position.X - player.Position.X;
+                float dy = guard.Position.Y - player.Position.Y;
+                float dz = guard.Position.Z - player.Position.Z;
+                if (!force && dx * dx + dy * dy + dz * dz < 100.0f) continue;
+
+                float angle = i * 0.9f;
+                float offsetX = (float)Math.Cos(angle) * 2.5f;
+                float offsetY = -3.0f - (float)Math.Sin(angle) * 2.5f;
+                Function.Call((Hash)0x304AE42E357B8C7E, guard.Handle, player.Handle,
+                    offsetX, offsetY, 0.0f, 2.5f, -1, 5.0f, true);
+            }
+        }
+
         public void OnTick()
         {
             int now = Game.GameTime;
             if (now - _lastCleanupTime < 1000) return;
             _lastCleanupTime = now;
 
+            Ped player = Game.Player.Character;
+            MaintainBodyguardFollow(player, false);
+
             for (int i = _bodyguards.Count - 1; i >= 0; i--)
             {
-                if (_bodyguards[i] == null || !_bodyguards[i].Exists() || _bodyguards[i].IsDead)
+                Ped guard = _bodyguards[i];
+                if (guard == null || !guard.Exists() || guard.IsDead)
                 {
+                    int handle = guard == null ? 0 : guard.Handle;
+                    string reason = guard == null || !guard.Exists() ? "entity no longer exists" : "ped died";
                     _bodyguards.RemoveAt(i);
+                    DiagnosticsManager.LogInfo("Bodyguards", "Bodyguard removed from active tracking. Entity handle: " +
+                        handle + "; reason: " + reason + "; active count: " + _bodyguards.Count + ".");
                 }
             }
         }
