@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.6
+# AvernesTreiner v0.9.8
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,15 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.8 — Aim Bot, bodyguards and diagnostics
+- Aim Bot now filters non-human peds, the player's relationship group, current squad members and peds identified by the game as friends.
+- Added a restricted whitelist for Ammu-Nation shooting-range target props; arbitrary world objects are not eligible. The exact target model set still requires in-game confirmation on GTA V Legacy 1.0.2245.0.
+- Repeated detailed target-selection entries for the same handle are throttled; target switching remains automatic when the current target is lost or eliminated.
+- Sniper bodyguards receive 400 health and 100 armor. Bodyguards outside the native group capacity receive periodic follow tasks while follow orders are active.
+- Armory weapon commands explicitly set the selected weapon and verify possession; failures and individual bodyguard removals are logged.
+- Diagnostics flushes once per second using a durable file flush, records script-abort cleanup and includes the prior session marker contents in recovery warnings.
+- Native-level hard crashes may still terminate GTA before managed exception hooks run; the shorter flush interval reduces, but cannot eliminate, the loss of the final events.
 
 ## v0.9.6 bodyguard expansion
 - Added a dedicated Sniper Bodyguard option using the existing bodyguard spawn pipeline and the GTA V Black Ops ped model.
