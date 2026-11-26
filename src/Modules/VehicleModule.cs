@@ -718,9 +718,8 @@ namespace AvernesTreiner.Modules
 
             if (now - _lastRadioRetryTime < 500) return;
             _lastRadioRetryTime = now;
+            // Do not retune on every retry: repeatedly changing stations can create audio pops.
             Function.Call(Hash.SET_VEHICLE_RADIO_ENABLED, _pendingRadioVehicleHandle, true);
-            if (!string.IsNullOrEmpty(_pendingRadioStation))
-                Function.Call(Hash.SET_VEH_RADIO_STATION, _pendingRadioVehicleHandle, _pendingRadioStation);
             Function.Call(Hash.SET_VEHICLE_RADIO_LOUD, _pendingRadioVehicleHandle, true);
             Function.Call(Hash.SET_USER_RADIO_CONTROL_ENABLED, true);
         }
