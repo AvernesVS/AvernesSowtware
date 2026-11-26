@@ -62,7 +62,7 @@ namespace AvernesTreiner.Modules
                 {
                     p.Task.ClearAllImmediately();
                     Function.Call(Hash.TASK_START_SCENARIO_IN_PLACE, p.Handle, scenarioName, 0, true);
-                    UI.Notify("~g~Executando: ~w~" + label);
+                    UI.Notify("~g~" + Localization.Get("Animations", "ScenarioStarted", "Scenario started:") + " ~w~" + label);
                 }
             };
             menu.AddItem(item);
