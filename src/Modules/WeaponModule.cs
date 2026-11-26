@@ -221,6 +221,7 @@ namespace AvernesTreiner.Modules
                 if (File.Exists(WeaponInventoryPath))
                 {
                     string backupPath = WeaponInventoryPath + ".bak";
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
                     File.Replace(tempPath, WeaponInventoryPath, backupPath);
                     if (File.Exists(backupPath)) File.Delete(backupPath);
                 }
