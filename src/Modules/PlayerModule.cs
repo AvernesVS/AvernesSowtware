@@ -41,8 +41,8 @@ namespace AvernesTreiner.Modules
         private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
         private static readonly string[] MaxSkillStatNames = new string[]
         {
-            "STAMINA", "STRENGTH", "SHOOTING_ABILITY", "STEALTH_ABILITY",
-            "FLYING_ABILITY", "WHEELIE_ABILITY", "LUNG_CAPACITY", "SPECIAL_ABILITY"
+            "SPECIAL_ABILITY", "STAMINA", "SHOOTING_ABILITY", "STRENGTH",
+            "STEALTH_ABILITY", "FLYING_ABILITY", "DRIVING_ABILITY", "LUNG_CAPACITY"
         };
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
@@ -252,6 +252,13 @@ namespace AvernesTreiner.Modules
             _michaelModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
             _franklinModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
             _trevorModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
+
+            // Story Mode special abilities are locked per protagonist model.
+            // Unlock all three explicitly before charging their meters.
+            Function.Call(Hash.SPECIAL_ABILITY_UNLOCK, _michaelModelHash);
+            Function.Call(Hash.SPECIAL_ABILITY_UNLOCK, _franklinModelHash);
+            Function.Call(Hash.SPECIAL_ABILITY_UNLOCK, _trevorModelHash);
+
             _characterModelHashesInitialized = true;
         }
 
@@ -270,8 +277,9 @@ namespace AvernesTreiner.Modules
             {
                 string statName = prefix + MaxSkillStatNames[statIndex];
                 int statHash = Function.Call<int>(Hash.GET_HASH_KEY, statName);
-                bool applied = Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true);
-                if (applied) updated++;
+                // STAT_SET_INT has no return value; count the write after issuing it.
+                Function.Call(Hash.STAT_SET_INT, statHash, 100, true);
+                updated++;
 
                 using (OutputArgument statValue = new OutputArgument())
                 {
@@ -427,19 +435,17 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            // Refill only after the special ability has ended. In Michael's case,
-            // do not touch the meter while he is aiming: this avoids repeatedly
-            // forcing his weapon/upper-body aiming state.
-            if (_infiniteSpecialAbility && now - _lastSpecialAbilityRefillTime >= 250)
+            // Refill the meter directly; never simulate aiming or alter weapon controls.
+            // The native is called only while the ability is inactive and the meter
+            // is not full, so it cannot interrupt an active special-ability animation.
+            if (_infiniteSpecialAbility && now - _lastSpecialAbilityRefillTime >= 500)
             {
                 _lastSpecialAbilityRefillTime = now;
                 bool abilityActive = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_ACTIVE, Game.Player);
                 bool meterFull = Function.Call<bool>(Hash.IS_SPECIAL_ABILITY_METER_FULL, Game.Player);
-                bool michaelAiming = _currentPlayerModelHash == _michaelModelHash &&
-                    Function.Call<bool>(Hash.IS_PLAYER_FREE_AIMING, Game.Player);
 
-                if (!abilityActive && !meterFull && !michaelAiming)
-                    Function.Call(Hash.SPECIAL_ABILITY_CHARGE_NORMALIZED, Game.Player, 1.0f, true);
+                if (!abilityActive && !meterFull)
+                    Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, Game.Player, true);
             }
 
             if (now - _lastMaintenanceTime < 250) return;
