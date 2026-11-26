@@ -499,7 +499,7 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 500
+            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 500)
             {
                 _lastInventorySnapshotTime = now;
                 _savedInventories[slot] = CaptureWeaponInventory(player);

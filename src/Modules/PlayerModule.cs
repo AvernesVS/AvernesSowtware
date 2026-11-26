@@ -42,7 +42,7 @@ namespace AvernesTreiner.Modules
         private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
         // These are the Story Mode stat identifiers used by Rockstar's stats_controller.
         // "DRIVING_ABILITY" and "SPECIAL_ABILITY" are not the protagonist skill stat names:
-        // the driving bar is WHEELIE_ABILITY and the special bar uses SPECIAL_ABILITY_UNLOCKED.
+        // the driving bar is WHEELIE_ABILITY and the Special skill uses SPECIAL_ABILITY; SPECIAL_ABILITY_UNLOCKED is a separate unlock stat.
         private static readonly string[] MaxSkillStatNames = new string[]
         {
             "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
