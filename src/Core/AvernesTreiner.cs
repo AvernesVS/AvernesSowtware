@@ -122,10 +122,12 @@ namespace AvernesTreiner
 
             if (_menuPool != null && _menuPool.IsAnyMenuOpen())
             {
+                // NativeUI consumes its navigation inputs first. Restore gameplay controls
+                // afterwards so movement, aiming, weapon selection and radio remain available.
                 _menuPool.ProcessControl();
                 _menuPool.Draw();
+                EnableGameplayControls();
                 DisableMenuNavigationControls();
-                EnableCameraControls();
             }
 
             if (_rebuildMenuRequested)
@@ -174,19 +176,13 @@ namespace AvernesTreiner
             }
         }
 
-        private void EnableCameraControls()
+        private void EnableGameplayControls()
         {
-            // NativeUI can suppress look input even when ControlDisablingEnabled is false.
-            // Re-enable the two camera axes in all gameplay input groups after menu processing.
-            int[] cameraControls = new int[] { 1, 2 };
-            int[] inputGroups = new int[] { 0, 1, 2 };
-            for (int g = 0; g < inputGroups.Length; g++)
-            {
-                for (int c = 0; c < cameraControls.Length; c++)
-                {
-                    Function.Call(Hash.ENABLE_CONTROL_ACTION, inputGroups[g], cameraControls[c]);
-                }
-            }
+            // NativeUI has already consumed menu navigation for this frame.
+            // Re-enable normal gameplay input, then suppress only controls reserved
+            // for the trainer menu so keys are not processed by both systems.
+            for (int inputGroup = 0; inputGroup <= 2; inputGroup++)
+                Function.Call(Hash.ENABLE_ALL_CONTROL_ACTIONS, inputGroup);
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
