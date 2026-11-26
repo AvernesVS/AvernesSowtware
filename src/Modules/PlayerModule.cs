@@ -39,19 +39,14 @@ namespace AvernesTreiner.Modules
         private static int _franklinModelHash = 0;
         private static int _trevorModelHash = 0;
         private static readonly string[] CharacterStatPrefixes = new string[] { "SP0_", "SP1_", "SP2_" };
-        // These are the Story Mode stat identifiers used by Rockstar's stats_controller.
-        // "DRIVING_ABILITY" and "SPECIAL_ABILITY" are not the protagonist skill stat names:
-        // the driving bar is WHEELIE_ABILITY and the special bar uses SPECIAL_ABILITY_UNLOCKED.
+        // Story Mode protagonist skill stats. SPECIAL_ABILITY is the skill bar;
+        // SPECIAL_ABILITY_UNLOCKED is only an unlock flag and is not a skill value.
         private static readonly string[] MaxSkillStatNames = new string[]
         {
-            "SPECIAL_ABILITY_UNLOCKED", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
+            "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
             "WHEELIE_ABILITY", "FLYING_ABILITY", "SHOOTING_ABILITY", "STEALTH_ABILITY"
         };
-        private static readonly string[] MaxSkillMaxedStatNames = new string[]
-        {
-            "SPECIAL_ABILITY_MAXED", "STAMINA_MAXED", "STRENGTH_MAXED", "LUNG_CAPACITY_MAXED",
-            "WHEELIE_ABILITY_MAXED", "FLYING_ABILITY_MAXED", "SHOOTING_ABILITY_MAXED", "STEALTH_ABILITY_MAXED"
-        };
+        private int _lastActiveStatsApplyTime = 0;
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
         private int _lastMaintenanceTime = 0;
@@ -292,17 +287,6 @@ namespace AvernesTreiner.Modules
                     bool readBack = Function.Call<bool>(Hash.STAT_GET_INT, statHash, statValue, -1);
                     if (readBack && statValue.GetResult<int>() >= 100) verified++;
                 }
-
-                // Story Mode also maintains a separate maxed flag for each skill.
-                int maxedHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + MaxSkillMaxedStatNames[statIndex]);
-                if (Function.Call<bool>(Hash.STAT_SET_BOOL, maxedHash, true, true))
-                    updated++;
-
-                using (OutputArgument maxedValue = new OutputArgument())
-                {
-                    bool maxedReadBack = Function.Call<bool>(Hash.STAT_GET_BOOL, maxedHash, maxedValue, -1);
-                    if (maxedReadBack && maxedValue.GetResult<bool>()) verified++;
-                }
             }
         }
 
@@ -322,7 +306,9 @@ namespace AvernesTreiner.Modules
 
             _lastStatsPedHandle = 0;
             _lastStatsModelHash = 0;
-            UI.Notify("~g~Max stats applied to all 3 heroes. Verified: " + verified + "/48; active hero will be reapplied.");
+            _lastActiveStatsApplyTime = 0;
+            _lastActiveStatsApplyTime = 0;
+            UI.Notify("~g~Max stats applied to all 3 heroes. Verified: " + verified + "/24; active hero will be maintained.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
@@ -439,7 +425,9 @@ namespace AvernesTreiner.Modules
             }
 
             if (_maxStatsEnabled &&
-                (player.Handle != _lastStatsPedHandle || _currentPlayerModelHash != _lastStatsModelHash))
+                (player.Handle != _lastStatsPedHandle ||
+                 _currentPlayerModelHash != _lastStatsModelHash ||
+                 now - _lastActiveStatsApplyTime >= 1000))
             {
                 string activePrefix = GetCharacterStatPrefix(_currentPlayerModelHash);
                 if (!string.IsNullOrEmpty(activePrefix))
@@ -449,6 +437,7 @@ namespace AvernesTreiner.Modules
                     ApplyStatsForPrefix(activePrefix, ref activeUpdated, ref activeVerified);
                     _lastStatsPedHandle = player.Handle;
                     _lastStatsModelHash = _currentPlayerModelHash;
+                    _lastActiveStatsApplyTime = now;
                 }
             }
 
