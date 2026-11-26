@@ -266,18 +266,9 @@ namespace AvernesTreiner.Modules
                         ? clip.GetResult<int>() : -1;
                 }
 
-                foreach (WeaponComponent componentEnum in Enum.GetValues(typeof(WeaponComponent)))
-                {
-                    uint componentHash = (uint)componentEnum;
-                    if (componentHash == 0) continue;
-                    try
-                    {
-                        if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, componentHash) &&
-                            Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT, player.Handle, weaponHash, componentHash))
-                            entry.Components.Add(componentHash);
-                    }
-                    catch { }
-                }
+                // The game normally persists weapon components itself. Keep this
+                // snapshot focused on ownership, ammo and tint to avoid thousands of
+                // component-probe natives during periodic inventory saves.
                 snapshot.Weapons.Add(entry);
             }
             return snapshot;
@@ -298,16 +289,6 @@ namespace AvernesTreiner.Modules
                     hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
                 }
                 if (!hasWeapon) continue;
-
-                if (entry.Components != null)
-                {
-                    for (int componentIndex = 0; componentIndex < entry.Components.Count; componentIndex++)
-                    {
-                        uint componentHash = entry.Components[componentIndex];
-                        if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT, player.Handle, weaponHash, componentHash))
-                            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED, player.Handle, weaponHash, componentHash);
-                    }
-                }
 
                 Function.Call(Hash.SET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash, entry.Tint);
                 int currentAmmo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
