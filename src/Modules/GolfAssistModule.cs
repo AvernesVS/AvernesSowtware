@@ -31,7 +31,8 @@ namespace AvernesTreiner.Modules
             0xAF0E3F9Fu, // prop_golf_ball
             0x605A3DA9u, // prop_golf_ball_p2
             0xD5362763u, // prop_golf_ball_p3
-            0xC593081Du  // prop_golf_ball_p4
+            0xC593081Du, // prop_golf_ball_p4
+            0xB5E60C50u  // prop_golf_ball_tee
         };
         private const uint GolfFlagModel = 0x8C60CCE5u; // prop_golfflag
         private const ulong GetClosestObjectOfTypeNative = 0xE143FA2249364369UL;
@@ -88,13 +89,19 @@ namespace AvernesTreiner.Modules
             if (!_enabled) return;
 
             int now = Game.GameTime;
-            if (now - _lastScanTime >= 250 || !_targetValid)
+            if (now - _lastScanTime >= 250)
             {
                 _lastScanTime = now;
                 _targetValid = TryFindGolfTarget();
             }
 
             if (!_targetValid) return;
+            if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, _ballHandle) ||
+                !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, _flagHandle))
+            {
+                _targetValid = false;
+                return;
+            }
 
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists() || player.IsInVehicle() || player.IsDead)
