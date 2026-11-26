@@ -28,7 +28,6 @@ namespace AvernesTreiner.Modules
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
         private bool _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
         private bool _maxStatsEnabled = ConfigManager.GetBool("Player", "MaxAllStatsEnabled", false);
-        private bool _statsControllerTerminationAttempted;
         private int _lastSpecialAbilityRefillTime = 0;
         private int _lastPlayerModelCheckTime = 0;
         private int _lastObservedPedHandle = 0;
@@ -48,11 +47,6 @@ namespace AvernesTreiner.Modules
         {
             "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
             "WHEELIE_ABILITY", "FLYING_ABILITY", "SHOOTING_ABILITY", "STEALTH_ABILITY"
-        };
-        private static readonly string[] MaxSkillMaxedStatNames = new string[]
-        {
-            "SPECIAL_ABILITY_MAXED", "STAMINA_MAXED", "STRENGTH_MAXED", "LUNG_CAPACITY_MAXED",
-            "WHEELIE_ABILITY_MAXED", "FLYING_ABILITY_MAXED", "SHOOTING_ABILITY_MAXED", "STEALTH_ABILITY_MAXED"
         };
         private bool _isInvisible = ConfigManager.GetBool("Player", "Invisibility", false);
         private bool _mobileRadio = ConfigManager.GetBool("Player", "MobileRadio", false);
@@ -283,101 +277,51 @@ namespace AvernesTreiner.Modules
 
         private void ApplyStatsForPrefix(string prefix, ref int updated, ref int verified)
         {
-            // SPECIAL_ABILITY_UNLOCKED is separate from the visible Special skill value.
-            int unlockHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + "SPECIAL_ABILITY_UNLOCKED");
-            int unlockValue = 0;
-            bool unlockRead = false;
-            using (OutputArgument unlockOutput = new OutputArgument())
-            {
-                unlockRead = Function.Call<bool>(Hash.STAT_GET_INT, unlockHash, unlockOutput, -1);
-                if (unlockRead) unlockValue = unlockOutput.GetResult<int>();
-            }
-            if (!unlockRead || unlockValue < 100)
-            {
-                if (Function.Call<bool>(Hash.STAT_SET_INT, unlockHash, 100, true))
-                    updated++;
-            }
-
+            // Story Mode keeps a separate integer stat for each skill and protagonist.
+            // Write all eight values directly on every refresh instead of trusting a cached
+            // read or stopping Rockstar scripts; those approaches did not reliably update
+            // the affected protagonist skill bars in the user's Legacy build.
             for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
             {
-                int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + MaxSkillStatNames[statIndex]);
-                int currentStat = 0;
-                bool statRead = false;
-                using (OutputArgument currentValue = new OutputArgument())
-                {
-                    statRead = Function.Call<bool>(Hash.STAT_GET_INT, statHash, currentValue, -1);
-                    if (statRead) currentStat = currentValue.GetResult<int>();
-                }
+                int statHash = Function.Call<int>(Hash.GET_HASH_KEY,
+                    prefix + MaxSkillStatNames[statIndex]);
 
-                // Re-write only values that are not maxed. The game can reload individual
-                // protagonist stats after a character swap, death or streamed save update.
-                if (!statRead || currentStat < 100)
+                bool readBackAtMaximum = false;
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
                     if (Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true))
                         updated++;
+
+                    using (OutputArgument statValue = new OutputArgument())
+                    {
+                        bool readBack = Function.Call<bool>(Hash.STAT_GET_INT,
+                            statHash, statValue, -1);
+                        if (readBack && statValue.GetResult<int>() >= 100)
+                        {
+                            readBackAtMaximum = true;
+                            break;
+                        }
+                    }
                 }
 
-                using (OutputArgument statValue = new OutputArgument())
-                {
-                    bool readBack = Function.Call<bool>(Hash.STAT_GET_INT, statHash, statValue, -1);
-                    if (readBack && statValue.GetResult<int>() >= 100) verified++;
-                }
-
-                int maxedHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + MaxSkillMaxedStatNames[statIndex]);
-                bool maxedBefore = false;
-                bool maxedRead = false;
-                using (OutputArgument currentMaxed = new OutputArgument())
-                {
-                    maxedRead = Function.Call<bool>(Hash.STAT_GET_BOOL, maxedHash, currentMaxed, -1);
-                    if (maxedRead) maxedBefore = currentMaxed.GetResult<bool>();
-                }
-                if (!maxedRead || !maxedBefore)
-                {
-                    if (Function.Call<bool>(Hash.STAT_SET_BOOL, maxedHash, true, true))
-                        updated++;
-                }
-
-                using (OutputArgument maxedValue = new OutputArgument())
-                {
-                    bool maxedReadBack = Function.Call<bool>(Hash.STAT_GET_BOOL, maxedHash, maxedValue, -1);
-                    if (maxedReadBack && maxedValue.GetResult<bool>()) verified++;
-                }
+                if (readBackAtMaximum) verified++;
             }
         }
 
         private void MaxAllCharacterStats()
         {
             _maxStatsEnabled = true;
-            DisableStatsControllerIfLoaded();
             ConfigManager.SetBool("Player", "MaxAllStatsEnabled", true);
 
             int updated = 0;
             int verified = 0;
-
-            // Write all three Story Mode slots. The active protagonist is also
-            // reapplied after startup and every character/model switch because
-            // Story Mode may only refresh the currently loaded protagonist slot.
             for (int characterIndex = 0; characterIndex < CharacterStatPrefixes.Length; characterIndex++)
                 ApplyStatsForPrefix(CharacterStatPrefixes[characterIndex], ref updated, ref verified);
 
             _lastStatsPedHandle = 0;
             _lastStatsModelHash = 0;
             _lastAllStatsRefreshTime = 0;
-            UI.Notify("~g~Max stats applied to all 3 heroes. Verified: " + verified + "/48; active hero will be reapplied.");
-        }
-
-        private void DisableStatsControllerIfLoaded()
-        {
-            if (_statsControllerTerminationAttempted) return;
-
-            // Rockstar's stats_controller can restore protagonist skill values from its
-            // cached state. Stop it while Max All Character Stats is active.
-            if (!Function.Call<bool>(Hash.HAS_SCRIPT_LOADED, "stats_controller")) return;
-
-            Function.Call(Hash.TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME, "stats_controller");
-            _statsControllerTerminationAttempted = true;
-            UI.Notify(Localization.Get("Player", "StatsControllerStopped",
-                "GTA V's skill controller was stopped for this session. Restart the game to restore normal skill progression."));
+            UI.Notify("~g~Max stats applied. Verified skills: " + verified + "/24.");
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
@@ -494,12 +438,11 @@ namespace AvernesTreiner.Modules
                 EnsureCharacterModelHashes();
             }
 
-            // Story Mode can overwrite skill values while protagonist data is reloaded.
-            // Re-check all three slots every second and repair only values the game has reset.
+            // Reapply all three protagonist stat slots once per second. Values are written
+            // unconditionally so stale stat reads cannot suppress a required correction.
             if (_maxStatsEnabled && now - _lastAllStatsRefreshTime >= 1000)
             {
                 _lastAllStatsRefreshTime = now;
-                DisableStatsControllerIfLoaded();
                 int allUpdated = 0;
                 int allVerified = 0;
                 for (int i = 0; i < CharacterStatPrefixes.Length; i++)
