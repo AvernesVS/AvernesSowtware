@@ -172,7 +172,7 @@ namespace AvernesTreiner.Modules
 
             // Mk II magazines use the currently selected ammo-type hash, not the
             // weapon's default ammo pool. This also works for ordinary weapons.
-            uint ammoTypeHash = Function.Call<uint>(Hash.GET_PED_AMMO_TYPE_FROM_WEAPON, player.Handle, weaponHash);
+            uint ammoTypeHash = Function.Call<uint>((Hash)0x7FEAD38B326B9F74, player.Handle, weaponHash);
             if (ammoTypeHash == 0) return;
 
             int maxAmmo = 0;
@@ -191,7 +191,7 @@ namespace AvernesTreiner.Modules
                 // ADD creates the ammo-type pool when it does not exist yet;
                 // SET then keeps an existing pool at its supported maximum.
                 if (currentAmmo <= 0)
-                    Function.Call(Hash.ADD_PED_AMMO_BY_TYPE, player.Handle, ammoTypeHash, maxAmmo);
+                    Function.Call((Hash)0x2472622CE1F2D45F, player.Handle, ammoTypeHash, maxAmmo);
                 else
                     Function.Call(Hash.SET_PED_AMMO_BY_TYPE, player.Handle, ammoTypeHash, maxAmmo);
             }
@@ -208,7 +208,7 @@ namespace AvernesTreiner.Modules
                     {
                         _lastForcedReloadTime = now;
                         if (Function.Call<bool>(Hash.MAKE_PED_RELOAD, player.Handle))
-                            Function.Call(Hash.REFILL_AMMO_INSTANTLY, player.Handle);
+                            Function.Call((Hash)0x8C0D57EA686FAD87, player.Handle);
                     }
                 }
             }
