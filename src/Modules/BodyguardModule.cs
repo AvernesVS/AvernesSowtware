@@ -369,7 +369,7 @@ namespace AvernesTreiner.Modules
 
         private void MaintainBodyguardFollow(Ped player, bool force)
         {
-            if (!_followOrdersActive || player == null || !player.Exists() || !player.IsOnFoot) return;
+            if (!_followOrdersActive || player == null || !player.Exists() || player.IsInVehicle()) return;
             int now = Game.GameTime;
             if (!force && now - _lastFollowMaintenanceTime < 3000) return;
             _lastFollowMaintenanceTime = now;
