@@ -29,9 +29,23 @@ namespace AvernesTreiner.Modules
         private int _lastClipRefreshTime = 0;
         private int _lastWeaponPedHandle = 0;
         private int _lastForcedReloadTime = 0;
+        private readonly Dictionary<string, WeaponInventoryData> _savedInventories =
+            new Dictionary<string, WeaponInventoryData>(StringComparer.OrdinalIgnoreCase);
+        private string _lastInventoryJson = string.Empty;
+        private int _lastInventoryPedHandle;
+        private int _lastInventoryModelHash;
+        private int _lastInventorySnapshotTime;
+        private int _restoreInventoryAt;
+        private bool _inventoryRestorePending;
+        private bool _inventoryFileLoaded;
+        private static string WeaponInventoryPath
+        {
+            get { return Path.Combine(ConfigManager.UserDataDirectoryPath, "WeaponInventory.json"); }
+        }
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
+            LoadWeaponInventories();
             var weapMenu = menuPool.AddSubMenu(mainMenu, Localization.Get("General", "SubmenuWeapons", "Weapons & Ammo"));
 
             // Give All Weapons
@@ -151,6 +165,201 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
         }
 
+        private static string GetInventorySlot(int modelHash)
+        {
+            int michael = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
+            int franklin = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
+            int trevor = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
+            if (modelHash == michael) return "SP0";
+            if (modelHash == franklin) return "SP1";
+            if (modelHash == trevor) return "SP2";
+            return null;
+        }
+
+        private void LoadWeaponInventories()
+        {
+            if (_inventoryFileLoaded) return;
+            _inventoryFileLoaded = true;
+            try
+            {
+                string directory = Path.GetDirectoryName(WeaponInventoryPath);
+                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                if (!File.Exists(WeaponInventoryPath)) return;
+
+                string json = File.ReadAllText(WeaponInventoryPath);
+                var loaded = new JavaScriptSerializer().Deserialize<Dictionary<string, WeaponInventoryData>>(json);
+                if (loaded != null)
+                {
+                    foreach (var pair in loaded)
+                    {
+                        if (pair.Value != null &&
+                            (pair.Key == "SP0" || pair.Key == "SP1" || pair.Key == "SP2"))
+                            _savedInventories[pair.Key] = pair.Value;
+                    }
+                }
+                _lastInventoryJson = json;
+            }
+            catch
+            {
+                // A damaged optional inventory file must never prevent the trainer from loading.
+                _savedInventories.Clear();
+                _lastInventoryJson = string.Empty;
+            }
+        }
+
+        private bool SaveWeaponInventories()
+        {
+            try
+            {
+                string json = new JavaScriptSerializer().Serialize(_savedInventories);
+                if (string.Equals(json, _lastInventoryJson, StringComparison.Ordinal)) return true;
+
+                string directory = Path.GetDirectoryName(WeaponInventoryPath);
+                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                string tempPath = WeaponInventoryPath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                if (File.Exists(WeaponInventoryPath))
+                {
+                    string backupPath = WeaponInventoryPath + ".bak";
+                    File.Replace(tempPath, WeaponInventoryPath, backupPath);
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                }
+                else
+                {
+                    File.Move(tempPath, WeaponInventoryPath);
+                }
+                _lastInventoryJson = json;
+                return true;
+            }
+            catch
+            {
+                try
+                {
+                    string tempPath = WeaponInventoryPath + ".tmp";
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                }
+                catch { }
+                return false;
+            }
+        }
+
+        private WeaponInventoryData CaptureWeaponInventory(Ped player)
+        {
+            WeaponInventoryData snapshot = new WeaponInventoryData();
+            snapshot.SelectedWeapon = Function.Call<uint>(Hash.GET_SELECTED_PED_WEAPON, player.Handle);
+            HashSet<uint> seenWeapons = new HashSet<uint>();
+            foreach (WeaponHash weaponEnum in Enum.GetValues(typeof(WeaponHash)))
+            {
+                uint weaponHash = (uint)weaponEnum;
+                if (weaponHash == 0 || !seenWeapons.Add(weaponHash)) continue;
+                if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false))
+                    continue;
+
+                WeaponInventoryEntry entry = new WeaponInventoryEntry();
+                entry.WeaponHash = weaponHash;
+                entry.Ammo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
+                entry.Tint = Function.Call<int>(Hash.GET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash);
+                using (OutputArgument clip = new OutputArgument())
+                {
+                    entry.ClipAmmo = Function.Call<bool>(Hash.GET_AMMO_IN_CLIP, player.Handle, weaponHash, clip)
+                        ? clip.GetResult<int>() : -1;
+                }
+
+                foreach (WeaponComponent componentEnum in Enum.GetValues(typeof(WeaponComponent)))
+                {
+                    uint componentHash = (uint)componentEnum;
+                    if (componentHash == 0) continue;
+                    try
+                    {
+                        if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT, weaponHash, componentHash) &&
+                            Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT, player.Handle, weaponHash, componentHash))
+                            entry.Components.Add(componentHash);
+                    }
+                    catch { }
+                }
+                snapshot.Weapons.Add(entry);
+            }
+            return snapshot;
+        }
+
+        private void RestoreWeaponInventory(Ped player, WeaponInventoryData snapshot)
+        {
+            if (snapshot == null || snapshot.Weapons == null) return;
+            for (int i = 0; i < snapshot.Weapons.Count; i++)
+            {
+                WeaponInventoryEntry entry = snapshot.Weapons[i];
+                if (entry == null || entry.WeaponHash == 0) continue;
+                uint weaponHash = entry.WeaponHash;
+                bool hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                if (!hasWeapon)
+                {
+                    Function.Call(Hash.GIVE_WEAPON_TO_PED, player.Handle, weaponHash, Math.Max(0, entry.Ammo), false, false);
+                    hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                }
+                if (!hasWeapon) continue;
+
+                if (entry.Components != null)
+                {
+                    for (int componentIndex = 0; componentIndex < entry.Components.Count; componentIndex++)
+                    {
+                        uint componentHash = entry.Components[componentIndex];
+                        if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT, player.Handle, weaponHash, componentHash))
+                            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED, player.Handle, weaponHash, componentHash);
+                    }
+                }
+
+                Function.Call(Hash.SET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash, entry.Tint);
+                int currentAmmo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
+                if (entry.Ammo > currentAmmo)
+                    Function.Call(Hash.SET_PED_AMMO, player.Handle, weaponHash, entry.Ammo, false);
+
+                uint ammoType = Function.Call<uint>((Hash)0x7FEAD38B326B9F74, player.Handle, weaponHash);
+                if (ammoType != 0 && entry.Ammo > Function.Call<int>(Hash.GET_PED_AMMO_BY_TYPE, player.Handle, ammoType))
+                    Function.Call(Hash.SET_PED_AMMO_BY_TYPE, player.Handle, ammoType, entry.Ammo);
+
+                if (entry.ClipAmmo >= 0)
+                    Function.Call(Hash.SET_AMMO_IN_CLIP, player.Handle, weaponHash, entry.ClipAmmo);
+            }
+
+            if (snapshot.SelectedWeapon != 0 &&
+                Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, snapshot.SelectedWeapon, false))
+                Function.Call(Hash.SET_CURRENT_PED_WEAPON, player.Handle, snapshot.SelectedWeapon, true);
+        }
+
+        private void MaintainStoryModeWeaponInventory(Ped player, int now)
+        {
+            if (!_inventoryFileLoaded) LoadWeaponInventories();
+            int modelHash = Function.Call<int>(Hash.GET_ENTITY_MODEL, player.Handle);
+            string slot = GetInventorySlot(modelHash);
+            if (slot == null) return;
+
+            if (player.Handle != _lastInventoryPedHandle || modelHash != _lastInventoryModelHash)
+            {
+                _lastInventoryPedHandle = player.Handle;
+                _lastInventoryModelHash = modelHash;
+                _inventoryRestorePending = true;
+                _restoreInventoryAt = now + 2500;
+                _lastInventorySnapshotTime = now;
+            }
+
+            if (_inventoryRestorePending && now >= _restoreInventoryAt)
+            {
+                WeaponInventoryData saved;
+                if (_savedInventories.TryGetValue(slot, out saved))
+                    RestoreWeaponInventory(player, saved);
+                _inventoryRestorePending = false;
+                _lastInventorySnapshotTime = now;
+                return;
+            }
+
+            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 2000)
+            {
+                _lastInventorySnapshotTime = now;
+                _savedInventories[slot] = CaptureWeaponInventory(player);
+                SaveWeaponInventories();
+            }
+        }
+
         public void ReloadSettings()
         {
             _infiniteAmmo = ConfigManager.GetBool("Weapons", "InfiniteAmmo", false);
@@ -218,6 +427,10 @@ namespace AvernesTreiner.Modules
 
         public void OnTick()
         {
+            Ped inventoryPlayer = Game.Player.Character;
+            if (inventoryPlayer != null && inventoryPlayer.Exists())
+                MaintainStoryModeWeaponInventory(inventoryPlayer, Game.GameTime);
+
             bool needsUpdate = _infiniteAmmo || _infiniteClip || _explosiveAmmo || _fireAmmo || _superDamage ||
                                _teleportGun || _forceGun || _rpgAmmo;
             if (!needsUpdate) return;
@@ -268,5 +481,20 @@ namespace AvernesTreiner.Modules
                 }
             }
         }
+    }
+
+    public class WeaponInventoryData
+    {
+        public uint SelectedWeapon;
+        public List<WeaponInventoryEntry> Weapons = new List<WeaponInventoryEntry>();
+    }
+
+    public class WeaponInventoryEntry
+    {
+        public uint WeaponHash;
+        public int Ammo;
+        public int ClipAmmo;
+        public int Tint;
+        public List<uint> Components = new List<uint>();
     }
 }
