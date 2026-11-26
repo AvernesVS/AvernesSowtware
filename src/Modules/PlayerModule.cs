@@ -45,7 +45,7 @@ namespace AvernesTreiner.Modules
         // the driving bar is WHEELIE_ABILITY and the special bar uses SPECIAL_ABILITY_UNLOCKED.
         private static readonly string[] MaxSkillStatNames = new string[]
         {
-            "SPECIAL_ABILITY_UNLOCKED", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
+            "SPECIAL_ABILITY", "STAMINA", "STRENGTH", "LUNG_CAPACITY",
             "WHEELIE_ABILITY", "FLYING_ABILITY", "SHOOTING_ABILITY", "STEALTH_ABILITY"
         };
         private static readonly string[] MaxSkillMaxedStatNames = new string[]
@@ -282,11 +282,39 @@ namespace AvernesTreiner.Modules
 
         private void ApplyStatsForPrefix(string prefix, ref int updated, ref int verified)
         {
+            // SPECIAL_ABILITY_UNLOCKED is separate from the visible Special skill value.
+            int unlockHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + "SPECIAL_ABILITY_UNLOCKED");
+            int unlockValue = 0;
+            bool unlockRead = false;
+            using (OutputArgument unlockOutput = new OutputArgument())
+            {
+                unlockRead = Function.Call<bool>(Hash.STAT_GET_INT, unlockHash, unlockOutput, -1);
+                if (unlockRead) unlockValue = unlockOutput.GetResult<int>();
+            }
+            if (!unlockRead || unlockValue < 100)
+            {
+                if (Function.Call<bool>(Hash.STAT_SET_INT, unlockHash, 100, true))
+                    updated++;
+            }
+
             for (int statIndex = 0; statIndex < MaxSkillStatNames.Length; statIndex++)
             {
                 int statHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + MaxSkillStatNames[statIndex]);
-                if (Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true))
-                    updated++;
+                int currentStat = 0;
+                bool statRead = false;
+                using (OutputArgument currentValue = new OutputArgument())
+                {
+                    statRead = Function.Call<bool>(Hash.STAT_GET_INT, statHash, currentValue, -1);
+                    if (statRead) currentStat = currentValue.GetResult<int>();
+                }
+
+                // Re-write only values that are not maxed. The game can reload individual
+                // protagonist stats after a character swap, death or streamed save update.
+                if (!statRead || currentStat < 100)
+                {
+                    if (Function.Call<bool>(Hash.STAT_SET_INT, statHash, 100, true))
+                        updated++;
+                }
 
                 using (OutputArgument statValue = new OutputArgument())
                 {
@@ -294,10 +322,19 @@ namespace AvernesTreiner.Modules
                     if (readBack && statValue.GetResult<int>() >= 100) verified++;
                 }
 
-                // Story Mode also maintains a separate maxed flag for each skill.
                 int maxedHash = Function.Call<int>(Hash.GET_HASH_KEY, prefix + MaxSkillMaxedStatNames[statIndex]);
-                if (Function.Call<bool>(Hash.STAT_SET_BOOL, maxedHash, true, true))
-                    updated++;
+                bool maxedBefore = false;
+                bool maxedRead = false;
+                using (OutputArgument currentMaxed = new OutputArgument())
+                {
+                    maxedRead = Function.Call<bool>(Hash.STAT_GET_BOOL, maxedHash, currentMaxed, -1);
+                    if (maxedRead) maxedBefore = currentMaxed.GetResult<bool>();
+                }
+                if (!maxedRead || !maxedBefore)
+                {
+                    if (Function.Call<bool>(Hash.STAT_SET_BOOL, maxedHash, true, true))
+                        updated++;
+                }
 
                 using (OutputArgument maxedValue = new OutputArgument())
                 {
@@ -442,8 +479,8 @@ namespace AvernesTreiner.Modules
             }
 
             // Story Mode can overwrite skill values while protagonist data is reloaded.
-            // Re-assert all three slots periodically, not only after model changes.
-            if (_maxStatsEnabled && now - _lastAllStatsRefreshTime >= 5000)
+            // Re-check all three slots every second and repair only values the game has reset.
+            if (_maxStatsEnabled && now - _lastAllStatsRefreshTime >= 1000)
             {
                 _lastAllStatsRefreshTime = now;
                 int allUpdated = 0;

@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.2
+# AvernesTreiner v0.9.3
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,14 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.3 fixes and changes
+- Golf advice now reports horizontal ball-to-pin distance, elevation and a clearly approximate club class. It no longer invents a shot-power percentage; the game's yellow target zone remains the source for actual power.
+- Max All Character Stats now writes the actual Special skill stat separately from the Special Ability unlock stat, and rechecks all three protagonists every second while repairing only values that are no longer maxed.
+- Weapon inventory data uses settable JSON properties, recovers from a backup file, retains a previous valid inventory backup and snapshots the active protagonist's inventory more frequently.
+- Installer migration now includes `WeaponInventory.json`, preserving DLC weapon inventory data from older game-local folders and backup folders.
+- Installer, uninstaller, README and runtime version markers identify this release as 0.9.3.
+- Automated build/resource/package checks are required; GTA V Legacy behavior still needs in-game testing.
 
 ## v0.9.2 fixes and changes
 - Max All Character Stats now uses the Story Mode protagonist stat identifiers, including the Driving skill's internal `WHEELIE_ABILITY` stat, and sets the game's per-skill maxed flags for Michael, Franklin and Trevor.
@@ -146,12 +154,4 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This development branch targets version **0.9.1**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
-
-
-## v0.9.2 work in progress
-- Block the PC phone-open input while the trainer menu is active.
-- Reapply maximum Story Mode skill values for all three protagonists periodically to counter protagonist stat reloads.
-- Add an optional golf shot advisor that detects nearby golf ball and hole-flag props and estimates club choice and power. It is advisory only and does not perform the swing.
-- Requires build verification and in-game testing; golf shot estimates are approximate.
