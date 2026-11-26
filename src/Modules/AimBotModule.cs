@@ -15,6 +15,15 @@ namespace AvernesTreiner.Modules
         private const float MinimumAimDot = 0.76f;
         private const int AimControl = 25;
         private const int HeadBone = 31086;
+        private static readonly int[] RangeTargetModelHashes = new int[]
+        {
+            new Model("prop_range_target_01").Hash,
+            new Model("prop_range_target_02").Hash,
+            new Model("prop_range_target_03").Hash,
+            new Model("prop_range_target_04").Hash,
+            new Model("prop_range_target_05").Hash,
+            new Model("prop_range_target_06").Hash
+        };
         private const int ScanInterval = 100;
         private const float MaximumYawStep = 3.2f;
         private const float MaximumPitchStep = 2.4f;
@@ -101,7 +110,9 @@ namespace AvernesTreiner.Modules
             if (_targetHandle == 0 || now - _lastScanTime >= ScanInterval)
             {
                 _lastScanTime = now;
-                SetTarget(FindBestTarget(player));
+                bool isRangeTarget;
+                int nextTarget = FindBestTarget(player, out isRangeTarget);
+                SetTarget(nextTarget, isRangeTarget);
             }
 
             if (_targetHandle == 0) return;
@@ -151,7 +162,7 @@ namespace AvernesTreiner.Modules
             }
         }
 
-        private int FindBestTarget(Ped player)
+        private int FindBestTarget(Ped player, out bool isRangeObject)
         {
             Ped[] peds = World.GetAllPeds();
             Vector3 cameraPosition = Function.Call<Vector3>((Hash)0x14D6F5678D8F1B37);
@@ -224,7 +235,7 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            _targetIsRangeObject = bestIsRangeObject;
+            isRangeObject = bestIsRangeObject;
             return bestHandle;
         }
 
@@ -232,12 +243,9 @@ namespace AvernesTreiner.Modules
         {
             if (prop == null || !prop.Exists()) return false;
             int modelHash = prop.Model.Hash;
-            return modelHash == new Model("prop_range_target_01").Hash ||
-                modelHash == new Model("prop_range_target_02").Hash ||
-                modelHash == new Model("prop_range_target_03").Hash ||
-                modelHash == new Model("prop_range_target_04").Hash ||
-                modelHash == new Model("prop_range_target_05").Hash ||
-                modelHash == new Model("prop_range_target_06").Hash;
+            for (int i = 0; i < RangeTargetModelHashes.Length; i++)
+                if (modelHash == RangeTargetModelHashes[i]) return true;
+            return false;
         }
 
         private bool IsEnemy(Ped candidate, Ped player)
