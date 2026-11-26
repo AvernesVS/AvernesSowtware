@@ -20,9 +20,24 @@ namespace AvernesTreiner.Modules
             new Model("prop_range_target_01").Hash,
             new Model("prop_range_target_02").Hash,
             new Model("prop_range_target_03").Hash,
-            new Model("prop_range_target_04").Hash,
-            new Model("prop_range_target_05").Hash,
-            new Model("prop_range_target_06").Hash
+            new Model("prop_target_blue").Hash,
+            new Model("prop_target_red").Hash,
+            new Model("prop_target_bull").Hash,
+            new Model("prop_target_bull_b").Hash,
+            new Model("prop_target_red_blue_01").Hash,
+            new Model("prop_target_inner1").Hash,
+            new Model("prop_target_inner2").Hash,
+            new Model("prop_target_inner2_b").Hash,
+            new Model("prop_target_inner3").Hash,
+            new Model("prop_target_inner3_b").Hash,
+            new Model("prop_target_inner_b").Hash,
+            new Model("prop_target_ora_purp_01").Hash,
+            new Model("prop_target_oran_cross").Hash,
+            new Model("prop_target_orange_arrow").Hash,
+            new Model("prop_target_purp_arrow").Hash,
+            new Model("prop_target_purp_cross").Hash,
+            new Model("prop_target_red_arrow").Hash,
+            new Model("prop_target_red_cross").Hash
         };
         private const int ScanInterval = 100;
         private const float MaximumYawStep = 3.2f;
@@ -205,7 +220,22 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            // Ammu-Nation shooting-range targets are props, not peds. Only a narrow
+            // First test the exact crosshair ray. Some static range objects are not
+            // returned consistently by the SHVDN object-pool enumeration.
+            RaycastResult rangeRay = World.Raycast(GameplayCamera.Position, GameplayCamera.Direction,
+                MaximumRange, IntersectOptions.Everything, player);
+            if (rangeRay.DitHitEntity && rangeRay.HitEntity is Prop)
+            {
+                Prop rayTarget = (Prop)rangeRay.HitEntity;
+                if (IsRangeTarget(rayTarget))
+                {
+                    bestHandle = rayTarget.Handle;
+                    bestIsRangeObject = true;
+                    bestScore = 100.0f;
+                }
+            }
+
+            // Ammu-Nation shooting-range targets are props, not peds. Only a strict
             // model whitelist is eligible so Aim Bot cannot lock onto arbitrary scenery.
             Prop[] props = World.GetAllProps();
             for (int i = 0; i < props.Length; i++)

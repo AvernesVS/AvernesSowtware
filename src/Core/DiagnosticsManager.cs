@@ -44,6 +44,46 @@ namespace AvernesTreiner.Core
             public int SuppressedCount;
         }
 
+        private static void MigrateLegacyDiagnostics()
+        {
+            string legacyDirectory = Path.Combine(ConfigManager.UserDataDirectoryPath, "Diagnostics");
+            if (Directory.Exists(legacyDirectory))
+            {
+                foreach (string sourcePath in Directory.GetFiles(legacyDirectory))
+                {
+                    try
+                    {
+                        string destinationPath = Path.Combine(_diagnosticsDirectory, Path.GetFileName(sourcePath));
+                        if (!File.Exists(destinationPath)) File.Move(sourcePath, destinationPath);
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    if (Directory.GetFiles(legacyDirectory).Length == 0 &&
+                        Directory.GetDirectories(legacyDirectory).Length == 0)
+                        Directory.Delete(legacyDirectory, false);
+                }
+                catch { }
+            }
+
+            if (Directory.Exists(ConfigManager.UserDataDirectoryPath))
+            {
+                string archiveDirectory = Path.GetDirectoryName(_diagnosticsDirectory);
+                foreach (string sourcePath in Directory.GetFiles(ConfigManager.UserDataDirectoryPath,
+                    "AvernesTreiner-Diagnostics-*.zip"))
+                {
+                    try
+                    {
+                        string destinationPath = Path.Combine(archiveDirectory, Path.GetFileName(sourcePath));
+                        if (!File.Exists(destinationPath)) File.Move(sourcePath, destinationPath);
+                    }
+                    catch { }
+                }
+            }
+        }
+
         public static void Initialize()
         {
             if (_initialized) return;
@@ -57,11 +97,14 @@ namespace AvernesTreiner.Core
         {
             try
             {
-                _diagnosticsDirectory = Path.Combine(ConfigManager.UserDataDirectoryPath, "Diagnostics");
+                string scriptsDirectory = Path.GetDirectoryName(ConfigManager.RuntimeDirectoryPath);
+                string bagsDirectory = Path.Combine(scriptsDirectory, "AvermesBags");
+                _diagnosticsDirectory = Path.Combine(bagsDirectory, "Logs");
                 _logPath = Path.Combine(_diagnosticsDirectory, "AvernesTreiner.log");
                 _previousLogPath = Path.Combine(_diagnosticsDirectory, "AvernesTreiner.previous.log");
                 _sessionMarkerPath = Path.Combine(_diagnosticsDirectory, "Session.active");
                 Directory.CreateDirectory(_diagnosticsDirectory);
+                MigrateLegacyDiagnostics();
                 return true;
             }
             catch (Exception ex)
@@ -91,7 +134,7 @@ namespace AvernesTreiner.Core
                     new UTF8Encoding(false));
                 EnsureMonitoringHooks();
                 _sessionStarted = true;
-                LogInfo("System", "Diagnostics started. Buffer=256 entries; flush=5 seconds; log cap=2 MB per file.");
+                LogInfo("System", "Diagnostics started. Buffer=256 entries; flush=1 second; log cap=2 MB per file.");
                 Flush();
                 LastError = null;
             }
@@ -319,11 +362,11 @@ namespace AvernesTreiner.Core
                     "AvernesTreiner Diagnostics Report" + Environment.NewLine +
                     "Created UTC: " + DateTime.UtcNow.ToString("o") + Environment.NewLine +
                     "Buffer: maximum 256 entries" + Environment.NewLine +
-                    "Flush interval: 5 seconds" + Environment.NewLine +
+                    "Flush interval: 1 second" + Environment.NewLine +
                     "Current and previous log: maximum 2 MB each" + Environment.NewLine +
                     "No telemetry or automatic upload is performed." + Environment.NewLine,
                     Encoding.UTF8);
-                archivePath = Path.Combine(ConfigManager.UserDataDirectoryPath,
+                archivePath = Path.Combine(Path.GetDirectoryName(_diagnosticsDirectory),
                     "AvernesTreiner-Diagnostics-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip");
                 if (File.Exists(archivePath)) File.Delete(archivePath);
                 ZipFile.CreateFromDirectory(_diagnosticsDirectory, archivePath, CompressionLevel.Optimal, false);
@@ -436,7 +479,7 @@ namespace AvernesTreiner.Modules
 
             var exportItem = new UIMenuItem(
                 Localization.Get("Diagnostics", "Export", "Create diagnostics ZIP"),
-                Localization.Get("Diagnostics", "ExportDesc", "Creates a local ZIP report in Documents/AvernesTreiner."));
+                Localization.Get("Diagnostics", "ExportDesc", "Creates a local ZIP report in scripts/AvermesBags."));
             exportItem.Activated += (sender, selected) =>
             {
                 string archivePath;

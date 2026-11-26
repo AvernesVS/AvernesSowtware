@@ -367,12 +367,42 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        private void MaintainBodyguardVehicleEntry(Vehicle vehicle)
+        {
+            for (int i = 0; i < _bodyguards.Count; i++)
+            {
+                Ped guard = _bodyguards[i];
+                if (guard == null || !guard.Exists() || guard.IsDead ||
+                    Function.Call<bool>((Hash)0x4859F1FC66A6278E, guard.Handle, 0) ||
+                    guard.IsInVehicle() || guard.IsGettingIntoAVehicle)
+                    continue;
+
+                float dx = guard.Position.X - vehicle.Position.X;
+                float dy = guard.Position.Y - vehicle.Position.Y;
+                float dz = guard.Position.Z - vehicle.Position.Z;
+                if (dx * dx + dy * dy + dz * dz > 3600.0f) continue;
+
+                // Any selects a free passenger seat; never warp the bodyguard into the car.
+                guard.Task.EnterVehicle(vehicle, VehicleSeat.Any, 10000, 2.0f);
+                DiagnosticsManager.LogDetail("Bodyguards", "Ordered bodyguard into player's vehicle. Entity handle: " +
+                    guard.Handle + "; vehicle handle: " + vehicle.Handle + ".");
+            }
+        }
+
         private void MaintainBodyguardFollow(Ped player, bool force)
         {
-            if (!_followOrdersActive || player == null || !player.Exists() || player.IsInVehicle()) return;
+            if (!_followOrdersActive || player == null || !player.Exists()) return;
             int now = Game.GameTime;
             if (!force && now - _lastFollowMaintenanceTime < 3000) return;
             _lastFollowMaintenanceTime = now;
+
+            if (player.IsInVehicle())
+            {
+                Vehicle playerVehicle = player.CurrentVehicle;
+                if (playerVehicle != null && playerVehicle.Exists())
+                    MaintainBodyguardVehicleEntry(playerVehicle);
+                return;
+            }
 
             for (int i = 0; i < _bodyguards.Count; i++)
             {
