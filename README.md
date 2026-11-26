@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.0
+# AvernesTreiner v0.9.1
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -137,5 +137,5 @@ Default menu key: **F10**.
 - Auto Repair is an entry-time repair: a damaged vehicle is repaired once when entered, not continuously.
 - Give All Weapons grants every available weapon and immediately adds every attachment accepted by that weapon's compatibility check.
 
-This development branch targets version **0.9.0**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
+This development branch targets version **0.9.1**. The source and runtime resources are validated by GitHub Actions; in-game behavior still requires testing on the target GTA V Legacy installation.
 Original source: https://github.com/carlostmj/gta5-mods/tree/main/mods/YnixTrainer
