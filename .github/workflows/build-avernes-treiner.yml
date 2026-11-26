@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.9.3 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.9.4 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -44,7 +44,7 @@ jobs:
           New-Item -ItemType Directory -Path $build -Force | Out-Null
           $dll = Join-Path $build 'AvernesTreiner.dll'
           $sources = @(Get-ChildItem $src -Filter '*.cs' -Recurse -File | ForEach-Object { $_.FullName })
-          if ($sources.Count -ne 17) { throw "Expected 17 retained C# source files, found $($sources.Count)." }
+          if ($sources.Count -ne 18) { throw "Expected 18 retained C# source files, found $($sources.Count)." }
           $removedFeatureHits = Select-String -Path $sources -Pattern 'NoClip|No-Clip|SET_ENTITY_VELOCITY|SET_ENTITY_GRAVITY|SET_ENTITY_HAS_GRAVITY'
           if ($removedFeatureHits) { throw 'NoClip/Power-Vision code or related entity velocity/gravity calls remain.' }
           $references = @(
@@ -61,7 +61,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
-      - name: Validate resources and build v0.9.3 installer ZIP
+      - name: Validate resources and build v0.9.4 installer ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -70,7 +70,7 @@ jobs:
           $payload = Join-Path $stage 'files'
           $runtime = Join-Path $payload 'scripts\AvernesTreiner'
           $scripts = Join-Path $payload 'scripts'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.9.3-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.9.4-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           New-Item -ItemType Directory -Path $scripts -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
@@ -86,7 +86,7 @@ jobs:
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing installer file: $f" } }
           $english = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
           $russian = Get-Content (Join-Path $runtime 'Languages\ru-RU.ini') -Raw
-          if ($english -notmatch 'MenuSubtitle=v0.9.3' -or $russian -notmatch 'MenuSubtitle=v0.9.3') { throw 'Both language files must identify v0.9.3.' }
+          if ($english -notmatch 'MenuSubtitle=v0.9.4' -or $russian -notmatch 'MenuSubtitle=v0.9.4') { throw 'Both language files must identify v0.9.4.' }
           $englishKeys = [regex]::Matches($english, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $russianKeys = [regex]::Matches($russian, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $missingRussian = @($englishKeys | Where-Object { $_ -notin $russianKeys })
@@ -101,7 +101,7 @@ jobs:
           # Audit guard: the localization parser must preserve intentional suffix spaces.
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'rawLine\.TrimStart' -or $configSource -notmatch 'Substring\(separator \+ 1\)\.TrimStart\(\)') { throw 'Localization parser must preserve intentional trailing spaces in values.' }
-          if ($configSource -notmatch 'Version=v0.9.3' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
+          if ($configSource -notmatch 'Version=v0.9.4' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
@@ -113,7 +113,7 @@ jobs:
           if ($vehicleSource -notmatch '0x4E20D2A627011E8E' -or $vehicleSource -notmatch 'enabled \? 0\.0f : 1\.0f') { throw 'Vehicle God Mode damage-scale protection is missing.' }
           foreach ($cleanupToken in @('_vehicleDeletionQueue','ProcessNextVehicleDeletion','QueueVehicleDeletion','_protectedSavedVehicles','DOES_ENTITY_EXIST','GET_PED_IN_VEHICLE_SEAT','CleanupExplodedSpawnedVehicles','IS_ENTITY_DEAD','GET_VEHICLE_ENGINE_HEALTH')) { if ($vehicleSource -notmatch [regex]::Escape($cleanupToken)) { throw "Spawned vehicle cleanup verification missing: $cleanupToken" } }
           foreach ($radioToken in @('ActivateVehicleRadio','MaintainSpawnedVehicleRadio','SET_VEHICLE_RADIO_ENABLED','SET_VEH_RADIO_STATION','SET_VEHICLE_RADIO_LOUD','GET_PLAYER_RADIO_STATION_NAME')) { if ($vehicleSource -notmatch [regex]::Escape($radioToken)) { throw "Spawned vehicle radio initialization missing: $radioToken" } }
-          if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DISABLE_CONTROL_ACTION' -or $core -notmatch 'EnableGameplayControls' -or $core -notmatch 'ENABLE_ALL_CONTROL_ACTIONS') { throw 'Menu navigation/camera controls regression checks failed.' }
+          if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DisableFrontendPauseControl' -or $core -notmatch 'FrontendPause' -or $core -notmatch 'inputGroup <= 2' -or $core -notmatch 'DISABLE_CONTROL_ACTION' -or $core -notmatch 'EnableGameplayControls' -or $core -notmatch 'ENABLE_ALL_CONTROL_ACTIONS') { throw 'Escape pause/map suppression or menu navigation controls regression checks failed.' }
           $settingsSource = Get-Content (Join-Path $root 'src\Modules\SettingsModule.cs') -Raw
           if ($settingsSource -notmatch 'languageItem' -or $settingsSource -notmatch 'ConfigManager.Save' -or $settingsSource -notmatch 'Localization.LoadLanguage' -or $settingsSource -notmatch '_requestMenuRebuild' -or $settingsSource -match 'languageItem.Index\s*=|unitItem.Index\s*=') { throw 'Live language switching or safe settings reload behavior is missing.' }
           $teleportSource = Get-Content (Join-Path $root 'src\Modules\TeleportModule.cs') -Raw
@@ -122,22 +122,23 @@ jobs:
           if ($playerSource -notmatch 'SET_MAX_WANTED_LEVEL' -or $playerSource -notmatch 'CLEAR_PLAYER_WANTED_LEVEL' -or $playerSource -notmatch 'EnableNeverWanted' -or $playerSource -match '_copsIgnore|CopsIgnore') { throw 'Never Wanted regression checks failed or the redundant Cops Ignore feature remains.' }
           if ($playerSource -notmatch '_infiniteSpecialAbility' -or $playerSource -notmatch 'SPECIAL_ABILITY_FILL_METER' -or $playerSource -notmatch 'IS_SPECIAL_ABILITY_ACTIVE' -or $playerSource -notmatch 'IS_SPECIAL_ABILITY_METER_FULL' -or $playerSource -match 'SPECIAL_ABILITY_CHARGE_NORMALIZED|IS_PLAYER_FREE_AIMING|SET_PLAYER_SIMULATE_AIMING' -or $playerSource -notmatch 'SPECIAL_ABILITY_UNLOCK' -or $playerSource -notmatch 'InfiniteSpecialAbility') { throw 'Special ability refill must use meter fill/unlock only, without aiming simulation.' }
           foreach ($skill in @('SPECIAL_ABILITY','STAMINA','SHOOTING_ABILITY','STRENGTH','STEALTH_ABILITY','FLYING_ABILITY','WHEELIE_ABILITY','LUNG_CAPACITY')) { if ($playerSource -notmatch ('"' + [regex]::Escape($skill) + '"')) { throw "Max-stat skill missing: $skill" } }
-          foreach ($maxed in @('SPECIAL_ABILITY_MAXED','STAMINA_MAXED','SHOOTING_ABILITY_MAXED','STRENGTH_MAXED','STEALTH_ABILITY_MAXED','FLYING_ABILITY_MAXED','WHEELIE_ABILITY_MAXED','LUNG_CAPACITY_MAXED')) { if ($playerSource -notmatch ('"' + [regex]::Escape($maxed) + '"')) { throw "Max-stat completion flag missing: $maxed" } }
-          if ($playerSource -notmatch 'SP0_' -or $playerSource -notmatch 'SP1_' -or $playerSource -notmatch 'SP2_' -or $playerSource -notmatch 'CharacterStatPrefixes' -or $playerSource -notmatch 'STAT_SET_INT' -or $playerSource -notmatch 'STAT_GET_INT' -or $playerSource -notmatch 'STAT_SET_BOOL' -or $playerSource -notmatch 'STAT_GET_BOOL' -or $playerSource -notmatch 'OutputArgument' -or $playerSource -notmatch 'Hash.GET_HASH_KEY' -or $playerSource -notmatch 'GetCharacterStatPrefix' -or $playerSource -notmatch 'MaxAllStatsEnabled' -or $playerSource -notmatch 'GET_ENTITY_MODEL' -or $playerSource -notmatch 'true\);') { throw 'Max all character stats persistence and character-switch checks failed.' }
-          if ($playerSource -notmatch '"SPECIAL_ABILITY_UNLOCKED"' -or $playerSource -notmatch 'now - _lastAllStatsRefreshTime >= 1000' -or $playerSource -notmatch 'stats_controller' -or $playerSource -notmatch 'TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME' -or $playerSource -notmatch 'HAS_SCRIPT_LOADED') { throw 'Special unlock stat, stats-controller protection or one-second protagonist stat recovery is missing.' }
-          $golfSource = Get-Content (Join-Path $root 'src\Modules\GolfAssistModule.cs') -Raw
-          if ($golfSource -match 'distance / range \* 100\.0f' -or $golfSource -match 'power\.ToString' -or $golfSource -notmatch 'GolfPowerHint' -or $golfSource -notmatch 'GolfClubWedge') { throw 'Golf advisor must not emit the old guessed power percentage and must localize its safer guidance.' }
+          if ($playerSource -notmatch 'SP0_' -or $playerSource -notmatch 'SP1_' -or $playerSource -notmatch 'SP2_' -or $playerSource -notmatch 'CharacterStatPrefixes' -or $playerSource -notmatch 'STAT_SET_INT' -or $playerSource -notmatch 'STAT_GET_INT' -or $playerSource -notmatch 'OutputArgument' -or $playerSource -notmatch 'Hash.GET_HASH_KEY' -or $playerSource -notmatch 'MaxAllStatsEnabled' -or $playerSource -notmatch 'for \(int attempt = 0; attempt < 3; attempt\)' -or $playerSource -notmatch 'now - _lastAllStatsRefreshTime >= 1000') { throw 'Direct skill-stat writes, readback verification or periodic protagonist refresh is missing.' }
+          if ($playerSource -match 'stats_controller|TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME|STAT_SET_BOOL|SPECIAL_ABILITY_UNLOCKED') { throw 'Max stats must not terminate Rockstar scripts or write speculative completion/unlock flags.' }
+          $aimBotSource = Get-Content (Join-Path $root 'src\Modules\AimBotModule.cs') -Raw
+          foreach ($aimToken in @('GET_RELATIONSHIP_BETWEEN_PEDS','IS_PED_IN_COMBAT','GET_PED_TARGET_FROM_COMBAT_PED','GET_BLIP_FROM_ENTITY','GET_BLIP_COLOUR','HAS_ENTITY_CLEAR_LOS_TO_ENTITY','SET_GAMEPLAY_CAM_RELATIVE_HEADING','SET_GAMEPLAY_CAM_RELATIVE_PITCH','AimControl','AimBotEnabled')) { if ($aimBotSource -notmatch [regex]::Escape($aimToken)) { throw "Aim Bot targeting or camera assistance check missing: $aimToken" } }
+          if ($aimBotSource -match 'SET_PED_SHOOTS_AT_COORD|TASK_SHOOT_AT_ENTITY|SHOOT_SINGLE_BULLET') { throw 'Aim Bot must not fire weapons automatically.' }
+          if ($core -match 'GolfAssistModule|GolfAssistant') { throw 'Golf Assistant references remain in the trainer core.' }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
           if ($weaponSource -notmatch 'public uint WeaponHash \{ get; set; \}' -or $weaponSource -notmatch 'public List<WeaponInventoryEntry> Weapons \{ get; set; \}' -or $weaponSource -notmatch 'WeaponInventoryPath \+ ".bak"' -or $weaponSource -notmatch 'File.Copy\(candidate, WeaponInventoryPath, true\)') { throw 'Weapon inventory JSON round-trip or backup recovery is missing.' }
-          foreach ($languageFile in @($english, $russian)) { foreach ($key in @('GolfClubPutter','GolfClubWedge','GolfClubIron','GolfClubWood','GolfClubDriver','GolfUphill','GolfDownhill','GolfLevel','GolfPowerHint')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing golf advisor localization key: $key" } } }
+          foreach ($languageFile in @($english, $russian)) { foreach ($key in @('AimBotTitle','AimBotEnabled','AimBotEnabledDesc')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing Aim Bot localization key: $key" } } if ($languageFile -match 'Golf|Minigames') { throw 'Removed Golf Assistant localization remains.' } }
           foreach ($languageFile in @($english, $russian)) { foreach ($key in @('InfiniteSpecialAbility','InfiniteSpecialAbilityDesc','MaxAllStats','MaxAllStatsDesc','StatsControllerStopped','SavedVehicleNameEmpty','SavedVehicleNameDuplicate','DeleteSavedVehicle','DeleteSavedVehicleDesc','DeleteSavedVehiclePrompt','DeleteSavedVehicleCancelled','DeleteSavedVehicleFailed','SavedVehicleDeleted')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing localization key: $key" } } }
           foreach ($languageFile in @($english, $russian)) { if ($languageFile -match '(?m)^CopsIgnore(?:Desc)?=') { throw 'Removed Cops Ignore localization keys remain.' } }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
-          if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED') { throw 'Weapon attachment regression checks failed.' }
+          if ($weaponSource -notmatch 'DOES_WEAPON_TAKE_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GIVE_WEAPON_COMPONENT_TO_PED' -or $weaponSource -notmatch 'HAS_PED_GOT_WEAPON_COMPONENT' -or $weaponSource -notmatch 'GetCompatibleWeaponComponents' -or $weaponSource -notmatch 'ComponentTints' -or $weaponSource -notmatch '0xF0A60040BE558F2D' -or $weaponSource -notmatch '0x9FE5633880ECD8ED') { throw 'Weapon attachments, extended magazines or component camo colors are not persisted.' }
           if ($weaponSource -notmatch '_infiniteAmmo \|\| _infiniteClip' -or $weaponSource -notmatch 'characterChanged' -or $weaponSource -notmatch 'SET_PED_INFINITE_AMMO_CLIP') { throw 'Weapon ammo options must be reapplied to the active character.' }
           foreach ($ammoToken in @('GET_SELECTED_PED_WEAPON','GET_PED_AMMO_TYPE_FROM_WEAPON','GET_PED_AMMO_BY_TYPE','ADD_PED_AMMO_BY_TYPE','SET_PED_AMMO_BY_TYPE','0x585847C5E4E11709','GET_AMMO_IN_CLIP','MAKE_PED_RELOAD','REFILL_AMMO_INSTANTLY')) { if ($weaponSource -notmatch [regex]::Escape($ammoToken)) { throw "DLC/Mk II infinite ammo type handling missing: $ammoToken" } }
           if ($weaponSource -match 'player\.Weapons\.Current\.Ammo\s*=') { throw 'Infinite ammo must use the active ammo-type pool, not the base weapon ammo setter.' }
-          foreach ($inventoryToken in @('WeaponInventory.json','KnownWeaponHashes','MaintainStoryModeWeaponInventory','CaptureWeaponInventory','RestoreWeaponInventory','GIVE_WEAPON_TO_PED','HAS_PED_GOT_WEAPON','SET_PED_WEAPON_TINT_INDEX','SP0','SP1','SP2')) { if ($weaponSource -notmatch [regex]::Escape($inventoryToken)) { throw "Story Mode weapon persistence check missing: $inventoryToken" } }
+          foreach ($inventoryToken in @('WeaponInventory.json','KnownWeaponHashes','MaintainStoryModeWeaponInventory','CaptureWeaponInventory','RestoreWeaponInventory','GIVE_WEAPON_TO_PED','HAS_PED_GOT_WEAPON','SET_PED_WEAPON_TINT_INDEX','SET_AMMO_IN_CLIP','ComponentTints','SP0','SP1','SP2')) { if ($weaponSource -notmatch [regex]::Escape($inventoryToken)) { throw "Story Mode weapon persistence check missing: $inventoryToken" } }
           if ($weaponSource -match 'SetSuperJumpThisFrame' -or $weaponSource -notmatch 'SET_PLAYER_WEAPON_DAMAGE_MODIFIER') { throw 'Super Damage must not trigger Super Jump and must restore its weapon damage modifier.' }
           $vehicleDatabase = Get-Content (Join-Path $root 'src\Modules\VehicleDatabase.cs') -Raw
           $databaseModels = [regex]::Matches($vehicleDatabase, '"[a-z0-9_]+"', [System.Text.RegularExpressions.RegexOptions]::Multiline)
@@ -163,7 +164,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.9.3-GTA5-Legacy
-          path: AvernesTreiner-0.9.3-GTA5-Legacy.zip
+          name: AvernesTreiner-0.9.4-GTA5-Legacy
+          path: AvernesTreiner-0.9.4-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
