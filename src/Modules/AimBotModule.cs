@@ -22,6 +22,7 @@ namespace AvernesTreiner.Modules
         private bool _enabled = ConfigManager.GetBool("Combat", "AimBotEnabled", false);
         private int _lastScanTime;
         private int _targetHandle;
+        private int _consecutiveErrors;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -38,6 +39,7 @@ namespace AvernesTreiner.Modules
                 _enabled = state;
                 _targetHandle = 0;
                 ConfigManager.SetBool("Combat", "AimBotEnabled", _enabled);
+                DiagnosticsManager.LogInfo("AimBot", _enabled ? "Aim Bot enabled." : "Aim Bot disabled.");
             };
             combatMenu.AddItem(aimBotItem);
         }
@@ -53,14 +55,42 @@ namespace AvernesTreiner.Modules
         {
             if (!_enabled) return;
 
+            try
+            {
+                RunAimLogic();
+                _consecutiveErrors = 0;
+            }
+            catch (Exception ex)
+            {
+                _consecutiveErrors++;
+                SetTarget(0);
+                DiagnosticsManager.LogException("AimBot", ex);
+
+                if (_consecutiveErrors >= 3 && _enabled)
+                {
+                    _enabled = false;
+                    ConfigManager.SetBool("Combat", "AimBotEnabled", false);
+                    DiagnosticsManager.LogWarning("AimBot", "Aim Bot was automatically disabled after repeated errors.");
+                    UI.Notify(Localization.Get("Diagnostics", "AimBotAutoDisabled",
+                        "~r~Aim Bot disabled after repeated errors. Check the diagnostics report."));
+                }
+            }
+        }
+
+        private void RunAimLogic()
+        {
             Ped player = Game.Player.Character;
-            if (player == null || !player.Exists() || player.IsDead) return;
+            if (player == null || !player.Exists() || player.IsDead)
+            {
+                SetTarget(0);
+                return;
+            }
 
             bool aiming = Function.Call<bool>(Hash.IS_CONTROL_PRESSED, 0, AimControl) ||
                 Function.Call<bool>(Hash.IS_DISABLED_CONTROL_PRESSED, 0, AimControl);
             if (!aiming)
             {
-                _targetHandle = 0;
+                SetTarget(0);
                 return;
             }
 
@@ -68,7 +98,7 @@ namespace AvernesTreiner.Modules
             if (_targetHandle == 0 || now - _lastScanTime >= ScanInterval)
             {
                 _lastScanTime = now;
-                _targetHandle = FindBestTarget(player);
+                SetTarget(FindBestTarget(player));
             }
 
             if (_targetHandle == 0) return;
@@ -76,11 +106,21 @@ namespace AvernesTreiner.Modules
             Ped target = new Ped(_targetHandle);
             if (!target.Exists() || target.IsDead || !IsEnemy(target, player))
             {
-                _targetHandle = 0;
+                SetTarget(0);
                 return;
             }
 
             MoveAimToward(player, target);
+        }
+
+        private void SetTarget(int handle)
+        {
+            if (_targetHandle == handle) return;
+            _targetHandle = handle;
+            if (handle == 0)
+                DiagnosticsManager.LogDetail("AimBot", "Aim target cleared.");
+            else
+                DiagnosticsManager.LogDetail("AimBot", "Hostile target selected. Entity handle: " + handle + ".");
         }
 
         private int FindBestTarget(Ped player)
@@ -142,9 +182,6 @@ namespace AvernesTreiner.Modules
             bool hostileRelationship = relationship >= 4;
             bool fightingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278E,
                 candidate.Handle, player.Handle);
-            int combatTarget = Function.Call<int>((Hash)0x32C27A11307B01CC,
-                candidate.Handle, 0);
-            bool targetingPlayer = combatTarget == player.Handle;
 
             // Story mission objectives commonly receive a red entity blip before combat starts.
             bool markedAsMissionEnemy = HasRedEntityBlip(candidate);
@@ -154,7 +191,7 @@ namespace AvernesTreiner.Modules
             bool wantedPolice = Game.Player.WantedLevel > 0 &&
                 Function.Call<int>((Hash)0xFF059E1E4C01E63C, candidate.Handle) == 6;
 
-            return hostileRelationship || fightingPlayer || targetingPlayer ||
+            return hostileRelationship || fightingPlayer ||
                 markedAsMissionEnemy || wantedPolice;
         }
 
@@ -170,7 +207,7 @@ namespace AvernesTreiner.Modules
 
         private Vector3 GetHeadPosition(Ped ped)
         {
-            return Function.Call<Vector3>((Hash)0x3F428D08BE5AAE31,
+            return Function.Call<Vector3>((Hash)0x17C07FC640E86B4E,
                 ped.Handle, HeadBone, 0.0f, 0.0f, 0.0f);
         }
 

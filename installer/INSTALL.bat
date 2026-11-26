@@ -1,12 +1,12 @@
 @echo off
 setlocal
-title AvernesTreiner 0.9.3 Installer
+title AvernesTreiner 0.9.5 Installer
 set "PACKAGE=%~dp0"
 set "TARGET=C:\Program Files (x86)\Grand Theft Auto V"
 if exist "%TARGET%\GTA5.exe" goto target_ok
 set "TARGET=%~dp0"
 if exist "%TARGET%GTA5.exe" goto target_ok
-echo AvernesTreiner 0.9.3 - GTA V Legacy installer
+echo AvernesTreiner 0.9.5 - GTA V Legacy installer
 echo.
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed

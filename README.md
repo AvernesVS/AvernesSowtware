@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.4
+# AvernesTreiner v0.9.5
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,14 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.5 emergency hotfix — native compatibility and diagnostics
+- Removed the unsupported `GET_PED_TARGET_FROM_COMBAT_PED` native (`0x32C27A11307B01CC`) from Aim Bot. It was introduced in GTA V build 2372 and is not available in the target Legacy build 2245.
+- Corrected NPC head positioning to use `GET_PED_BONE_COORDS` (`0x17C07FC640E86B4E`); the previous hash was `GET_PED_BONE_INDEX` with an incompatible Vector3 call.
+- Added local Diagnostics with a bounded 256-entry memory buffer, five-second disk flush, 2 MB current/previous log rotation, exception throttling, process-exit breadcrumbs and manual ZIP export.
+- Diagnostics is enabled by default; detailed logging is disabled. There is no telemetry or automatic internet upload.
+- Aim Bot logs managed exceptions and disables itself after three consecutive failures. This cannot intercept every native-level fatal error, so the unsupported native was removed at its call site.
+- CI checks verify that the unsupported hash is absent from gameplay source and the compatible bone-coordinate native is present. GTA V gameplay still requires in-game verification on Legacy 1.0.2245.0.
 
 ## v0.9.4 fixes and changes
 - Replaced the Golf Assistant completely with **Aim Bot**. While the player is aiming, it smoothly guides the gameplay camera toward visible hostile NPCs, hostile police and red-marked mission targets; it does not fire automatically and does not intentionally select neutral civilians or friendly NPCs.
