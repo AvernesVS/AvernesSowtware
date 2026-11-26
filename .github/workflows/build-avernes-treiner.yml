@@ -98,6 +98,7 @@ jobs:
           }
           $installerSource = Get-Content (Join-Path $root 'installer\INSTALL.bat') -Raw
           if ($installerSource -notmatch 'AvernesTrainer_Backup' -or $installerSource -notmatch 'AvernesTreiner_Backup' -or $installerSource -notmatch 'USERDATA' -or $installerSource -notmatch "GetFolderPath\('MyDocuments'\)") { throw 'Installer legacy backup migration or Windows My Documents path is missing.' }
+          # Audit guard: the localization parser must preserve intentional suffix spaces.
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'rawLine\.TrimStart' -or $configSource -notmatch 'Substring\(separator \+ 1\)\.TrimStart\(\)') { throw 'Localization parser must preserve intentional trailing spaces in values.' }
           if ($configSource -notmatch 'Version=v0.9.0' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
