@@ -19,7 +19,7 @@ if not exist "%PACKAGE%files\scripts\AvernesTreiner\Languages\en-US.ini" goto pa
 if not exist "%PACKAGE%files\scripts\AvernesTreiner\Languages\ru-RU.ini" goto package_error
 if not exist "%TARGET%\scripts" mkdir "%TARGET%\scripts"
 if not exist "%TARGET%\scripts\AvermesBags" mkdir "%TARGET%\scripts\AvermesBags"
-if errorlevel 1 goto failed
+if not exist "%TARGET%\scripts\AvermesBags" goto failed
 set "DATA=%TARGET%\scripts\AvernesTreiner"
 set "DOCUMENTS="
 for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('MyDocuments')"`) do set "DOCUMENTS=%%D"

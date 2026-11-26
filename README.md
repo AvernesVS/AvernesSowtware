@@ -68,7 +68,7 @@ Default menu key: **F10**.
 ## v0.9.8 — fixes from gameplay testing
 - Aim Bot can acquire Ammu-Nation targets through a direct camera raycast and a whitelist of known firing-range target models.
 - Bodyguards receive an explicit walk-in vehicle-entry task when the player is in a vehicle; they use an available passenger seat and are not teleported into the vehicle. Existing combat tasks are preserved.
-- Diagnostics logs are stored in `GTA V\\scripts\\AvermesBags\\Logs`; exported ZIP reports are stored in `GTA V\\scripts\\AvermesBags`. Existing logs and report ZIPs are migrated from the former Documents location without overwriting files already present.
+- Diagnostics logs are stored in `GTA V\scripts\AvermesBags\Logs`; exported ZIP reports are stored in `GTA V\scripts\AvermesBags`. Existing logs and report ZIPs are migrated from the former Documents location without overwriting files already present.
 
 ## v0.9.7 — Aim Bot, bodyguards and diagnostics
 - Aim Bot now filters non-human peds, the player's relationship group, current squad members and peds identified by the game as friends.
