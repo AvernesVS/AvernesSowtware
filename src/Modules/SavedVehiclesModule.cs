@@ -378,6 +378,7 @@ namespace AvernesTreiner.Modules
                 ApplyCustomization(vehicle, data);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 vehicle.PlaceOnGround();
+                VehicleModule.ActivateVehicleRadio(vehicle);
                 UI.Notify("~g~Saved vehicle loaded: ~w~" + data.Name);
             }
             catch (Exception ex)
