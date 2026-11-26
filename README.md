@@ -67,7 +67,7 @@ Default menu key: **F10**.
 
 ## v0.9.3 fixes and changes
 - Golf advice now reports horizontal ball-to-pin distance, elevation and a clearly approximate club class. It no longer invents a shot-power percentage; the game's yellow target zone remains the source for actual power.
-- Max All Character Stats now writes the actual Special skill stat separately from the Special Ability unlock stat, and rechecks all three protagonists every second while repairing only values that are no longer maxed.
+- Max All Character Stats now writes the actual Special skill stat separately from the Special Ability unlock stat, stops Rockstar's `stats_controller` while the feature is active, and rechecks all three protagonists every second. Restart GTA V to restore normal skill progression.
 - Weapon inventory data uses settable JSON properties, recovers from a backup file, retains a previous valid inventory backup and snapshots the active protagonist's inventory more frequently.
 - Installer migration now includes `WeaponInventory.json`, preserving DLC weapon inventory data from older game-local folders and backup folders.
 - Installer, uninstaller, README and runtime version markers identify this release as 0.9.3.

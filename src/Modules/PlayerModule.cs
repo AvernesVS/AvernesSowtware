@@ -28,6 +28,7 @@ namespace AvernesTreiner.Modules
         private bool _unlimitedOxygen = ConfigManager.GetBool("Player", "UnlimitedOxygen", false);
         private bool _infiniteSpecialAbility = ConfigManager.GetBool("Player", "InfiniteSpecialAbility", false);
         private bool _maxStatsEnabled = ConfigManager.GetBool("Player", "MaxAllStatsEnabled", false);
+        private bool _statsControllerTerminationAttempted;
         private int _lastSpecialAbilityRefillTime = 0;
         private int _lastPlayerModelCheckTime = 0;
         private int _lastObservedPedHandle = 0;
@@ -347,6 +348,7 @@ namespace AvernesTreiner.Modules
         private void MaxAllCharacterStats()
         {
             _maxStatsEnabled = true;
+            DisableStatsControllerIfLoaded();
             ConfigManager.SetBool("Player", "MaxAllStatsEnabled", true);
 
             int updated = 0;
@@ -362,6 +364,20 @@ namespace AvernesTreiner.Modules
             _lastStatsModelHash = 0;
             _lastAllStatsRefreshTime = 0;
             UI.Notify("~g~Max stats applied to all 3 heroes. Verified: " + verified + "/48; active hero will be reapplied.");
+        }
+
+        private void DisableStatsControllerIfLoaded()
+        {
+            if (_statsControllerTerminationAttempted) return;
+
+            // Rockstar's stats_controller can restore protagonist skill values from its
+            // cached state. Stop it while Max All Character Stats is active.
+            if (!Function.Call<bool>(Hash.HAS_SCRIPT_LOADED, "stats_controller")) return;
+
+            Function.Call(Hash.TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME, "stats_controller");
+            _statsControllerTerminationAttempted = true;
+            UI.Notify(Localization.Get("Player", "StatsControllerStopped",
+                "GTA V's skill controller was stopped for this session. Restart the game to restore normal skill progression."));
         }
 
         private void AddCashOption(UIMenu menu, string label, int amount)
@@ -483,6 +499,7 @@ namespace AvernesTreiner.Modules
             if (_maxStatsEnabled && now - _lastAllStatsRefreshTime >= 1000)
             {
                 _lastAllStatsRefreshTime = now;
+                DisableStatsControllerIfLoaded();
                 int allUpdated = 0;
                 int allVerified = 0;
                 for (int i = 0; i < CharacterStatPrefixes.Length; i++)
