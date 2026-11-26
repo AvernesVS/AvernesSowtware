@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.3
+# AvernesTreiner v0.9.4
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,14 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.4 fixes and changes
+- Replaced the Golf Assistant completely with **Aim Bot**. While the player is aiming, it smoothly guides the gameplay camera toward visible hostile NPCs, hostile police and red-marked mission targets; it does not fire automatically and does not intentionally select neutral civilians or friendly NPCs.
+- Escape is reserved for closing the trainer menu. The pause/map control is suppressed across all input groups while the menu is open and briefly after it closes.
+- Reworked Max All Character Stats: the trainer now writes each of the eight Story Mode skill stats directly for all three protagonist slots, verifies the readback and repeats the writes once per second. It no longer terminates Rockstar's `stats_controller`.
+- Weapon inventory snapshots now include compatible attachments, extended magazines and MK II component/camo colors. Restoration applies the weapon and attachments first, then restores total and in-clip ammunition so an extended magazine can provide its full clip capacity.
+- Updated runtime, localization, configuration, CI validation and installer artifact version markers to 0.9.4.
+- Automated build/resource/package validation is required. GTA V Legacy behavior still needs in-game testing; successful compilation alone does not confirm Aim Bot targeting, camera behavior, stat changes or weapon restoration in the game.
 
 ## v0.9.3 fixes and changes
 - Golf advice now reports horizontal ball-to-pin distance, elevation and a clearly approximate club class. It no longer invents a shot-power percentage; the game's yellow target zone remains the source for actual power.
