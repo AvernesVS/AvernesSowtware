@@ -28,6 +28,7 @@ namespace AvernesTreiner.Modules
         private int _lastAmmoRefreshTime = 0;
         private int _lastClipRefreshTime = 0;
         private int _lastWeaponPedHandle = 0;
+        private int _lastForcedReloadTime = 0;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -77,8 +78,13 @@ namespace AvernesTreiner.Modules
 
             // Infinite Ammo
             var infAmmo = new UIMenuCheckboxItem(Localization.Get("Weapons", "InfiniteAmmo", "Infinite Ammo"), _infiniteAmmo, Localization.Get("Weapons", "InfiniteAmmoDesc", "Infinite ammo"));
-            infAmmo.CheckboxEvent += (sender, state) => { _infiniteAmmo = state;
- ConfigManager.SetBool("Weapons", "InfiniteAmmo", _infiniteAmmo); };
+            infAmmo.CheckboxEvent += (sender, state) =>
+            {
+                _infiniteAmmo = state;
+                ConfigManager.SetBool("Weapons", "InfiniteAmmo", _infiniteAmmo);
+                _lastAmmoRefreshTime = 0;
+                _lastForcedReloadTime = 0;
+            };
             weapMenu.AddItem(infAmmo);
 
             // Bottomless Clip (No reload)
@@ -155,6 +161,57 @@ namespace AvernesTreiner.Modules
             _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
             _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
             _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
+            _lastAmmoRefreshTime = 0;
+            _lastForcedReloadTime = 0;
+        }
+
+        private void RefreshInfiniteAmmoForCurrentWeapon(Ped player, int now)
+        {
+            uint weaponHash = Function.Call<uint>(Hash.GET_SELECTED_PED_WEAPON, player.Handle);
+            if (weaponHash == 0) return;
+
+            // Mk II magazines use the currently selected ammo-type hash, not the
+            // weapon's default ammo pool. This also works for ordinary weapons.
+            uint ammoTypeHash = Function.Call<uint>(Hash.GET_PED_AMMO_TYPE_FROM_WEAPON, player.Handle, weaponHash);
+            if (ammoTypeHash == 0) return;
+
+            int maxAmmo = 0;
+            using (OutputArgument maxAmmoArg = new OutputArgument())
+            {
+                // GET_MAX_AMMO_BY_TYPE(Ped, Hash, int*) is available in GTA V
+                // build 1.0.2245.0; use its native hash for SHVDN2 compatibility.
+                bool hasMaxAmmo = Function.Call<bool>((Hash)0x585847C5E4E11709, player.Handle, ammoTypeHash, maxAmmoArg);
+                if (hasMaxAmmo) maxAmmo = maxAmmoArg.GetResult<int>();
+            }
+            if (maxAmmo <= 0) maxAmmo = 9999;
+
+            int currentAmmo = Function.Call<int>(Hash.GET_PED_AMMO_BY_TYPE, player.Handle, ammoTypeHash);
+            if (currentAmmo < maxAmmo)
+            {
+                // ADD creates the ammo-type pool when it does not exist yet;
+                // SET then keeps an existing pool at its supported maximum.
+                if (currentAmmo <= 0)
+                    Function.Call(Hash.ADD_PED_AMMO_BY_TYPE, player.Handle, ammoTypeHash, maxAmmo);
+                else
+                    Function.Call(Hash.SET_PED_AMMO_BY_TYPE, player.Handle, ammoTypeHash, maxAmmo);
+            }
+
+            // Mk II clip counts cannot reliably be repaired by setting the clip
+            // directly. Force a real reload and complete it immediately instead.
+            if (!_infiniteClip && now - _lastForcedReloadTime >= 1000 &&
+                !Function.Call<bool>(Hash.IS_PED_RELOADING, player.Handle))
+            {
+                using (OutputArgument clipAmmoArg = new OutputArgument())
+                {
+                    bool hasClipAmmo = Function.Call<bool>(Hash.GET_AMMO_IN_CLIP, player.Handle, weaponHash, clipAmmoArg);
+                    if (hasClipAmmo && clipAmmoArg.GetResult<int>() <= 0)
+                    {
+                        _lastForcedReloadTime = now;
+                        if (Function.Call<bool>(Hash.MAKE_PED_RELOAD, player.Handle))
+                            Function.Call(Hash.REFILL_AMMO_INSTANTLY, player.Handle);
+                    }
+                }
+            }
         }
 
         public void OnTick()
@@ -185,8 +242,7 @@ namespace AvernesTreiner.Modules
             if (_infiniteAmmo && (characterChanged || now - _lastAmmoRefreshTime >= 150))
             {
                 _lastAmmoRefreshTime = now;
-                if (player.Weapons.Current != null)
-                    player.Weapons.Current.Ammo = player.Weapons.Current.MaxAmmo;
+                RefreshInfiniteAmmoForCurrentWeapon(player, now);
             }
 
             // These natives are frame-scoped and must remain in the frame tick.
