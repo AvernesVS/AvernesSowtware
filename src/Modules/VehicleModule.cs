@@ -65,7 +65,6 @@ namespace AvernesTreiner.Modules
         private static int _pendingRadioVehicleHandle;
         private static int _pendingRadioUntil;
         private static int _lastRadioRetryTime;
-        private static string _pendingRadioStation;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -702,7 +701,6 @@ namespace AvernesTreiner.Modules
             _pendingRadioVehicleHandle = handle;
             _pendingRadioUntil = Game.GameTime + 3000;
             _lastRadioRetryTime = 0;
-            _pendingRadioStation = station;
         }
 
         private void MaintainSpawnedVehicleRadio(Ped player, int now)
@@ -712,7 +710,6 @@ namespace AvernesTreiner.Modules
                 !player.IsInVehicle() || player.CurrentVehicle.Handle != _pendingRadioVehicleHandle)
             {
                 _pendingRadioVehicleHandle = 0;
-                _pendingRadioStation = null;
                 return;
             }
 
