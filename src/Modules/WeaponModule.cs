@@ -31,6 +31,8 @@ namespace AvernesTreiner.Modules
         private int _lastForcedReloadTime = 0;
         private readonly Dictionary<string, WeaponInventoryData> _savedInventories =
             new Dictionary<string, WeaponInventoryData>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<uint, List<uint>> CompatibleWeaponComponentsCache =
+            new Dictionary<uint, List<uint>>();
         private string _lastInventoryJson = string.Empty;
         private int _lastInventoryPedHandle;
         private int _lastInventoryModelHash;
@@ -344,6 +346,8 @@ namespace AvernesTreiner.Modules
                             {
                                 if (pair.Value.Weapons[i] != null && pair.Value.Weapons[i].Components == null)
                                     pair.Value.Weapons[i].Components = new List<uint>();
+                                if (pair.Value.Weapons[i] != null && pair.Value.Weapons[i].ComponentTints == null)
+                                    pair.Value.Weapons[i].ComponentTints = new List<WeaponComponentTintEntry>();
                             }
                             _savedInventories[pair.Key] = pair.Value;
                         }
@@ -410,6 +414,27 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        private static List<uint> GetCompatibleWeaponComponents(uint weaponHash)
+        {
+            List<uint> components;
+            if (CompatibleWeaponComponentsCache.TryGetValue(weaponHash, out components))
+                return components;
+
+            components = new List<uint>();
+            HashSet<uint> seen = new HashSet<uint>();
+            foreach (object value in Enum.GetValues(typeof(WeaponComponent)))
+            {
+                uint componentHash = unchecked((uint)Convert.ToInt64(value));
+                if (componentHash == 0 || !seen.Add(componentHash)) continue;
+                if (Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT,
+                    weaponHash, componentHash))
+                    components.Add(componentHash);
+            }
+
+            CompatibleWeaponComponentsCache[weaponHash] = components;
+            return components;
+        }
+
         private WeaponInventoryData CaptureWeaponInventory(Ped player)
         {
             WeaponInventoryData snapshot = new WeaponInventoryData();
@@ -425,15 +450,37 @@ namespace AvernesTreiner.Modules
                 entry.WeaponHash = weaponHash;
                 entry.Ammo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
                 entry.Tint = Function.Call<int>(Hash.GET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash);
-                using (OutputArgument clip = new OutputArgument())
+
+                // Cache compatible component hashes per weapon so the periodic snapshots
+                // only probe attachments that this weapon can actually use.
+                List<uint> compatibleComponents = GetCompatibleWeaponComponents(weaponHash);
+                for (int componentIndex = 0; componentIndex < compatibleComponents.Count; componentIndex++)
                 {
-                    entry.ClipAmmo = Function.Call<bool>(Hash.GET_AMMO_IN_CLIP, player.Handle, weaponHash, clip)
-                        ? clip.GetResult<int>() : -1;
+                    uint componentHash = compatibleComponents[componentIndex];
+                    if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT,
+                        player.Handle, weaponHash, componentHash))
+                        continue;
+
+                    entry.Components.Add(componentHash);
+                    int componentTint = Function.Call<int>((Hash)0xF0A60040BE558F2D,
+                        player.Handle, weaponHash, componentHash);
+                    if (componentTint >= 0)
+                    {
+                        entry.ComponentTints.Add(new WeaponComponentTintEntry
+                        {
+                            ComponentHash = componentHash,
+                            Tint = componentTint
+                        });
+                    }
                 }
 
-                // The game normally persists weapon components itself. Keep this
-                // snapshot focused on ownership, ammo and tint to avoid thousands of
-                // component-probe natives during periodic inventory saves.
+                // Read the clip only after recording the installed magazine component.
+                using (OutputArgument clip = new OutputArgument())
+                {
+                    entry.ClipAmmo = Function.Call<bool>(Hash.GET_AMMO_IN_CLIP,
+                        player.Handle, weaponHash, clip) ? clip.GetResult<int>() : -1;
+                }
+
                 snapshot.Weapons.Add(entry);
             }
             return snapshot;
@@ -447,21 +494,65 @@ namespace AvernesTreiner.Modules
                 WeaponInventoryEntry entry = snapshot.Weapons[i];
                 if (entry == null || entry.WeaponHash == 0) continue;
                 uint weaponHash = entry.WeaponHash;
-                bool hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                bool hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON,
+                    player.Handle, weaponHash, false);
                 if (!hasWeapon)
                 {
-                    Function.Call(Hash.GIVE_WEAPON_TO_PED, player.Handle, weaponHash, Math.Max(0, entry.Ammo), false, false);
-                    hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false);
+                    Function.Call(Hash.GIVE_WEAPON_TO_PED, player.Handle, weaponHash,
+                        Math.Max(0, entry.Ammo), false, false);
+                    hasWeapon = Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON,
+                        player.Handle, weaponHash, false);
                 }
                 if (!hasWeapon) continue;
 
-                Function.Call(Hash.SET_PED_WEAPON_TINT_INDEX, player.Handle, weaponHash, entry.Tint);
-                int currentAmmo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON, player.Handle, weaponHash);
+                // Restore the magazine and every other attachment before touching clip ammo.
+                if (entry.Components != null)
+                {
+                    for (int componentIndex = 0; componentIndex < entry.Components.Count; componentIndex++)
+                    {
+                        uint componentHash = entry.Components[componentIndex];
+                        if (componentHash == 0 ||
+                            !Function.Call<bool>(Hash.DOES_WEAPON_TAKE_WEAPON_COMPONENT,
+                                weaponHash, componentHash))
+                            continue;
+
+                        if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT,
+                            player.Handle, weaponHash, componentHash))
+                        {
+                            Function.Call(Hash.GIVE_WEAPON_COMPONENT_TO_PED,
+                                player.Handle, weaponHash, componentHash);
+                        }
+                    }
+                }
+
+                Function.Call(Hash.SET_PED_WEAPON_TINT_INDEX,
+                    player.Handle, weaponHash, entry.Tint);
+
+                if (entry.ComponentTints != null)
+                {
+                    for (int tintIndex = 0; tintIndex < entry.ComponentTints.Count; tintIndex++)
+                    {
+                        WeaponComponentTintEntry componentTint = entry.ComponentTints[tintIndex];
+                        if (componentTint == null || componentTint.ComponentHash == 0 ||
+                            !Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON_COMPONENT,
+                                player.Handle, weaponHash, componentTint.ComponentHash))
+                            continue;
+
+                        Function.Call((Hash)0x9FE5633880ECD8ED, player.Handle, weaponHash,
+                            componentTint.ComponentHash, componentTint.Tint);
+                    }
+                }
+
+                // The magazine is now installed, so the game sees its expanded clip capacity.
+                int currentAmmo = Function.Call<int>(Hash.GET_AMMO_IN_PED_WEAPON,
+                    player.Handle, weaponHash);
                 if (entry.Ammo > currentAmmo)
                     Function.Call(Hash.SET_PED_AMMO, player.Handle, weaponHash, entry.Ammo, false);
 
-                uint ammoType = Function.Call<uint>((Hash)0x7FEAD38B326B9F74, player.Handle, weaponHash);
-                if (ammoType != 0 && entry.Ammo > Function.Call<int>(Hash.GET_PED_AMMO_BY_TYPE, player.Handle, ammoType))
+                uint ammoType = Function.Call<uint>((Hash)0x7FEAD38B326B9F74,
+                    player.Handle, weaponHash);
+                if (ammoType != 0 &&
+                    entry.Ammo > Function.Call<int>(Hash.GET_PED_AMMO_BY_TYPE, player.Handle, ammoType))
                     Function.Call(Hash.SET_PED_AMMO_BY_TYPE, player.Handle, ammoType, entry.Ammo);
 
                 if (entry.ClipAmmo >= 0)
@@ -469,8 +560,10 @@ namespace AvernesTreiner.Modules
             }
 
             if (snapshot.SelectedWeapon != 0 &&
-                Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, snapshot.SelectedWeapon, false))
-                Function.Call(Hash.SET_CURRENT_PED_WEAPON, player.Handle, snapshot.SelectedWeapon, true);
+                Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON,
+                    player.Handle, snapshot.SelectedWeapon, false))
+                Function.Call(Hash.SET_CURRENT_PED_WEAPON,
+                    player.Handle, snapshot.SelectedWeapon, true);
         }
 
         private void MaintainStoryModeWeaponInventory(Ped player, int now)
@@ -654,10 +747,18 @@ namespace AvernesTreiner.Modules
         public int ClipAmmo { get; set; }
         public int Tint { get; set; }
         public List<uint> Components { get; set; }
+        public List<WeaponComponentTintEntry> ComponentTints { get; set; }
 
         public WeaponInventoryEntry()
         {
             Components = new List<uint>();
+            ComponentTints = new List<WeaponComponentTintEntry>();
         }
+    }
+
+    public class WeaponComponentTintEntry
+    {
+        public uint ComponentHash { get; set; }
+        public int Tint { get; set; }
     }
 }
