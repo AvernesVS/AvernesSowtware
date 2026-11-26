@@ -38,6 +38,10 @@ namespace AvernesTreiner.Modules
         private int _restoreInventoryAt;
         private bool _inventoryRestorePending;
         private bool _inventoryFileLoaded;
+        private static bool _inventoryModelHashesInitialized;
+        private static int _michaelInventoryModelHash;
+        private static int _franklinInventoryModelHash;
+        private static int _trevorInventoryModelHash;
         // Includes DLC weapon hashes not present in the older SHVDN2 WeaponHash enum.
         // Unknown hashes are harmless: HAS_PED_GOT_WEAPON filters them on the target game build.
         private static readonly uint[] KnownWeaponHashes = new uint[]
@@ -287,14 +291,21 @@ namespace AvernesTreiner.Modules
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
         }
 
+        private static void EnsureInventoryModelHashes()
+        {
+            if (_inventoryModelHashesInitialized) return;
+            _michaelInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
+            _franklinInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
+            _trevorInventoryModelHash = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
+            _inventoryModelHashesInitialized = true;
+        }
+
         private static string GetInventorySlot(int modelHash)
         {
-            int michael = Function.Call<int>(Hash.GET_HASH_KEY, "player_zero");
-            int franklin = Function.Call<int>(Hash.GET_HASH_KEY, "player_one");
-            int trevor = Function.Call<int>(Hash.GET_HASH_KEY, "player_two");
-            if (modelHash == michael) return "SP0";
-            if (modelHash == franklin) return "SP1";
-            if (modelHash == trevor) return "SP2";
+            EnsureInventoryModelHashes();
+            if (modelHash == _michaelInventoryModelHash) return "SP0";
+            if (modelHash == _franklinInventoryModelHash) return "SP1";
+            if (modelHash == _trevorInventoryModelHash) return "SP2";
             return null;
         }
 
