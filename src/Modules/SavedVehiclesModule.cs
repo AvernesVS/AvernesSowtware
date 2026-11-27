@@ -370,35 +370,69 @@ namespace AvernesTreiner.Modules
                 UI.Notify("~r~Player not found.");
                 return;
             }
+            if (data == null || data.ModelHash == 0)
+            {
+                UI.Notify("~r~Saved vehicle data is invalid.");
+                return;
+            }
 
             Model model = new Model(data.ModelHash);
+            Vehicle vehicle = null;
+            DiagnosticsManager.LogInfo("SavedVehicles", "Spawn requested: name=" + data.Name + ", modelHash=" + data.ModelHash + ".");
+            DiagnosticsManager.Flush();
             try
             {
-                if (!model.IsInCdImage || !model.IsValid || !model.Request(3000) || !model.IsLoaded)
+                // Reject non-vehicle hashes before requesting or creating an entity.
+                if (!model.IsInCdImage || !model.IsValid ||
+                    !Function.Call<bool>(Hash.IS_MODEL_A_VEHICLE, data.ModelHash) ||
+                    !model.Request(5000) || !model.IsLoaded)
                 {
-                    UI.Notify("~r~Saved vehicle model is unavailable in this game installation.");
+                    UI.Notify("~r~Saved vehicle model is unavailable or invalid.");
                     return;
                 }
 
-                Vector3 position = player.Position + player.ForwardVector * 4.0f;
-                Vehicle vehicle = World.CreateVehicle(model, position, player.Heading);
+                DiagnosticsManager.LogInfo("SavedVehicles", "Model validated and loaded for " + data.Name + ".");
+                DiagnosticsManager.Flush();
+                Vector3 position = player.Position + player.ForwardVector * 5.0f;
+                vehicle = World.CreateVehicle(model, position, player.Heading);
                 if (vehicle == null || !vehicle.Exists())
                 {
+                    vehicle = null;
                     UI.Notify("~r~Could not create saved vehicle.");
                     return;
                 }
 
+                DiagnosticsManager.LogInfo("SavedVehicles", "Vehicle entity created: handle=" + vehicle.Handle + ".");
+                DiagnosticsManager.Flush();
                 Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, vehicle.Handle, true, true);
                 vehicle.IsPersistent = true;
-                VehicleModule.TrackSpawnedVehicle(vehicle, true);
-                ApplyCustomization(vehicle, data);
-                player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
+
+                // Finish placement and customization before moving the player into the vehicle.
                 vehicle.PlaceOnGround();
+                DiagnosticsManager.LogInfo("SavedVehicles", "Customization started: " + data.Name + ".");
+                DiagnosticsManager.Flush();
+                ApplyCustomization(vehicle, data);
+                DiagnosticsManager.LogInfo("SavedVehicles", "Customization completed: " + data.Name + ".");
+                DiagnosticsManager.Flush();
+                VehicleModule.TrackSpawnedVehicle(vehicle, true);
+                player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 VehicleModule.ActivateVehicleRadio(vehicle);
                 UI.Notify("~g~Saved vehicle loaded: ~w~" + data.Name);
             }
             catch (Exception ex)
             {
+                DiagnosticsManager.LogException("SavedVehicles.Spawn", ex);
+                // A partially configured vehicle must not be left behind after a managed failure.
+                try
+                {
+                    if (vehicle != null && vehicle.Exists())
+                    {
+                        int handle = vehicle.Handle;
+                        Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, handle, true, true);
+                        Function.Call(Hash.DELETE_VEHICLE, handle);
+                    }
+                }
+                catch { }
                 UI.Notify("~r~Could not load saved vehicle: " + ex.Message);
             }
             finally
@@ -409,52 +443,81 @@ namespace AvernesTreiner.Modules
 
         private void ApplyCustomization(Vehicle vehicle, SavedVehicleData data)
         {
+            if (vehicle == null || !vehicle.Exists() || data == null)
+                throw new InvalidOperationException("Vehicle or saved customization data is unavailable.");
+
             int handle = vehicle.Handle;
             Function.Call(Hash.SET_VEHICLE_MOD_KIT, handle, 0);
 
+            // Mod indices are model-specific. Old or edited JSON can contain indices that
+            // are not valid for this model, so query the live count before every write.
             if (data.Mods != null)
             {
                 int length = Math.Min(data.Mods.Length, 50);
                 for (int slot = 0; slot < length; slot++)
                 {
                     int mod = data.Mods[slot];
-                    if (mod >= 0)
+                    if (mod < 0) continue;
+
+                    int availableMods = Function.Call<int>(Hash.GET_NUM_VEHICLE_MODS, handle, slot);
+                    if (availableMods > 0 && mod < availableMods)
                         Function.Call(Hash.SET_VEHICLE_MOD, handle, slot, mod,
-                            data.ModVariations != null && slot < data.ModVariations.Length ? data.ModVariations[slot] : false);
+                            data.ModVariations != null && slot < data.ModVariations.Length && data.ModVariations[slot]);
                 }
             }
 
-            Function.Call(Hash.SET_VEHICLE_WHEEL_TYPE, handle, data.WheelType);
-            Function.Call(Hash.SET_VEHICLE_COLOURS, handle, data.PrimaryColor, data.SecondaryColor);
-            Function.Call(Hash.SET_VEHICLE_EXTRA_COLOURS, handle, data.PearlescentColor, data.WheelColor);
-            Function.Call(Hash.SET_VEHICLE_WINDOW_TINT, handle, data.WindowTint);
-            Function.Call(Hash.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX, handle, data.PlateStyle);
+            if (data.WheelType >= 0 && data.WheelType <= 12)
+                Function.Call(Hash.SET_VEHICLE_WHEEL_TYPE, handle, data.WheelType);
+
+            Function.Call(Hash.SET_VEHICLE_COLOURS, handle,
+                Clamp(data.PrimaryColor, 0, 159), Clamp(data.SecondaryColor, 0, 159));
+            Function.Call(Hash.SET_VEHICLE_EXTRA_COLOURS, handle,
+                Clamp(data.PearlescentColor, 0, 159), Clamp(data.WheelColor, 0, 159));
+
+            if (data.WindowTint >= 0 && data.WindowTint <= 6)
+                Function.Call(Hash.SET_VEHICLE_WINDOW_TINT, handle, data.WindowTint);
+            if (data.PlateStyle >= 0 && data.PlateStyle <= 5)
+                Function.Call(Hash.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX, handle, data.PlateStyle);
             if (!string.IsNullOrEmpty(data.PlateText))
                 Function.Call(Hash.SET_VEHICLE_NUMBER_PLATE_TEXT, handle, data.PlateText);
             if (data.Livery >= 0)
-                Function.Call(Hash.SET_VEHICLE_LIVERY, handle, data.Livery);
+            {
+                int liveryCount = Function.Call<int>(Hash.GET_VEHICLE_LIVERY_COUNT, handle);
+                if (liveryCount > 0 && data.Livery < liveryCount)
+                    Function.Call(Hash.SET_VEHICLE_LIVERY, handle, data.Livery);
+            }
             Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, handle, data.CanTiresBurst);
 
             int[] toggleSlots = new int[] { 18, 20, 22 };
             for (int i = 0; i < toggleSlots.Length; i++)
-                Function.Call(Hash.TOGGLE_VEHICLE_MOD, handle, toggleSlots[i], data.ToggleMods != null && i < data.ToggleMods.Length ? data.ToggleMods[i] : false);
+                Function.Call(Hash.TOGGLE_VEHICLE_MOD, handle, toggleSlots[i],
+                    data.ToggleMods != null && i < data.ToggleMods.Length && data.ToggleMods[i]);
 
-            Function.Call(Hash._SET_VEHICLE_NEON_LIGHTS_COLOUR, handle, data.NeonR, data.NeonG, data.NeonB);
+            Function.Call(Hash._SET_VEHICLE_NEON_LIGHTS_COLOUR, handle,
+                Clamp(data.NeonR, 0, 255), Clamp(data.NeonG, 0, 255), Clamp(data.NeonB, 0, 255));
             if (data.NeonEnabled != null)
             {
                 for (int i = 0; i < Math.Min(4, data.NeonEnabled.Length); i++)
                     Function.Call(Hash._SET_VEHICLE_NEON_LIGHT_ENABLED, handle, i, data.NeonEnabled[i]);
             }
-            Function.Call(Hash.SET_VEHICLE_TYRE_SMOKE_COLOR, handle, data.SmokeR, data.SmokeG, data.SmokeB);
+            Function.Call(Hash.SET_VEHICLE_TYRE_SMOKE_COLOR, handle,
+                Clamp(data.SmokeR, 0, 255), Clamp(data.SmokeG, 0, 255), Clamp(data.SmokeB, 0, 255));
 
             if (data.ExtraExists != null && data.Extras != null)
             {
-                for (int i = 0; i < Math.Min(15, data.ExtraExists.Length); i++)
+                int length = Math.Min(15, Math.Min(data.ExtraExists.Length, data.Extras.Length));
+                for (int i = 0; i < length; i++)
                 {
-                    if (data.ExtraExists[i])
+                    // Recheck against the newly created model instead of trusting the JSON snapshot.
+                    if (data.ExtraExists[i] && Function.Call<bool>(Hash.DOES_EXTRA_EXIST, handle, i))
                         Function.Call(Hash.SET_VEHICLE_EXTRA, handle, i, !data.Extras[i]);
                 }
             }
+        }
+
+        private static int Clamp(int value, int min, int max)
+        {
+            return value < min ? min : (value > max ? max : value);
         }
 
         public void ReloadSettings() { }

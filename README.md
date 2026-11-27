@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.13
+# AvernesTreiner v0.9.14
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,13 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.14 — saved vehicle spawn crash hardening
+- Validate saved vehicle model hashes before requesting or creating entities; reject invalid or non-vehicle records safely.
+- Check model-specific tuning indices, livery counts, colors, and extras against the spawned vehicle before applying them.
+- Place and customize the vehicle before seating the player; remove partially created vehicles after managed failures.
+- Add flushed spawn-stage diagnostics and exception logging to identify the exact stage if a native-level crash persists.
+- Preserve the existing SavedVehicles.json format and saved entries. GTA V Legacy in-game verification is still required.
 
 ## v0.9.13 — vehicle water support, saved vehicle menu and weapon controls
 - Reworked Saved Vehicles: each saved vehicle now opens its own submenu with exactly two actions, **Spawn** and **Delete**. Dynamic submenus are removed from NativeUI's menu pool before rebuilding, preventing stale menu accumulation.
