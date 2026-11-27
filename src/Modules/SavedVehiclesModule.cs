@@ -25,6 +25,7 @@ namespace AvernesTreiner.Modules
         private JavaScriptSerializer _serializer;
         private bool _hasLoadedFromDisk;
         private UIMenuItem _saveCurrentVehicleItem;
+        private readonly List<UIMenu> _vehicleSubMenus = new List<UIMenu>();
 
         public string Name { get { return "Saved Vehicles"; } }
 
@@ -290,6 +291,11 @@ namespace AvernesTreiner.Modules
         private void RefreshSavedVehicleMenu()
         {
             if (_savedMenu == null) return;
+            // Remove stale dynamic submenus before rebuilding so repeated saves/deletes
+            // do not leave unreachable menus in NativeUI's processing pool.
+            for (int i = 0; i < _vehicleSubMenus.Count; i++)
+                _menuPool.ToList().Remove(_vehicleSubMenus[i]);
+            _vehicleSubMenus.Clear();
             _savedMenu.Clear();
             _savedMenu.AddItem(_saveCurrentVehicleItem);
 
@@ -299,6 +305,7 @@ namespace AvernesTreiner.Modules
             infoItem.Enabled = false;
             _savedMenu.AddItem(infoItem);
             AddSavedVehicleItems();
+            _menuPool.RefreshIndex();
         }
 
         private void AddSavedVehicleItems()
@@ -309,16 +316,21 @@ namespace AvernesTreiner.Modules
 
         private void AddSavedVehicleItem(SavedVehicleData data, int number)
         {
-            string label = number.ToString() + ". " + data.Name + "  [" + data.ModelHash.ToString("X8") + "]";
-            var spawnItem = new UIMenuItem(label, Localization.Get("Vehicle", "SpawnSavedVehicleDesc", "Spawn this saved vehicle with its stored tuning and appearance."));
+            string label = number.ToString() + ". " + data.Name;
+            UIMenu vehicleMenu = _menuPool.AddSubMenu(_savedMenu, label);
+            _vehicleSubMenus.Add(vehicleMenu);
+
+            var spawnItem = new UIMenuItem(
+                Localization.Get("Vehicle", "SavedVehicleSpawnAction", "Spawn"),
+                Localization.Get("Vehicle", "SpawnSavedVehicleDesc", "Spawn this saved vehicle with its stored tuning and appearance."));
             spawnItem.Activated += (sender, selected) => SpawnSavedVehicle(data);
-            _savedMenu.AddItem(spawnItem);
+            vehicleMenu.AddItem(spawnItem);
 
             var deleteItem = new UIMenuItem(
-                string.Format(Localization.Get("Vehicle", "DeleteSavedVehicle", "Delete #{0} - {1}"), number, data.Name),
+                Localization.Get("Vehicle", "SavedVehicleDeleteAction", "Delete"),
                 Localization.Get("Vehicle", "DeleteSavedVehicleDesc", "Delete this saved vehicle. Type DELETE to confirm."));
             deleteItem.Activated += (sender, selected) => ConfirmDeleteSavedVehicle(data);
-            _savedMenu.AddItem(deleteItem);
+            vehicleMenu.AddItem(deleteItem);
         }
 
         private void ConfirmDeleteSavedVehicle(SavedVehicleData data)
