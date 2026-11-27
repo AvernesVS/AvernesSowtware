@@ -40,7 +40,7 @@ namespace AvernesTreiner.Modules
             new Model("prop_target_red_arrow").Hash,
             new Model("prop_target_red_cross").Hash
         };
-        private const int ScanInterval = 250;
+        private const int ScanInterval = 500;
         private const float MaximumYawStep = 3.2f;
         private const float MaximumPitchStep = 2.4f;
 
@@ -132,6 +132,14 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
+            // Safety interlock: do not run target scans or camera natives while the player is driving.
+            // Hostile NPCs in vehicles remain targetable when the player is on foot.
+            if (player.IsInVehicle())
+            {
+                SetTarget(0);
+                return;
+            }
+
             bool aiming = Function.Call<bool>(Hash.IS_CONTROL_PRESSED, 0, AimControl) ||
                 Function.Call<bool>(Hash.IS_DISABLED_CONTROL_PRESSED, 0, AimControl);
             if (!aiming)
@@ -211,7 +219,7 @@ namespace AvernesTreiner.Modules
             // Check the exact crosshair ray first. A confirmed range target does not
             // require scanning the nearby ped or prop pools.
             RaycastResult rangeRay = World.Raycast(cameraPosition, cameraDirection,
-                MaximumRange, IntersectOptions.Everything, player);
+                MaximumRange, IntersectOptions.Objects, player);
             if (rangeRay.DitHitEntity && rangeRay.HitEntity is Prop)
             {
                 Prop rayTarget = (Prop)rangeRay.HitEntity;
@@ -257,38 +265,6 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            // Ammu-Nation shooting-range targets are props, not peds. Only a strict
-            // model whitelist is eligible so Aim Bot cannot lock onto arbitrary scenery.
-            Prop[] props = World.GetNearbyProps(cameraPosition, MaximumRange);
-            for (int i = 0; i < props.Length; i++)
-            {
-                Prop candidate = props[i];
-                if (candidate == null || !candidate.Exists() || !IsRangeTarget(candidate)) continue;
-
-                Vector3 targetPosition = candidate.Position + new Vector3(0.0f, 0.0f, 0.8f);
-                float dx = targetPosition.X - cameraPosition.X;
-                float dy = targetPosition.Y - cameraPosition.Y;
-                float dz = targetPosition.Z - cameraPosition.Z;
-                float distanceSquared = dx * dx + dy * dy + dz * dz;
-                if (distanceSquared <= 0.01f || distanceSquared > maxDistanceSquared) continue;
-
-                float distance = (float)Math.Sqrt(distanceSquared);
-                float dot = cameraDirection.X * dx / distance +
-                    cameraDirection.Y * dy / distance + cameraDirection.Z * dz / distance;
-                if (dot < MinimumAimDot) continue;
-
-                if (!Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, candidate.Handle)) continue;
-                if (!Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY,
-                    player.Handle, candidate.Handle, 17)) continue;
-
-                float score = dot * 3.0f - distance / MaximumRange;
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestHandle = candidate.Handle;
-                    bestIsRangeObject = true;
-                }
-            }
 
             isRangeObject = bestIsRangeObject;
             return bestHandle;
