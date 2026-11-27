@@ -440,7 +440,12 @@ namespace AvernesTreiner.Modules
             WeaponInventoryData snapshot = new WeaponInventoryData();
             snapshot.SelectedWeapon = Function.Call<uint>(Hash.GET_SELECTED_PED_WEAPON, player.Handle);
             HashSet<uint> seenWeapons = new HashSet<uint>();
-            foreach (uint weaponHash in KnownWeaponHashes)
+            List<uint> weaponHashesToCapture = new List<uint>(KnownWeaponHashes);
+            // Some DLC weapons may be absent from the bundled legacy hash catalogue.
+            // Always include the currently selected owned weapon so it is not lost on a character swap.
+            if (snapshot.SelectedWeapon != 0 && !weaponHashesToCapture.Contains(snapshot.SelectedWeapon))
+                weaponHashesToCapture.Add(snapshot.SelectedWeapon);
+            foreach (uint weaponHash in weaponHashesToCapture)
             {
                 if (weaponHash == 0 || !seenWeapons.Add(weaponHash)) continue;
                 if (!Function.Call<bool>(Hash.HAS_PED_GOT_WEAPON, player.Handle, weaponHash, false))

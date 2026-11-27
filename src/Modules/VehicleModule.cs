@@ -1189,15 +1189,19 @@ namespace AvernesTreiner.Modules
                     {
                         _lastWaterCheckTime = currentTime;
                         OutputArgument outHeight = new OutputArgument();
-                        bool hasWater = Function.Call<bool>(Hash.GET_WATER_HEIGHT, v.Position.X, v.Position.Y, v.Position.Z, outHeight);
+                        // Query from above the surface: using the submerged vehicle Z can make GET_WATER_HEIGHT miss the water plane.
+                        bool hasWater = Function.Call<bool>(Hash.GET_WATER_HEIGHT,
+                            v.Position.X, v.Position.Y, v.Position.Z + 10.0f, outHeight);
                         if (hasWater)
                         {
                             float waterHeight = outHeight.GetResult<float>();
-                            if (v.Position.Z <= waterHeight + 1.2f && v.Position.Z >= waterHeight - 4.0f)
+                            if (v.Position.Z <= waterHeight + 2.0f && v.Position.Z >= waterHeight - 8.0f)
                             {
                                 Vector3 vel = v.Velocity;
-                                v.Velocity = new Vector3(vel.X, vel.Y, 0f);
-                                v.Position = new Vector3(v.Position.X, v.Position.Y, waterHeight + 0.2f);
+                                // Keep horizontal momentum so the vehicle can continue moving across the surface.
+                                v.Velocity = new Vector3(vel.X, vel.Y, Math.Max(vel.Z, 0.0f));
+                                if (v.Position.Z < waterHeight + 0.25f)
+                                    v.Position = new Vector3(v.Position.X, v.Position.Y, waterHeight + 0.25f);
                                 v.Rotation = new Vector3(0f, 0f, v.Rotation.Z);
                                 Function.Call(Hash.SET_VEHICLE_ENGINE_ON, v.Handle, true, true, false);
                                 Function.Call(Hash.SET_VEHICLE_UNDRIVEABLE, v.Handle, false);

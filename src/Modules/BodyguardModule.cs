@@ -19,6 +19,10 @@ namespace AvernesTreiner.Modules
         private int _lastCleanupTime = 0;
         private int _lastFollowMaintenanceTime = 0;
         private bool _followOrdersActive = true;
+        private bool _defendPositionActive;
+        private Vector3 _defensePosition;
+        private int _lastDefenseScanTime;
+        private int _defenseTargetHandle;
 
         private List<Ped> _bodyguards = new List<Ped>();
         private bool _godModeSquad = ConfigManager.GetBool("Bodyguards", "GodModeSquad", false);
@@ -105,6 +109,7 @@ namespace AvernesTreiner.Modules
                 if (target != null && target is Ped)
                 {
                     _followOrdersActive = false;
+                    _defendPositionActive = false;
                     foreach (var bg in _bodyguards)
                     {
                         if (bg != null && bg.Exists())
@@ -121,10 +126,44 @@ namespace AvernesTreiner.Modules
             };
             cmdMenu.AddItem(attackTargetItem);
 
+            var assaultNearestItem = new UIMenuItem(
+                Localization.Get("Bodyguards", "AssaultNearest", "Assault Nearest Hostile"),
+                Localization.Get("Bodyguards", "AssaultNearestDesc", "Orders all active bodyguards to attack the nearest hostile NPC"));
+            assaultNearestItem.Activated += (sender, selected) =>
+            {
+                Ped player = Game.Player.Character;
+                Ped target = player == null || !player.Exists() ? null :
+                    FindNearestHostile(player.Position, player, 120.0f);
+                if (target == null)
+                {
+                    UI.Notify("~y~No hostile NPC found nearby.");
+                    return;
+                }
+                _followOrdersActive = false;
+                _defendPositionActive = false;
+                int ordered = 0;
+                foreach (var bg in _bodyguards)
+                {
+                    if (bg != null && bg.Exists() && !bg.IsDead && bg.Handle != target.Handle)
+                    {
+                        bg.Task.FightAgainst(target);
+                        ordered++;
+                    }
+                }
+                UI.Notify("~r~Bodyguards assaulting nearest hostile!");
+                DiagnosticsManager.LogInfo("Bodyguards", "Assault nearest hostile order issued. Target: " +
+                    target.Handle + "; guards: " + ordered + ".");
+            };
+            cmdMenu.AddItem(assaultNearestItem);
+
             var holdItem = new UIMenuItem(Localization.Get("Bodyguards", "HoldPosition", "Hold Position (Stay Put)"), Localization.Get("Bodyguards", "HoldPositionDesc", "Members defend the current area"));
             holdItem.Activated += (sender, selected) =>
             {
                 _followOrdersActive = false;
+                _defendPositionActive = true;
+                _defensePosition = Game.Player.Character.Position;
+                _lastDefenseScanTime = 0;
+                _defenseTargetHandle = 0;
                 foreach (var bg in _bodyguards)
                 {
                     if (bg != null && bg.Exists())
@@ -140,6 +179,8 @@ namespace AvernesTreiner.Modules
             followItem.Activated += (sender, selected) =>
             {
                 _followOrdersActive = true;
+                _defendPositionActive = false;
+                _defenseTargetHandle = 0;
                 Ped player = Game.Player.Character;
                 foreach (var bg in _bodyguards)
                 {
@@ -334,6 +375,8 @@ namespace AvernesTreiner.Modules
             try
             {
                 _followOrdersActive = false;
+                _defendPositionActive = false;
+                _defenseTargetHandle = 0;
                 int count = 0;
                 for (int i = _bodyguards.Count - 1; i >= 0; i--)
                 {
@@ -389,6 +432,67 @@ namespace AvernesTreiner.Modules
             }
         }
 
+        private Ped FindNearestHostile(Vector3 center, Ped player, float radius)
+        {
+            Ped[] nearby = World.GetNearbyPeds(center, radius);
+            Ped best = null;
+            float bestDistanceSquared = radius * radius;
+            int playerGroup = Function.Call<int>((Hash)0xF162E133B4E7A675, player.Handle);
+            for (int i = 0; i < nearby.Length; i++)
+            {
+                Ped candidate = nearby[i];
+                if (candidate == null || !candidate.Exists() || candidate.IsDead ||
+                    candidate.Handle == player.Handle)
+                    continue;
+                if (!Function.Call<bool>((Hash)0xB980061DA992779D, candidate.Handle))
+                    continue;
+                if (playerGroup != 0 &&
+                    Function.Call<int>((Hash)0xF162E133B4E7A675, candidate.Handle) == playerGroup)
+                    continue;
+                int relationship = Function.Call<int>((Hash)0xEBA5AD3A0EAF7121,
+                    candidate.Handle, player.Handle);
+                bool fightingPlayer = Function.Call<bool>((Hash)0x4859F1FC66A6278E,
+                    candidate.Handle, player.Handle);
+                if (relationship < 4 && !fightingPlayer) continue;
+                float dx = candidate.Position.X - center.X;
+                float dy = candidate.Position.Y - center.Y;
+                float dz = candidate.Position.Z - center.Z;
+                float distanceSquared = dx * dx + dy * dy + dz * dz;
+                if (distanceSquared < bestDistanceSquared)
+                {
+                    bestDistanceSquared = distanceSquared;
+                    best = candidate;
+                }
+            }
+            return best;
+        }
+
+        private void MaintainPositionDefense(int now)
+        {
+            if (!_defendPositionActive || now - _lastDefenseScanTime < 1000) return;
+            _lastDefenseScanTime = now;
+            Ped player = Game.Player.Character;
+            Ped threat = player == null || !player.Exists() ? null :
+                FindNearestHostile(_defensePosition, player, 40.0f);
+            if (threat == null)
+            {
+                _defenseTargetHandle = 0;
+                return;
+            }
+            if (_defenseTargetHandle == threat.Handle) return;
+            _defenseTargetHandle = threat.Handle;
+            int ordered = 0;
+            for (int i = 0; i < _bodyguards.Count; i++)
+            {
+                Ped guard = _bodyguards[i];
+                if (guard == null || !guard.Exists() || guard.IsDead) continue;
+                guard.Task.FightAgainst(threat);
+                ordered++;
+            }
+            DiagnosticsManager.LogInfo("Bodyguards", "Defensive order engaged hostile. Target: " +
+                threat.Handle + "; guards: " + ordered + ".");
+        }
+
         private void MaintainBodyguardFollow(Ped player, bool force)
         {
             if (!_followOrdersActive || player == null || !player.Exists()) return;
@@ -429,6 +533,7 @@ namespace AvernesTreiner.Modules
             _lastCleanupTime = now;
 
             Ped player = Game.Player.Character;
+            MaintainPositionDefense(now);
             MaintainBodyguardFollow(player, false);
 
             for (int i = _bodyguards.Count - 1; i >= 0; i--)
