@@ -12,7 +12,7 @@ namespace AvernesTreiner.Core
     public static class DiagnosticsManager
     {
         private const int MaxBufferedEntries = 256;
-        private const int FlushIntervalMilliseconds = 1000;
+        private const int FlushIntervalMilliseconds = 5000;
         private const long MaxLogBytes = 2097152;
         private const int MaxEntryCharacters = 2000;
 
@@ -95,21 +95,46 @@ namespace AvernesTreiner.Core
 
         private static bool EnsurePaths()
         {
-            try
+            string scriptsDirectory = Path.GetDirectoryName(ConfigManager.RuntimeDirectoryPath);
+            string preferredLogs = Path.Combine(scriptsDirectory, "AvermesBags", "Logs");
+            string fallbackLogs = Path.Combine(ConfigManager.UserDataDirectoryPath, "AvermesBags", "Logs");
+
+            if (TrySetDiagnosticsDirectory(preferredLogs))
             {
-                string scriptsDirectory = Path.GetDirectoryName(ConfigManager.RuntimeDirectoryPath);
-                string bagsDirectory = Path.Combine(scriptsDirectory, "AvermesBags");
-                _diagnosticsDirectory = Path.Combine(bagsDirectory, "Logs");
-                _logPath = Path.Combine(_diagnosticsDirectory, "AvernesTreiner.log");
-                _previousLogPath = Path.Combine(_diagnosticsDirectory, "AvernesTreiner.previous.log");
-                _sessionMarkerPath = Path.Combine(_diagnosticsDirectory, "Session.active");
-                Directory.CreateDirectory(_diagnosticsDirectory);
                 MigrateLegacyDiagnostics();
                 return true;
             }
-            catch (Exception ex)
+
+            if (TrySetDiagnosticsDirectory(fallbackLogs))
             {
-                LastError = Sanitize(ex.Message);
+                LastError = "No write permission for scripts\\AvermesBags\\Logs; diagnostics are using the user Documents fallback: " + fallbackLogs;
+                return true;
+            }
+
+            LastError = "Cannot create a writable diagnostics directory in scripts\\AvermesBags\\Logs or the user Documents fallback.";
+            return false;
+        }
+
+        private static bool TrySetDiagnosticsDirectory(string directory)
+        {
+            try
+            {
+                Directory.CreateDirectory(directory);
+                string probePath = Path.Combine(directory, ".write-test-" + Guid.NewGuid().ToString("N"));
+                using (FileStream probe = new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    probe.WriteByte(0);
+                }
+                File.Delete(probePath);
+
+                _diagnosticsDirectory = directory;
+                _logPath = Path.Combine(directory, "AvernesTreiner.log");
+                _previousLogPath = Path.Combine(directory, "AvernesTreiner.previous.log");
+                _sessionMarkerPath = Path.Combine(directory, "Session.active");
+                return true;
+            }
+            catch
+            {
                 return false;
             }
         }
@@ -134,7 +159,7 @@ namespace AvernesTreiner.Core
                     new UTF8Encoding(false));
                 EnsureMonitoringHooks();
                 _sessionStarted = true;
-                LogInfo("System", "Diagnostics started. Buffer=256 entries; flush=1 second; log cap=2 MB per file.");
+                LogInfo("System", "Diagnostics started. Buffer=256 entries; flush=5 seconds; log cap=2 MB per file.");
                 Flush();
                 LastError = null;
             }
@@ -275,7 +300,7 @@ namespace AvernesTreiner.Core
                         FileAccess.Write, FileShare.ReadWrite))
                     {
                         stream.Write(bytes, 0, bytes.Length);
-                        stream.Flush(true);
+                        stream.Flush();
                     }
                     LastError = null;
                 }
@@ -362,7 +387,7 @@ namespace AvernesTreiner.Core
                     "AvernesTreiner Diagnostics Report" + Environment.NewLine +
                     "Created UTC: " + DateTime.UtcNow.ToString("o") + Environment.NewLine +
                     "Buffer: maximum 256 entries" + Environment.NewLine +
-                    "Flush interval: 1 second" + Environment.NewLine +
+                    "Flush interval: 5 seconds" + Environment.NewLine +
                     "Current and previous log: maximum 2 MB each" + Environment.NewLine +
                     "No telemetry or automatic upload is performed." + Environment.NewLine,
                     Encoding.UTF8);
