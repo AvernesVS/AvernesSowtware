@@ -69,7 +69,8 @@ Default menu key: **F10**.
 - Aim Bot scans nearby peds and props instead of enumerating the entire world; target acquisition is rate-limited to 250 ms even when no target is found.
 - Range-target raycast is checked before ped scanning; nearby candidate filtering applies distance and aim-cone checks before line-of-sight natives.
 - Fixed player squad-group detection when the player is not in a group, removed an unrelated train native from enemy filtering, and added wanted SWAT recognition.
-- Reduced repeated enemy-classification calls during camera tracking and fixed Aim Bot checkbox state after automatic shutdown.
+- Reduced repeated enemy-classification calls during camera tracking, lowered the on-foot aim point slightly, and added a higher aim offset for industrial/commercial truck cabins.
+- Fixed Aim Bot checkbox state after automatic shutdown.
 - Aim Bot can acquire Ammu-Nation targets through a direct camera raycast and a whitelist of known firing-range target models.
 - Bodyguards receive an explicit walk-in vehicle-entry task when the player is in a vehicle; they use an available passenger seat and are not teleported into the vehicle. Existing combat tasks are preserved.
 - Diagnostics logs are stored in `GTA V\scripts\AvermesBags\Logs`; exported ZIP reports are stored in `GTA V\scripts\AvermesBags`. Existing logs and report ZIPs are migrated from the former Documents location without overwriting files already present.
