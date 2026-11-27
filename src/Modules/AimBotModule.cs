@@ -376,8 +376,15 @@ namespace AvernesTreiner.Modules
             // Resolve the vehicle class only when the ped/vehicle changes. This keeps
             // the truck-specific correction from adding a class native every frame.
             int vehicleHandle = Function.Call<int>((Hash)0x9A9112A0FE9A4713, ped.Handle, false);
-            if (vehicleHandle != 0 &&
-                (_cachedAimPedHandle != ped.Handle || _cachedAimVehicleHandle != vehicleHandle))
+            if (vehicleHandle == 0)
+            {
+                _cachedAimPedHandle = ped.Handle;
+                _cachedAimVehicleHandle = 0;
+                _cachedAimVehicleClass = -1;
+                return position + new Vector3(0.0f, 0.0f, 0.08f);
+            }
+
+            if (_cachedAimPedHandle != ped.Handle || _cachedAimVehicleHandle != vehicleHandle)
             {
                 _cachedAimPedHandle = ped.Handle;
                 _cachedAimVehicleHandle = vehicleHandle;
