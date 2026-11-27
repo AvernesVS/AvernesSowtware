@@ -357,6 +357,8 @@ namespace AvernesTreiner.Modules
             }
 
             RefreshSavedVehicleMenu();
+            // The deleted entry's submenu was removed from the pool; return to the refreshed catalog.
+            _savedMenu.Visible = true;
             UI.Notify(Localization.Get("Vehicle", "SavedVehicleDeleted", "Saved vehicle deleted. The list has been renumbered."));
         }
 
