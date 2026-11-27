@@ -53,6 +53,9 @@ namespace AvernesTreiner.Modules
         private bool _targetIsRangeObject;
         private int _lastLoggedTargetHandle;
         private int _lastTargetLogTime;
+        private int _cachedAimPedHandle;
+        private int _cachedAimVehicleHandle;
+        private int _cachedAimVehicleClass = -1;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -352,12 +355,39 @@ namespace AvernesTreiner.Modules
 
         private Vector3 GetAimPosition(Ped ped)
         {
-            // The head bone can be partially occluded or offset by seat animation.
-            // Use the upper torso for occupants; keep head targeting on foot.
-            int bone = ped.IsInVehicle() ? 24818 : HeadBone;
+            // Keep the head bone for pedestrians on foot, with a small downward
+            // correction to avoid aiming above the head. Vehicle occupants use Spine3.
+            bool inVehicle = ped.IsInVehicle();
+            int bone = inVehicle ? 24818 : HeadBone;
             Vector3 position = Function.Call<Vector3>((Hash)0x17C07FC640E86B4E,
                 ped.Handle, bone, 0.0f, 0.0f, 0.0f);
-            return ped.IsInVehicle() ? position + new Vector3(0.0f, 0.0f, 0.08f) : position;
+
+            if (!inVehicle)
+            {
+                if (_cachedAimPedHandle == ped.Handle)
+                {
+                    _cachedAimPedHandle = 0;
+                    _cachedAimVehicleHandle = 0;
+                    _cachedAimVehicleClass = -1;
+                }
+                return position + new Vector3(0.0f, 0.0f, -0.05f);
+            }
+
+            // Resolve the vehicle class only when the ped/vehicle changes. This keeps
+            // the truck-specific correction from adding a class native every frame.
+            int vehicleHandle = Function.Call<int>((Hash)0x9A9112A0FE9A4713, ped.Handle, false);
+            if (vehicleHandle != 0 &&
+                (_cachedAimPedHandle != ped.Handle || _cachedAimVehicleHandle != vehicleHandle))
+            {
+                _cachedAimPedHandle = ped.Handle;
+                _cachedAimVehicleHandle = vehicleHandle;
+                _cachedAimVehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62, vehicleHandle);
+            }
+
+            // GET_VEHICLE_CLASS: 10 = Industrial, 20 = Commercial (heavy trucks).
+            float verticalOffset = (_cachedAimVehicleClass == 10 || _cachedAimVehicleClass == 20)
+                ? 0.18f : 0.08f;
+            return position + new Vector3(0.0f, 0.0f, verticalOffset);
         }
 
         private void MoveAimTowardPosition(Ped player, Vector3 head)
