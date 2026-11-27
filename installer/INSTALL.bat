@@ -1,12 +1,12 @@
 @echo off
 setlocal
-title AvernesTreiner 0.9.8 Installer
+title AvernesTreiner 0.9.9 Installer
 set "PACKAGE=%~dp0"
 set "TARGET=C:\Program Files (x86)\Grand Theft Auto V"
 if exist "%TARGET%\GTA5.exe" goto target_ok
 set "TARGET=%~dp0"
 if exist "%TARGET%GTA5.exe" goto target_ok
-echo AvernesTreiner 0.9.8 - GTA V Legacy installer
+echo AvernesTreiner 0.9.9 - GTA V Legacy installer
 echo.
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
@@ -20,6 +20,8 @@ if not exist "%PACKAGE%files\scripts\AvernesTreiner\Languages\ru-RU.ini" goto pa
 if not exist "%TARGET%\scripts" mkdir "%TARGET%\scripts"
 if not exist "%TARGET%\scripts\AvermesBags" mkdir "%TARGET%\scripts\AvermesBags"
 if not exist "%TARGET%\scripts\AvermesBags" goto failed
+rem Grant the current user write access for diagnostics when GTA is installed under Program Files.
+icacls "%TARGET%\scripts\AvermesBags" /grant "%USERDOMAIN%\%USERNAME%:(OI)(CI)M" /T /C >nul 2>&1
 set "DATA=%TARGET%\scripts\AvernesTreiner"
 set "DOCUMENTS="
 for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('MyDocuments')"`) do set "DOCUMENTS=%%D"
