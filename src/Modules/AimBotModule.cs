@@ -53,7 +53,6 @@ namespace AvernesTreiner.Modules
         private bool _targetIsRangeObject;
         private int _lastLoggedTargetHandle;
         private int _lastTargetLogTime;
-        private int _consecutiveErrors;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
