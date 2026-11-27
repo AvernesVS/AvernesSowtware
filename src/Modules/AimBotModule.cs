@@ -16,30 +16,6 @@ namespace AvernesTreiner.Modules
         private const float MinimumAimDot = 0.76f;
         private const int AimControl = 25;
         private const int HeadBone = 31086;
-        private static readonly int[] RangeTargetModelHashes = new int[]
-        {
-            new Model("prop_range_target_01").Hash,
-            new Model("prop_range_target_02").Hash,
-            new Model("prop_range_target_03").Hash,
-            new Model("prop_target_blue").Hash,
-            new Model("prop_target_red").Hash,
-            new Model("prop_target_bull").Hash,
-            new Model("prop_target_bull_b").Hash,
-            new Model("prop_target_red_blue_01").Hash,
-            new Model("prop_target_inner1").Hash,
-            new Model("prop_target_inner2").Hash,
-            new Model("prop_target_inner2_b").Hash,
-            new Model("prop_target_inner3").Hash,
-            new Model("prop_target_inner3_b").Hash,
-            new Model("prop_target_inner_b").Hash,
-            new Model("prop_target_ora_purp_01").Hash,
-            new Model("prop_target_oran_cross").Hash,
-            new Model("prop_target_orange_arrow").Hash,
-            new Model("prop_target_purp_arrow").Hash,
-            new Model("prop_target_purp_cross").Hash,
-            new Model("prop_target_red_arrow").Hash,
-            new Model("prop_target_red_cross").Hash
-        };
         private const int ScanInterval = 500;
         private const float MaximumYawStep = 3.2f;
         private const float MaximumPitchStep = 2.4f;
@@ -50,7 +26,6 @@ namespace AvernesTreiner.Modules
         private bool _hasScanned;
         private readonly Queue<int> _errorTimes = new Queue<int>();
         private int _targetHandle;
-        private bool _targetIsRangeObject;
         private int _lastLoggedTargetHandle;
         private int _lastTargetLogTime;
         private int _cachedAimPedHandle;
@@ -71,7 +46,6 @@ namespace AvernesTreiner.Modules
             {
                 _enabled = state;
                 _targetHandle = 0;
-                _targetIsRangeObject = false;
                 _hasScanned = false;
                 ConfigManager.SetBool("Combat", "AimBotEnabled", _enabled);
                 DiagnosticsManager.LogInfo("AimBot", _enabled ? "Aim Bot enabled." : "Aim Bot disabled.");
@@ -84,7 +58,6 @@ namespace AvernesTreiner.Modules
         {
             _enabled = ConfigManager.GetBool("Combat", "AimBotEnabled", false);
             _targetHandle = 0;
-            _targetIsRangeObject = false;
             _lastScanTime = 0;
             _hasScanned = false;
             _errorTimes.Clear();
@@ -113,7 +86,6 @@ namespace AvernesTreiner.Modules
                 {
                     _enabled = false;
                     _targetHandle = 0;
-                    _targetIsRangeObject = false;
                     if (_aimBotItem != null) _aimBotItem.Checked = false;
                     ConfigManager.SetBool("Combat", "AimBotEnabled", false);
                     DiagnosticsManager.LogWarning("AimBot", "Aim Bot was automatically disabled after five errors within ten seconds.");
@@ -153,26 +125,11 @@ namespace AvernesTreiner.Modules
             {
                 _hasScanned = true;
                 _lastScanTime = now;
-                bool isRangeTarget;
-                int nextTarget = FindBestTarget(player, out isRangeTarget);
-                SetTarget(nextTarget, isRangeTarget);
+                int nextTarget = FindBestTarget(player);
+                SetTarget(nextTarget);
             }
 
             if (_targetHandle == 0) return;
-
-            if (_targetIsRangeObject)
-            {
-                Prop rangeTarget = new Prop(_targetHandle);
-                if (!rangeTarget.Exists() || !IsRangeTarget(rangeTarget) ||
-                    !Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, rangeTarget.Handle) ||
-                    !Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY, player.Handle, rangeTarget.Handle, 17))
-                {
-                    SetTarget(0);
-                    return;
-                }
-                MoveAimTowardPosition(player, rangeTarget.Position + new Vector3(0.0f, 0.0f, 0.8f));
-                return;
-            }
 
             Ped target = new Ped(_targetHandle);
             if (!target.Exists() || target.IsDead)
@@ -184,11 +141,10 @@ namespace AvernesTreiner.Modules
             MoveAimTowardPosition(player, GetAimPosition(target));
         }
 
-        private void SetTarget(int handle, bool isRangeObject = false)
+        private void SetTarget(int handle)
         {
-            if (_targetHandle == handle && _targetIsRangeObject == isRangeObject) return;
+            if (_targetHandle == handle) return;
             _targetHandle = handle;
-            _targetIsRangeObject = handle != 0 && isRangeObject;
 
             int now = Game.GameTime;
             if (handle != 0)
@@ -196,8 +152,7 @@ namespace AvernesTreiner.Modules
                 if (_lastLoggedTargetHandle == handle && now - _lastTargetLogTime < 10000) return;
                 _lastLoggedTargetHandle = handle;
                 _lastTargetLogTime = now;
-                DiagnosticsManager.LogDetail("AimBot", (_targetIsRangeObject ? "Range target selected. Entity handle: " :
-                    "Hostile target selected. Entity handle: ") + handle + ".");
+                DiagnosticsManager.LogDetail("AimBot", "Hostile NPC target selected. Entity handle: " + handle + ".");
             }
             else
             {
@@ -207,28 +162,13 @@ namespace AvernesTreiner.Modules
             }
         }
 
-        private int FindBestTarget(Ped player, out bool isRangeObject)
+        private int FindBestTarget(Ped player)
         {
             Vector3 cameraPosition = GameplayCamera.Position;
             Vector3 cameraDirection = GameplayCamera.Direction;
             float bestScore = float.MinValue;
             int bestHandle = 0;
-            bool bestIsRangeObject = false;
             float maxDistanceSquared = MaximumRange * MaximumRange;
-
-            // Check the exact crosshair ray first. A confirmed range target does not
-            // require scanning the nearby ped or prop pools.
-            RaycastResult rangeRay = World.Raycast(cameraPosition, cameraDirection,
-                MaximumRange, IntersectOptions.Objects, player);
-            if (rangeRay.DitHitEntity && rangeRay.HitEntity is Prop)
-            {
-                Prop rayTarget = (Prop)rangeRay.HitEntity;
-                if (IsRangeTarget(rayTarget))
-                {
-                    isRangeObject = true;
-                    return rayTarget.Handle;
-                }
-            }
 
             // Restrict enumeration to entities near the camera instead of every
             // entity currently registered in the world pools.
@@ -265,18 +205,7 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-
-            isRangeObject = bestIsRangeObject;
             return bestHandle;
-        }
-
-        private bool IsRangeTarget(Prop prop)
-        {
-            if (prop == null || !prop.Exists()) return false;
-            int modelHash = prop.Model.Hash;
-            for (int i = 0; i < RangeTargetModelHashes.Length; i++)
-                if (modelHash == RangeTargetModelHashes[i]) return true;
-            return false;
         }
 
         private bool IsEnemy(Ped candidate, Ped player)
