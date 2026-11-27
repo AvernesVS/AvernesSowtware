@@ -71,6 +71,7 @@ Default menu key: **F10**.
 - Fixed player squad-group detection when the player is not in a group, removed an unrelated train native from enemy filtering, and added wanted SWAT recognition.
 - Reduced repeated enemy-classification calls during camera tracking, lowered the on-foot aim point slightly, and added a higher aim offset for industrial/commercial truck cabins.
 - Fixed Aim Bot checkbox state after automatic shutdown.
+- Aim Bot is suspended while the player is in a vehicle; hostile NPCs in vehicles remain targetable when the player is on foot.
 - Aim Bot can acquire Ammu-Nation targets through a direct camera raycast and a whitelist of known firing-range target models.
 - Bodyguards receive an explicit walk-in vehicle-entry task when the player is in a vehicle; they use an available passenger seat and are not teleported into the vehicle. Existing combat tasks are preserved.
 - Diagnostics logs are stored in `GTA V\scripts\AvermesBags\Logs`; exported ZIP reports are stored in `GTA V\scripts\AvermesBags`. Existing logs and report ZIPs are migrated from the former Documents location without overwriting files already present.
