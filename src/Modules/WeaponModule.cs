@@ -25,6 +25,8 @@ namespace AvernesTreiner.Modules
         private bool _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
         private bool _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
         private bool _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
+        private bool _antiRecoil = ConfigManager.GetBool("Weapons", "AntiRecoil", false);
+        private bool _increasedFireRate = ConfigManager.GetBool("Weapons", "IncreasedFireRate", false);
         private int _lastAmmoRefreshTime = 0;
         private int _lastClipRefreshTime = 0;
         private int _lastWeaponPedHandle = 0;
@@ -292,6 +294,32 @@ namespace AvernesTreiner.Modules
             weapMenu.AddItem(superDmg);
             if (_superDamage)
                 Function.Call(Hash.SET_PLAYER_WEAPON_DAMAGE_MODIFIER, Game.Player.Handle, 100.0f);
+
+            var antiRecoilItem = new UIMenuCheckboxItem(
+                Localization.Get("Weapons", "AntiRecoil", "Anti-Recoil"),
+                _antiRecoil,
+                Localization.Get("Weapons", "AntiRecoilDesc", "Suppresses weapon camera kick while firing; does not change bullet spread."));
+            antiRecoilItem.CheckboxEvent += (sender, state) =>
+            {
+                _antiRecoil = state;
+                ConfigManager.SetBool("Weapons", "AntiRecoil", _antiRecoil);
+                if (_antiRecoil) Function.Call(Hash.STOP_GAMEPLAY_CAM_SHAKING, true);
+            };
+            weapMenu.AddItem(antiRecoilItem);
+
+            var fireRateItem = new UIMenuCheckboxItem(
+                Localization.Get("Weapons", "IncreasedFireRate", "Increased Fire Rate"),
+                _increasedFireRate,
+                Localization.Get("Weapons", "IncreasedFireRateDesc", "Raises the player's weapon shooting rate."));
+            fireRateItem.CheckboxEvent += (sender, state) =>
+            {
+                _increasedFireRate = state;
+                ConfigManager.SetBool("Weapons", "IncreasedFireRate", _increasedFireRate);
+                Ped current = Game.Player.Character;
+                if (current != null && current.Exists())
+                    Function.Call((Hash)0x614DA022990752DC, current.Handle, _increasedFireRate ? 1000 : 100);
+            };
+            weapMenu.AddItem(fireRateItem);
         }
 
         private static void EnsureInventoryModelHashes()
@@ -597,7 +625,7 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 500)
+            if (!_inventoryRestorePending && now - _lastInventorySnapshotTime >= 2500)
             {
                 _lastInventorySnapshotTime = now;
                 _savedInventories[slot] = CaptureWeaponInventory(player);
@@ -622,6 +650,11 @@ namespace AvernesTreiner.Modules
             _forceGun = ConfigManager.GetBool("Weapons", "ForceGun", false);
             _rpgAmmo = ConfigManager.GetBool("Weapons", "RpgAmmo", false);
             _infiniteClip = ConfigManager.GetBool("Weapons", "InfiniteClip", false);
+            _antiRecoil = ConfigManager.GetBool("Weapons", "AntiRecoil", false);
+            _increasedFireRate = ConfigManager.GetBool("Weapons", "IncreasedFireRate", false);
+            Ped current = Game.Player.Character;
+            if (current != null && current.Exists())
+                Function.Call((Hash)0x614DA022990752DC, current.Handle, _increasedFireRate ? 1000 : 100);
             _lastAmmoRefreshTime = 0;
             _lastForcedReloadTime = 0;
         }
@@ -683,7 +716,7 @@ namespace AvernesTreiner.Modules
                 MaintainStoryModeWeaponInventory(inventoryPlayer, Game.GameTime);
 
             bool needsUpdate = _infiniteAmmo || _infiniteClip || _explosiveAmmo || _fireAmmo || _superDamage ||
-                               _teleportGun || _forceGun || _rpgAmmo;
+                               _teleportGun || _forceGun || _rpgAmmo || _antiRecoil || _increasedFireRate;
             if (!needsUpdate) return;
 
             Ped player = Game.Player.Character;
@@ -696,6 +729,7 @@ namespace AvernesTreiner.Modules
                 _lastWeaponPedHandle = player.Handle;
                 // Player-specific weapon flags are not inherited when Story Mode swaps characters.
                 Function.Call(Hash.SET_PED_INFINITE_AMMO_CLIP, player.Handle, _infiniteClip);
+                Function.Call((Hash)0x614DA022990752DC, player.Handle, _increasedFireRate ? 1000 : 100);
                 _lastClipRefreshTime = now;
                 _lastAmmoRefreshTime = 0;
             }
@@ -710,6 +744,10 @@ namespace AvernesTreiner.Modules
                 _lastAmmoRefreshTime = now;
                 RefreshInfiniteAmmoForCurrentWeapon(player, now);
             }
+
+            // Suppress the gameplay camera kick only while a shot is being fired.
+            if (_antiRecoil && player.IsShooting)
+                Function.Call(Hash.STOP_GAMEPLAY_CAM_SHAKING, true);
 
             // These natives are frame-scoped and must remain in the frame tick.
             if (_explosiveAmmo) Game.Player.SetExplosiveAmmoThisFrame();
