@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.10
+# AvernesTreiner v0.9.11
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -65,9 +65,9 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
-## v0.9.10 — Aim Bot fixes and performance
-- Aim Bot scans nearby peds and props instead of enumerating the entire world; target acquisition is rate-limited to 250 ms even when no target is found.
-- Range-target raycast is checked before ped scanning; nearby candidate filtering applies distance and aim-cone checks before line-of-sight natives.
+## v0.9.11 — emergency Aim Bot stability hotfix
+- Aim Bot scans nearby peds at a 500 ms interval; it uses an object-only raycast for the crosshair range-target check and no longer enumerates nearby props.
+- Range-target raycast is restricted to objects and checked before ped scanning; nearby candidate filtering applies distance and aim-cone checks before line-of-sight natives.
 - Fixed player squad-group detection when the player is not in a group, removed an unrelated train native from enemy filtering, and added wanted SWAT recognition.
 - Reduced repeated enemy-classification calls during camera tracking, lowered the on-foot aim point slightly, and added a higher aim offset for industrial/commercial truck cabins.
 - Fixed Aim Bot checkbox state after automatic shutdown.
