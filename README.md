@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.11
+# AvernesTreiner v0.9.13
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -64,6 +64,15 @@ For a local build, open a command prompt in `src`, set `SHVDN2_DLL` and `NATIVEU
 Extract the archive to any folder and run `INSTALL.bat`. If the archive is not beside `GTA5.exe`, enter the GTA V Legacy folder path when prompted. The installer backs up current data and migrates `Config.ini`, `SavedVehicles.json`, `WeaponInventory.json` and `addons.json` into `Documents\\AvernesTreiner`. The trainer reads and writes these files in that permanent location; existing Documents data is never overwritten by older game-local files. The uninstaller does not remove user data. Run `UNINSTALL.bat` to remove only the trainer DLL and its two shipped language files; user data is retained.
 
 Default menu key: **F10**.
+
+## v0.9.13 — vehicle water support, saved vehicle menu and weapon controls
+- Reworked Saved Vehicles: each saved vehicle now opens its own submenu with exactly two actions, **Spawn** and **Delete**. Dynamic submenus are removed from NativeUI's menu pool before rebuilding, preventing stale menu accumulation.
+- Replaced the water-height lookup with an all-water vertical probe to detect oceans, lakes and shallow rivers; the vehicle is held above the detected surface while horizontal momentum is preserved.
+- Added **Anti-Recoil** to suppress weapon camera kick while firing, without changing bullet spread or damage.
+- Added **Increased Fire Rate**, applying the documented player ped shoot-rate control and restoring the default rate when disabled or when switching characters.
+- Corrected Hold Position so bodyguards leave the player's follow group, clear old tasks and remain at the held location; follow orders rejoin the group. Defensive targets are cleared when no longer present.
+- Reduced Story Mode weapon inventory snapshots and disk persistence from every 500 ms to every 2.5 seconds to reduce periodic CPU/disk load while retaining regular DLC weapon capture.
+- Clarified the vehicle-only Repair & Wash notification so it cannot be mistaken for Drive on Water. Gameplay behavior still requires in-game testing on GTA V Legacy 1.0.2245.0.
 
 ## v0.9.12 — Aim Bot scope, bodyguard tactics and stability fixes
 - Aim Bot targets hostile human NPCs and mission opponents only. All Ammu-Nation range-target and prop-target acquisition code has been removed.
