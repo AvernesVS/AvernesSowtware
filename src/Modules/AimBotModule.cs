@@ -4,6 +4,7 @@ using GTA.Math;
 using GTA.Native;
 using NativeUI;
 using System;
+using System.Collections.Generic;
 
 namespace AvernesTreiner.Modules
 {
@@ -44,12 +45,17 @@ namespace AvernesTreiner.Modules
         private const float MaximumPitchStep = 2.4f;
 
         private bool _enabled = ConfigManager.GetBool("Combat", "AimBotEnabled", false);
+        private UIMenuCheckboxItem _aimBotItem;
         private int _lastScanTime;
+        private bool _hasScanned;
+        private readonly Queue<int> _errorTimes = new Queue<int>();
         private int _targetHandle;
         private bool _targetIsRangeObject;
         private int _lastLoggedTargetHandle;
         private int _lastTargetLogTime;
-        private int _consecutiveErrors;
+        private int _cachedAimPedHandle;
+        private int _cachedAimVehicleHandle;
+        private int _cachedAimVehicleClass = -1;
 
         public void Initialize(UIMenu mainMenu, MenuPool menuPool)
         {
@@ -65,9 +71,12 @@ namespace AvernesTreiner.Modules
             {
                 _enabled = state;
                 _targetHandle = 0;
+                _targetIsRangeObject = false;
+                _hasScanned = false;
                 ConfigManager.SetBool("Combat", "AimBotEnabled", _enabled);
                 DiagnosticsManager.LogInfo("AimBot", _enabled ? "Aim Bot enabled." : "Aim Bot disabled.");
             };
+            _aimBotItem = aimBotItem;
             combatMenu.AddItem(aimBotItem);
         }
 
@@ -75,7 +84,11 @@ namespace AvernesTreiner.Modules
         {
             _enabled = ConfigManager.GetBool("Combat", "AimBotEnabled", false);
             _targetHandle = 0;
+            _targetIsRangeObject = false;
             _lastScanTime = 0;
+            _hasScanned = false;
+            _errorTimes.Clear();
+            if (_aimBotItem != null) _aimBotItem.Checked = _enabled;
         }
 
         public void OnTick()
@@ -85,19 +98,25 @@ namespace AvernesTreiner.Modules
             try
             {
                 RunAimLogic();
-                _consecutiveErrors = 0;
             }
             catch (Exception ex)
             {
-                _consecutiveErrors++;
+                int now = Game.GameTime;
+                while (_errorTimes.Count > 0 && now - _errorTimes.Peek() > 10000)
+                    _errorTimes.Dequeue();
+                _errorTimes.Enqueue(now);
+
                 SetTarget(0);
                 DiagnosticsManager.LogException("AimBot", ex);
 
-                if (_consecutiveErrors >= 3 && _enabled)
+                if (_errorTimes.Count >= 5 && _enabled)
                 {
                     _enabled = false;
+                    _targetHandle = 0;
+                    _targetIsRangeObject = false;
+                    if (_aimBotItem != null) _aimBotItem.Checked = false;
                     ConfigManager.SetBool("Combat", "AimBotEnabled", false);
-                    DiagnosticsManager.LogWarning("AimBot", "Aim Bot was automatically disabled after repeated errors.");
+                    DiagnosticsManager.LogWarning("AimBot", "Aim Bot was automatically disabled after five errors within ten seconds.");
                     UI.Notify(Localization.Get("Diagnostics", "AimBotAutoDisabled",
                         "~r~Aim Bot disabled after repeated errors. Check the diagnostics report."));
                 }
@@ -122,8 +141,9 @@ namespace AvernesTreiner.Modules
             }
 
             int now = Game.GameTime;
-            if (_targetHandle == 0 || now - _lastScanTime >= ScanInterval)
+            if (!_hasScanned || now - _lastScanTime >= ScanInterval)
             {
+                _hasScanned = true;
                 _lastScanTime = now;
                 bool isRangeTarget;
                 int nextTarget = FindBestTarget(player, out isRangeTarget);
@@ -147,7 +167,7 @@ namespace AvernesTreiner.Modules
             }
 
             Ped target = new Ped(_targetHandle);
-            if (!target.Exists() || target.IsDead || !IsEnemy(target, player))
+            if (!target.Exists() || target.IsDead)
             {
                 SetTarget(0);
                 return;
@@ -173,20 +193,38 @@ namespace AvernesTreiner.Modules
             }
             else
             {
+                _lastLoggedTargetHandle = 0;
+                _lastTargetLogTime = 0;
                 DiagnosticsManager.LogDetail("AimBot", "Aim target cleared.");
             }
         }
 
         private int FindBestTarget(Ped player, out bool isRangeObject)
         {
-            Ped[] peds = World.GetAllPeds();
-            Vector3 cameraPosition = Function.Call<Vector3>((Hash)0x14D6F5678D8F1B37);
+            Vector3 cameraPosition = GameplayCamera.Position;
             Vector3 cameraDirection = GameplayCamera.Direction;
             float bestScore = float.MinValue;
             int bestHandle = 0;
             bool bestIsRangeObject = false;
             float maxDistanceSquared = MaximumRange * MaximumRange;
 
+            // Check the exact crosshair ray first. A confirmed range target does not
+            // require scanning the nearby ped or prop pools.
+            RaycastResult rangeRay = World.Raycast(cameraPosition, cameraDirection,
+                MaximumRange, IntersectOptions.Everything, player);
+            if (rangeRay.DitHitEntity && rangeRay.HitEntity is Prop)
+            {
+                Prop rayTarget = (Prop)rangeRay.HitEntity;
+                if (IsRangeTarget(rayTarget))
+                {
+                    isRangeObject = true;
+                    return rayTarget.Handle;
+                }
+            }
+
+            // Restrict enumeration to entities near the camera instead of every
+            // entity currently registered in the world pools.
+            Ped[] peds = World.GetNearbyPeds(cameraPosition, MaximumRange);
             for (int i = 0; i < peds.Length; i++)
             {
                 Ped candidate = peds[i];
@@ -194,23 +232,22 @@ namespace AvernesTreiner.Modules
                     candidate.IsDead || !IsEnemy(candidate, player))
                     continue;
 
-                Vector3 head = GetAimPosition(candidate);
-                float dx = head.X - cameraPosition.X;
-                float dy = head.Y - cameraPosition.Y;
-                float dz = head.Z - cameraPosition.Z;
+                Vector3 aimPosition = GetAimPosition(candidate);
+                float dx = aimPosition.X - cameraPosition.X;
+                float dy = aimPosition.Y - cameraPosition.Y;
+                float dz = aimPosition.Z - cameraPosition.Z;
                 float distanceSquared = dx * dx + dy * dy + dz * dz;
                 if (distanceSquared <= 0.01f || distanceSquared > maxDistanceSquared) continue;
+
+                float distance = (float)Math.Sqrt(distanceSquared);
+                float dot = cameraDirection.X * dx / distance +
+                    cameraDirection.Y * dy / distance +
+                    cameraDirection.Z * dz / distance;
+                if (dot < MinimumAimDot) continue;
 
                 if (!Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, candidate.Handle)) continue;
                 if (!Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY,
                     player.Handle, candidate.Handle, 17)) continue;
-
-                float distance = (float)Math.Sqrt(distanceSquared);
-                float inverseDistance = 1.0f / distance;
-                float dot = cameraDirection.X * dx * inverseDistance +
-                    cameraDirection.Y * dy * inverseDistance +
-                    cameraDirection.Z * dz * inverseDistance;
-                if (dot < MinimumAimDot) continue;
 
                 float score = dot * 3.0f - distance / MaximumRange;
                 if (score > bestScore)
@@ -220,42 +257,30 @@ namespace AvernesTreiner.Modules
                 }
             }
 
-            // First test the exact crosshair ray. Some static range objects are not
-            // returned consistently by the SHVDN object-pool enumeration.
-            RaycastResult rangeRay = World.Raycast(GameplayCamera.Position, GameplayCamera.Direction,
-                MaximumRange, IntersectOptions.Everything, player);
-            if (rangeRay.DitHitEntity && rangeRay.HitEntity is Prop)
-            {
-                Prop rayTarget = (Prop)rangeRay.HitEntity;
-                if (IsRangeTarget(rayTarget))
-                {
-                    bestHandle = rayTarget.Handle;
-                    bestIsRangeObject = true;
-                    bestScore = 100.0f;
-                }
-            }
-
             // Ammu-Nation shooting-range targets are props, not peds. Only a strict
             // model whitelist is eligible so Aim Bot cannot lock onto arbitrary scenery.
-            Prop[] props = bestIsRangeObject && bestScore >= 100.0f ? new Prop[0] : World.GetAllProps();
+            Prop[] props = World.GetNearbyProps(cameraPosition, MaximumRange);
             for (int i = 0; i < props.Length; i++)
             {
                 Prop candidate = props[i];
                 if (candidate == null || !candidate.Exists() || !IsRangeTarget(candidate)) continue;
+
                 Vector3 targetPosition = candidate.Position + new Vector3(0.0f, 0.0f, 0.8f);
                 float dx = targetPosition.X - cameraPosition.X;
                 float dy = targetPosition.Y - cameraPosition.Y;
                 float dz = targetPosition.Z - cameraPosition.Z;
                 float distanceSquared = dx * dx + dy * dy + dz * dz;
                 if (distanceSquared <= 0.01f || distanceSquared > maxDistanceSquared) continue;
-                if (!Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, candidate.Handle) ||
-                    !Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY, player.Handle, candidate.Handle, 17))
-                    continue;
 
                 float distance = (float)Math.Sqrt(distanceSquared);
                 float dot = cameraDirection.X * dx / distance +
                     cameraDirection.Y * dy / distance + cameraDirection.Z * dz / distance;
                 if (dot < MinimumAimDot) continue;
+
+                if (!Function.Call<bool>(Hash.IS_ENTITY_ON_SCREEN, candidate.Handle)) continue;
+                if (!Function.Call<bool>(Hash.HAS_ENTITY_CLEAR_LOS_TO_ENTITY,
+                    player.Handle, candidate.Handle, 17)) continue;
+
                 float score = dot * 3.0f - distance / MaximumRange;
                 if (score > bestScore)
                 {
@@ -288,13 +313,14 @@ namespace AvernesTreiner.Modules
             if (!Function.Call<bool>((Hash)0xB980061DA992779D, candidate.Handle))
                 return false;
 
-            // Never select the player's own relationship group, current squad members,
-            // or peds that the game identifies as friends.
-            int playerGroup = player.CurrentPedGroup.Handle;
-            if (candidate.RelationshipGroup == player.RelationshipGroup ||
-                Function.Call<bool>((Hash)0x9BB01E3834671191, candidate.Handle, playerGroup) ||
-                Function.Call<bool>((Hash)0x6F972C1AB75A1ED0, candidate.Handle, player.Handle))
-                return false;
+            // Exclude only members of the player's actual ped group. Relationship
+            // groups are faction relationships and are not the same as squad membership.
+            int playerGroup = Function.Call<int>((Hash)0xF162E133B4E7A675, player.Handle);
+            if (playerGroup != 0)
+            {
+                int candidateGroup = Function.Call<int>((Hash)0xF162E133B4E7A675, candidate.Handle);
+                if (candidateGroup == playerGroup) return false;
+            }
 
             if (Function.Call<bool>((Hash)0x12534C348C6CB68B, candidate.Handle))
                 return false;
@@ -308,10 +334,10 @@ namespace AvernesTreiner.Modules
             // Story mission objectives commonly receive a red entity blip before combat starts.
             bool markedAsMissionEnemy = HasRedEntityBlip(candidate);
 
-            // Police are valid targets while the player is wanted, even if their combat
-            // relationship has not yet updated for the current frame.
+            // GET_PED_TYPE: 6 = Cop, 27 = SWAT. Both are valid targets while wanted.
+            int pedType = Function.Call<int>((Hash)0xFF059E1E4C01E63C, candidate.Handle);
             bool wantedPolice = Game.Player.WantedLevel > 0 &&
-                Function.Call<int>((Hash)0xFF059E1E4C01E63C, candidate.Handle) == 6;
+                (pedType == 6 || pedType == 27);
 
             return hostileRelationship || fightingPlayer ||
                 markedAsMissionEnemy || wantedPolice;
@@ -329,12 +355,46 @@ namespace AvernesTreiner.Modules
 
         private Vector3 GetAimPosition(Ped ped)
         {
-            // The head bone can be partially occluded or offset by seat animation.
-            // Use the upper torso for occupants; keep head targeting on foot.
-            int bone = ped.IsInVehicle() ? 24818 : HeadBone;
+            // Keep the head bone for pedestrians on foot, with a small downward
+            // correction to avoid aiming above the head. Vehicle occupants use Spine3.
+            bool inVehicle = ped.IsInVehicle();
+            int bone = inVehicle ? 24818 : HeadBone;
             Vector3 position = Function.Call<Vector3>((Hash)0x17C07FC640E86B4E,
                 ped.Handle, bone, 0.0f, 0.0f, 0.0f);
-            return ped.IsInVehicle() ? position + new Vector3(0.0f, 0.0f, 0.08f) : position;
+
+            if (!inVehicle)
+            {
+                if (_cachedAimPedHandle == ped.Handle)
+                {
+                    _cachedAimPedHandle = 0;
+                    _cachedAimVehicleHandle = 0;
+                    _cachedAimVehicleClass = -1;
+                }
+                return position + new Vector3(0.0f, 0.0f, -0.05f);
+            }
+
+            // Resolve the vehicle class only when the ped/vehicle changes. This keeps
+            // the truck-specific correction from adding a class native every frame.
+            int vehicleHandle = Function.Call<int>((Hash)0x9A9112A0FE9A4713, ped.Handle, false);
+            if (vehicleHandle == 0)
+            {
+                _cachedAimPedHandle = ped.Handle;
+                _cachedAimVehicleHandle = 0;
+                _cachedAimVehicleClass = -1;
+                return position + new Vector3(0.0f, 0.0f, 0.08f);
+            }
+
+            if (_cachedAimPedHandle != ped.Handle || _cachedAimVehicleHandle != vehicleHandle)
+            {
+                _cachedAimPedHandle = ped.Handle;
+                _cachedAimVehicleHandle = vehicleHandle;
+                _cachedAimVehicleClass = Function.Call<int>((Hash)0x29439776AAA00A62, vehicleHandle);
+            }
+
+            // GET_VEHICLE_CLASS: 10 = Industrial, 20 = Commercial (heavy trucks).
+            float verticalOffset = (_cachedAimVehicleClass == 10 || _cachedAimVehicleClass == 20)
+                ? 0.18f : 0.08f;
+            return position + new Vector3(0.0f, 0.0f, verticalOffset);
         }
 
         private void MoveAimTowardPosition(Ped player, Vector3 head)
