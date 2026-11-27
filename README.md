@@ -1,4 +1,4 @@
-# AvernesTreiner v0.9.13
+# AvernesTreiner v0.9.14
 
 A GTA V Legacy Story Mode trainer based on Ynix Trainer v1.6.0.0 by Carlos (carlostmj).
 
@@ -65,7 +65,7 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
-## v0.9.13 — vehicle water support, saved vehicle menu and weapon controls
+## v0.9.14 — vehicle water support, saved vehicle menu and weapon controls
 - Reworked Saved Vehicles: each saved vehicle now opens its own submenu with exactly two actions, **Spawn** and **Delete**. Dynamic submenus are removed from NativeUI's menu pool before rebuilding, preventing stale menu accumulation.
 - Replaced the water-height lookup with an all-water vertical probe to detect oceans, lakes and shallow rivers; the vehicle is held above the detected surface while horizontal momentum is preserved.
 - Added **Anti-Recoil** to suppress weapon camera kick while firing, without changing bullet spread or damage.
