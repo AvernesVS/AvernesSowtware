@@ -1,9 +1,9 @@
 @echo off
 setlocal
-title AvernesTreiner 0.9.10 Uninstaller
+title AvernesTreiner 0.9.11 Uninstaller
 set "TARGET=%~dp0"
 if exist "%TARGET%GTA5.exe" goto target_ok
-echo AvernesTreiner 0.9.10 - Uninstaller
+echo AvernesTreiner 0.9.11 - Uninstaller
 set /p TARGET=Enter the full GTA V Legacy folder path:
 if not defined TARGET goto failed
 set "TARGET=%TARGET:"=%"
