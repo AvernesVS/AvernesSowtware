@@ -378,6 +378,8 @@ namespace AvernesTreiner.Modules
 
             Model model = new Model(data.ModelHash);
             Vehicle vehicle = null;
+            DiagnosticsManager.LogInfo("SavedVehicles", "Spawn requested: name=" + data.Name + ", modelHash=" + data.ModelHash + ".");
+            DiagnosticsManager.Flush();
             try
             {
                 // Reject non-vehicle hashes before requesting or creating an entity.
@@ -389,6 +391,8 @@ namespace AvernesTreiner.Modules
                     return;
                 }
 
+                DiagnosticsManager.LogInfo("SavedVehicles", "Model validated and loaded for " + data.Name + ".");
+                DiagnosticsManager.Flush();
                 Vector3 position = player.Position + player.ForwardVector * 5.0f;
                 vehicle = World.CreateVehicle(model, position, player.Heading);
                 if (vehicle == null || !vehicle.Exists())
@@ -398,12 +402,18 @@ namespace AvernesTreiner.Modules
                     return;
                 }
 
+                DiagnosticsManager.LogInfo("SavedVehicles", "Vehicle entity created: handle=" + vehicle.Handle + ".");
+                DiagnosticsManager.Flush();
                 Function.Call(Hash.SET_ENTITY_AS_MISSION_ENTITY, vehicle.Handle, true, true);
                 vehicle.IsPersistent = true;
 
                 // Finish placement and customization before moving the player into the vehicle.
                 vehicle.PlaceOnGround();
+                DiagnosticsManager.LogInfo("SavedVehicles", "Customization started: " + data.Name + ".");
+                DiagnosticsManager.Flush();
                 ApplyCustomization(vehicle, data);
+                DiagnosticsManager.LogInfo("SavedVehicles", "Customization completed: " + data.Name + ".");
+                DiagnosticsManager.Flush();
                 VehicleModule.TrackSpawnedVehicle(vehicle, true);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                 VehicleModule.ActivateVehicleRadio(vehicle);
@@ -411,6 +421,7 @@ namespace AvernesTreiner.Modules
             }
             catch (Exception ex)
             {
+                DiagnosticsManager.LogException("SavedVehicles.Spawn", ex);
                 // A partially configured vehicle must not be left behind after a managed failure.
                 try
                 {
