@@ -85,7 +85,7 @@ namespace AvernesTreiner.Modules
                 }
                 else
                 {
-                    UI.Notify("~r~You must be inside a vehicle!");
+                    UI.Notify("~r~Repair & Wash requires you to be inside a vehicle. Drive on Water is a separate toggle.");
                 }
             };
             vehMenu.AddItem(fixItem);
@@ -1189,19 +1189,22 @@ namespace AvernesTreiner.Modules
                     {
                         _lastWaterCheckTime = currentTime;
                         OutputArgument outHeight = new OutputArgument();
-                        // Query from above the surface: using the submerged vehicle Z can make GET_WATER_HEIGHT miss the water plane.
-                        bool hasWater = Function.Call<bool>(Hash.GET_WATER_HEIGHT,
-                            v.Position.X, v.Position.Y, v.Position.Z + 10.0f, outHeight);
-                        if (hasWater)
+                        // Probe vertically through all water types. GET_WATER_HEIGHT can miss shallow rivers
+                        // and may not resolve until the vehicle is already submerged.
+                        int waterProbeResult = Function.Call<int>((Hash)0x8974647ED222EA5F,
+                            v.Position.X, v.Position.Y, v.Position.Z + 8.0f,
+                            v.Position.X, v.Position.Y, v.Position.Z - 20.0f,
+                            0, outHeight);
+                        if (waterProbeResult == 1)
                         {
                             float waterHeight = outHeight.GetResult<float>();
-                            if (v.Position.Z <= waterHeight + 2.0f && v.Position.Z >= waterHeight - 8.0f)
+                            if (v.Position.Z <= waterHeight + 3.0f && v.Position.Z >= waterHeight - 15.0f)
                             {
                                 Vector3 vel = v.Velocity;
-                                // Keep horizontal momentum so the vehicle can continue moving across the surface.
+                                // Preserve horizontal movement while preventing the vehicle from sinking.
                                 v.Velocity = new Vector3(vel.X, vel.Y, Math.Max(vel.Z, 0.0f));
-                                if (v.Position.Z < waterHeight + 0.25f)
-                                    v.Position = new Vector3(v.Position.X, v.Position.Y, waterHeight + 0.25f);
+                                if (v.Position.Z < waterHeight + 0.65f)
+                                    v.Position = new Vector3(v.Position.X, v.Position.Y, waterHeight + 0.65f);
                                 v.Rotation = new Vector3(0f, 0f, v.Rotation.Z);
                                 Function.Call(Hash.SET_VEHICLE_ENGINE_ON, v.Handle, true, true, false);
                                 Function.Call(Hash.SET_VEHICLE_UNDRIVEABLE, v.Handle, false);
