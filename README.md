@@ -65,17 +65,14 @@ Extract the archive to any folder and run `INSTALL.bat`. If the archive is not b
 
 Default menu key: **F10**.
 
-## v0.9.11 — emergency Aim Bot stability hotfix
-- Aim Bot scans nearby peds at a 500 ms interval; it uses an object-only raycast for the crosshair range-target check and no longer enumerates nearby props.
-- Range-target raycast is restricted to objects and checked before ped scanning; nearby candidate filtering applies distance and aim-cone checks before line-of-sight natives.
-- Fixed player squad-group detection when the player is not in a group, removed an unrelated train native from enemy filtering, and added wanted SWAT recognition.
-- Reduced repeated enemy-classification calls during camera tracking, lowered the on-foot aim point slightly, and added a higher aim offset for industrial/commercial truck cabins.
-- Fixed Aim Bot checkbox state after automatic shutdown.
-- Aim Bot is suspended while the player is in a vehicle; hostile NPCs in vehicles remain targetable when the player is on foot.
-- Aim Bot can acquire Ammu-Nation targets through a direct camera raycast and a whitelist of known firing-range target models.
-- Bodyguards receive an explicit walk-in vehicle-entry task when the player is in a vehicle; they use an available passenger seat and are not teleported into the vehicle. Existing combat tasks are preserved.
-- Diagnostics logs are stored in `GTA V\scripts\AvermesBags\Logs`; exported ZIP reports are stored in `GTA V\scripts\AvermesBags`. Existing logs and report ZIPs are migrated from the former Documents location without overwriting files already present.
-
+## v0.9.12 — Aim Bot scope, bodyguard tactics and stability fixes
+- Aim Bot targets hostile human NPCs and mission opponents only. All Ammu-Nation range-target and prop-target acquisition code has been removed.
+- Aim Bot retains the 500 ms bounded nearby-ped scan and is suspended while the player is in a vehicle.
+- Added bodyguard **Assault Nearest Hostile** and an active **Defend Position** order that lets guards engage hostile NPCs approaching the held area. Existing follow and aimed-target orders remain.
+- Weapon inventory capture now explicitly includes the currently selected owned weapon even when its hash is absent from the legacy weapon catalogue, improving DLC weapon persistence.
+- Drive on Water queries the water surface from above the vehicle and preserves horizontal momentum while keeping the vehicle above the surface.
+- Existing diagnostics, menu controls, vehicle spawning and bodyguard follow/vehicle entry behavior are preserved.
+- Diagnostics logs are stored in `GTA V\\scripts\\AvermesBags\\Logs`; exported ZIP reports are stored in `GTA V\\scripts\\AvermesBags`.
 ## v0.9.7 — Aim Bot, bodyguards and diagnostics
 - Aim Bot now filters non-human peds, the player's relationship group, current squad members and peds identified by the game as friends.
 - Added a restricted whitelist for Ammu-Nation shooting-range target props; arbitrary world objects are not eligible. The exact target model set still requires in-game confirmation on GTA V Legacy 1.0.2245.0.
