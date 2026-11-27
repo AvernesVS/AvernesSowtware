@@ -146,6 +146,8 @@ namespace AvernesTreiner.Modules
                 {
                     if (bg != null && bg.Exists() && !bg.IsDead && bg.Handle != target.Handle)
                     {
+                        Function.Call((Hash)0xED74007FFB146BC2, bg.Handle);
+                        bg.Task.ClearAll();
                         bg.Task.FightAgainst(target);
                         ordered++;
                     }
@@ -166,8 +168,11 @@ namespace AvernesTreiner.Modules
                 _defenseTargetHandle = 0;
                 foreach (var bg in _bodyguards)
                 {
-                    if (bg != null && bg.Exists())
+                    if (bg != null && bg.Exists() && !bg.IsDead)
                     {
+                        // Remove group-follow behavior before issuing the stationary order.
+                        Function.Call((Hash)0xED74007FFB146BC2, bg.Handle);
+                        bg.Task.ClearAll();
                         bg.Task.StandStill(-1);
                     }
                 }
@@ -476,7 +481,17 @@ namespace AvernesTreiner.Modules
                 FindNearestHostile(_defensePosition, player, 40.0f);
             if (threat == null)
             {
-                _defenseTargetHandle = 0;
+                if (_defenseTargetHandle != 0)
+                {
+                    _defenseTargetHandle = 0;
+                    for (int i = 0; i < _bodyguards.Count; i++)
+                    {
+                        Ped guard = _bodyguards[i];
+                        if (guard == null || !guard.Exists() || guard.IsDead) continue;
+                        guard.Task.ClearAll();
+                        guard.Task.StandStill(-1);
+                    }
+                }
                 return;
             }
             if (_defenseTargetHandle == threat.Handle) return;
@@ -486,6 +501,7 @@ namespace AvernesTreiner.Modules
             {
                 Ped guard = _bodyguards[i];
                 if (guard == null || !guard.Exists() || guard.IsDead) continue;
+                guard.Task.ClearAll();
                 guard.Task.FightAgainst(threat);
                 ordered++;
             }
