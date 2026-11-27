@@ -375,6 +375,8 @@ namespace AvernesTreiner.Modules
             try
             {
                 _followOrdersActive = false;
+                _defendPositionActive = false;
+                _defenseTargetHandle = 0;
                 int count = 0;
                 for (int i = _bodyguards.Count - 1; i >= 0; i--)
                 {
@@ -440,7 +442,7 @@ namespace AvernesTreiner.Modules
             {
                 Ped candidate = nearby[i];
                 if (candidate == null || !candidate.Exists() || candidate.IsDead ||
-                    candidate.Handle == player.Handle || candidate.IsPlayer)
+                    candidate.Handle == player.Handle)
                     continue;
                 if (!Function.Call<bool>((Hash)0xB980061DA992779D, candidate.Handle))
                     continue;
