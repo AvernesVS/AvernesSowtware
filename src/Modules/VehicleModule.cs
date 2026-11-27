@@ -201,8 +201,14 @@ namespace AvernesTreiner.Modules
 
             // Drive on Water (Jesus Car)
             var waterItem = new UIMenuCheckboxItem(Localization.Get("Vehicle", "DriveOnWater", "Drive on Water (Jesus Car)"), _driveOnWater, Localization.Get("Vehicle", "DriveOnWaterDesc", "The car travels over water without sinking or damaging the engine"));
-            waterItem.CheckboxEvent += (sender, state) => { _driveOnWater = state;
- ConfigManager.SetBool("Vehicle", "DriveOnWater", _driveOnWater); };
+            waterItem.CheckboxEvent += (sender, state) =>
+            {
+                _driveOnWater = state;
+                ConfigManager.SetBool("Vehicle", "DriveOnWater", _driveOnWater);
+                UI.Notify(state
+                    ? Localization.Get("Vehicle", "DriveOnWaterEnabled", "Drive on Water enabled. Enter a vehicle to use it.")
+                    : Localization.Get("Vehicle", "DriveOnWaterDisabled", "Drive on Water disabled."));
+            };
             vehMenu.AddItem(waterItem);
 
             // Spawn Instant Stunt Ramp
