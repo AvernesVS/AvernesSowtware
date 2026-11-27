@@ -39,7 +39,7 @@ namespace AvernesTreiner.Modules
             new Model("prop_target_red_arrow").Hash,
             new Model("prop_target_red_cross").Hash
         };
-        private const int ScanInterval = 100;
+        private const int ScanInterval = 250;
         private const float MaximumYawStep = 3.2f;
         private const float MaximumPitchStep = 2.4f;
 
@@ -153,7 +153,7 @@ namespace AvernesTreiner.Modules
                 return;
             }
 
-            MoveAimToward(player, target);
+            MoveAimTowardPosition(player, GetAimPosition(target));
         }
 
         private void SetTarget(int handle, bool isRangeObject = false)
@@ -194,7 +194,7 @@ namespace AvernesTreiner.Modules
                     candidate.IsDead || !IsEnemy(candidate, player))
                     continue;
 
-                Vector3 head = GetHeadPosition(candidate);
+                Vector3 head = GetAimPosition(candidate);
                 float dx = head.X - cameraPosition.X;
                 float dy = head.Y - cameraPosition.Y;
                 float dz = head.Z - cameraPosition.Z;
@@ -237,7 +237,7 @@ namespace AvernesTreiner.Modules
 
             // Ammu-Nation shooting-range targets are props, not peds. Only a strict
             // model whitelist is eligible so Aim Bot cannot lock onto arbitrary scenery.
-            Prop[] props = World.GetAllProps();
+            Prop[] props = bestIsRangeObject && bestScore >= 100.0f ? new Prop[0] : World.GetAllProps();
             for (int i = 0; i < props.Length; i++)
             {
                 Prop candidate = props[i];
@@ -327,15 +327,14 @@ namespace AvernesTreiner.Modules
             return Function.Call<int>((Hash)0xDF729E8D20CF7327, blip) == 1;
         }
 
-        private Vector3 GetHeadPosition(Ped ped)
+        private Vector3 GetAimPosition(Ped ped)
         {
-            return Function.Call<Vector3>((Hash)0x17C07FC640E86B4E,
-                ped.Handle, HeadBone, 0.0f, 0.0f, 0.0f);
-        }
-
-        private void MoveAimToward(Ped player, Ped target)
-        {
-            MoveAimTowardPosition(player, GetHeadPosition(target));
+            // The head bone can be partially occluded or offset by seat animation.
+            // Use the upper torso for occupants; keep head targeting on foot.
+            int bone = ped.IsInVehicle() ? 24818 : HeadBone;
+            Vector3 position = Function.Call<Vector3>((Hash)0x17C07FC640E86B4E,
+                ped.Handle, bone, 0.0f, 0.0f, 0.0f);
+            return ped.IsInVehicle() ? position + new Vector3(0.0f, 0.0f, 0.08f) : position;
         }
 
         private void MoveAimTowardPosition(Ped player, Vector3 head)
