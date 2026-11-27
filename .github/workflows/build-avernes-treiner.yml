@@ -1,4 +1,4 @@
-name: Build AvernesTreiner v0.9.11 (.NET Framework 4.8)
+name: Build AvernesTreiner v0.9.12 (.NET Framework 4.8)
 on:
   pull_request:
     paths: ['src/**', 'resources/**', 'installer/**', 'README.md', 'LICENSE-ORIGINAL-MIT.txt', '.github/workflows/build-avernes-treiner.yml']
@@ -63,7 +63,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Compilation failed: exit code $LASTEXITCODE." }
           if (-not (Test-Path $dll) -or (Get-Item $dll).Length -lt 10000) { throw 'Compiled DLL is missing or unexpectedly small.' }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String | Write-Host
-      - name: Validate resources and build v0.9.11 installer ZIP
+      - name: Validate resources and build v0.9.12 installer ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -72,7 +72,7 @@ jobs:
           $payload = Join-Path $stage 'files'
           $runtime = Join-Path $payload 'scripts\AvernesTreiner'
           $scripts = Join-Path $payload 'scripts'
-          $zip = Join-Path $PWD 'AvernesTreiner-0.9.11-GTA5-Legacy.zip'
+          $zip = Join-Path $PWD 'AvernesTreiner-0.9.12-GTA5-Legacy.zip'
           New-Item -ItemType Directory -Path $runtime -Force | Out-Null
           New-Item -ItemType Directory -Path $scripts -Force | Out-Null
           Copy-Item -Path (Join-Path $root 'resources\*') -Destination $runtime -Recurse
@@ -88,7 +88,7 @@ jobs:
           foreach ($f in $required) { if (-not (Test-Path (Join-Path $stage $f))) { throw "Missing installer file: $f" } }
           $english = Get-Content (Join-Path $runtime 'Languages\en-US.ini') -Raw
           $russian = Get-Content (Join-Path $runtime 'Languages\ru-RU.ini') -Raw
-          if ($english -notmatch 'MenuSubtitle=v0.9.11' -or $russian -notmatch 'MenuSubtitle=v0.9.11') { throw 'Both language files must identify v0.9.11.' }
+          if ($english -notmatch 'MenuSubtitle=v0.9.12' -or $russian -notmatch 'MenuSubtitle=v0.9.12') { throw 'Both language files must identify v0.9.12.' }
           $englishKeys = [regex]::Matches($english, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $russianKeys = [regex]::Matches($russian, '(?m)^([^=\r\n]+)=') | ForEach-Object { $_.Groups[1].Value }
           $missingRussian = @($englishKeys | Where-Object { $_ -notin $russianKeys })
@@ -103,7 +103,7 @@ jobs:
           # Audit guard: the localization parser must preserve intentional suffix spaces.
           $configSource = Get-Content (Join-Path $root 'src\Core\ConfigManager.cs') -Raw
           if ($configSource -notmatch 'rawLine\.TrimStart' -or $configSource -notmatch 'Substring\(separator \+ 1\)\.TrimStart\(\)') { throw 'Localization parser must preserve intentional trailing spaces in values.' }
-          if ($configSource -notmatch 'Version=v0.9.11' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
+          if ($configSource -notmatch 'Version=v0.9.12' -or $configSource -notmatch 'ResolveUserDataDirectory' -or $configSource -notmatch 'UserDataDirectoryPath' -or $configSource -notmatch 'Persist feature toggles immediately' -or $configSource -notmatch '\.bak' -or $configSource -notmatch 'File.Copy\(backupPath, _configPath, true\)') { throw 'Persistent settings, immediate saves or missing-config backup recovery are missing.' }
           $core = Get-Content (Join-Path $root 'src\Core\AvernesTreiner.cs') -Raw
           if ($core -notmatch 'ControlDisablingEnabled = false' -or $core -notmatch 'Keys\.Escape' -or $core -notmatch 'CloseAllMenus') { throw 'Menu control/Escape behavior is missing.' }
           if ($core -notmatch 'MouseControlsEnabled = false' -or $core -match 'UseCursor = false|_SHOW_CURSOR_THIS_FRAME') { throw 'NativeUI cursor must remain disabled.' }
@@ -113,6 +113,7 @@ jobs:
           }
           if ($vehicleSource -match 'SET_DONT_PROCESS_VEHICLE_GLASS|0x1087BC8EC540DAEB|IsPersistent\s*=\s*false\s*;\s*vehicle\.Delete') { throw 'Unsafe or obsolete vehicle protection/cleanup code found.' }
           if ($vehicleSource -notmatch '0x4E20D2A627011E8E' -or $vehicleSource -notmatch 'enabled \? 0\.0f : 1\.0f') { throw 'Vehicle God Mode damage-scale protection is missing.' }
+          if ($vehicleSource -notmatch 'v.Position.Z + 10.0f' -or $vehicleSource -notmatch 'Math.Max(vel.Z, 0.0f)') { throw 'Drive-on-water surface query and horizontal momentum preservation are missing.' }
           foreach ($cleanupToken in @('_vehicleDeletionQueue','ProcessNextVehicleDeletion','QueueVehicleDeletion','_protectedSavedVehicles','DOES_ENTITY_EXIST','GET_PED_IN_VEHICLE_SEAT','CleanupExplodedSpawnedVehicles','IS_ENTITY_DEAD','GET_VEHICLE_ENGINE_HEALTH')) { if ($vehicleSource -notmatch [regex]::Escape($cleanupToken)) { throw "Spawned vehicle cleanup verification missing: $cleanupToken" } }
           foreach ($radioToken in @('ActivateVehicleRadio','MaintainSpawnedVehicleRadio','SET_VEHICLE_RADIO_ENABLED','SET_VEH_RADIO_STATION','SET_VEHICLE_RADIO_LOUD','GET_PLAYER_RADIO_STATION_NAME')) { if ($vehicleSource -notmatch [regex]::Escape($radioToken)) { throw "Spawned vehicle radio initialization missing: $radioToken" } }
           if ($core -notmatch 'DisableMenuNavigationControls' -or $core -notmatch 'DisableFrontendPauseControl' -or $core -notmatch 'FrontendPause' -or $core -notmatch 'inputGroup <= 2' -or $core -notmatch 'DISABLE_CONTROL_ACTION' -or $core -notmatch 'EnableGameplayControls' -or $core -notmatch 'ENABLE_ALL_CONTROL_ACTIONS') { throw 'Escape pause/map suppression or menu navigation controls regression checks failed.' }
@@ -127,16 +128,17 @@ jobs:
           if ($playerSource -notmatch 'SP0_' -or $playerSource -notmatch 'SP1_' -or $playerSource -notmatch 'SP2_' -or $playerSource -notmatch 'CharacterStatPrefixes' -or $playerSource -notmatch 'STAT_SET_INT' -or $playerSource -notmatch 'STAT_GET_INT' -or $playerSource -notmatch 'OutputArgument' -or $playerSource -notmatch 'Hash.GET_HASH_KEY' -or $playerSource -notmatch 'MaxAllStatsEnabled' -or $playerSource -notmatch 'for \(int attempt' -or $playerSource -notmatch '_lastAllStatsRefreshTime' -or $playerSource -notmatch '>= 1000') { throw 'Direct skill-stat writes, readback verification or periodic protagonist refresh is missing.' }
           if ($playerSource -match 'stats_controller|TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME|STAT_SET_BOOL|SPECIAL_ABILITY_UNLOCKED') { throw 'Max stats must not terminate Rockstar scripts or write speculative completion/unlock flags.' }
           $bodyguardSource = Get-Content (Join-Path $root 'src\Modules\BodyguardModule.cs') -Raw
-          foreach ($bodyguardToken in @('SpawnSniper','EquipSniperRifles','WeaponHash.SniperRifle','sniper ? 95 : 85','DiagnosticsManager.LogException("Bodyguards.Spawn"','MaintainBodyguardFollow','MaintainBodyguardVehicleEntry','Task.EnterVehicle','VehicleSeat.Any','0x304AE42E357B8C7E','0xADF692B254977C0C','Bodyguard removed from active tracking','sniper ? 400 : 200')) { if ($bodyguardSource -notmatch [regex]::Escape($bodyguardToken)) { throw "Bodyguard sniper feature or spawn diagnostics missing: $bodyguardToken" } }
+          foreach ($bodyguardToken in @('SpawnSniper','EquipSniperRifles','WeaponHash.SniperRifle','sniper ? 95 : 85','DiagnosticsManager.LogException("Bodyguards.Spawn"','MaintainBodyguardFollow','MaintainBodyguardVehicleEntry','AssaultNearest','MaintainPositionDefense','FindNearestHostile','Task.EnterVehicle','VehicleSeat.Any','0x304AE42E357B8C7E','0xADF692B254977C0C','Bodyguard removed from active tracking','sniper ? 400 : 200')) { if ($bodyguardSource -notmatch [regex]::Escape($bodyguardToken)) { throw "Bodyguard sniper feature or spawn diagnostics missing: $bodyguardToken" } }
           $englishBodyguard = @('SpawnSniper','SpawnSniperDesc','EquipSniperRifles','EquipSniperRiflesDesc')
-          foreach ($languageFile in @($english, $russian)) { foreach ($key in $englishBodyguard) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing bodyguard localization key: $key" } } }
+          foreach ($languageFile in @($english, $russian)) { foreach ($key in $englishBodyguard.concat(@('AssaultNearest','AssaultNearestDesc'))) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing bodyguard localization key: $key" } } }
           $aimBotSource = Get-Content (Join-Path $root 'src\Modules\AimBotModule.cs') -Raw
           foreach ($aimToken in @('0xEBA5AD3A0EAF7121','0x4859F1FC66A6278E','0x17C07FC640E86B4E','0xBC8DBDCA2436F7E8','0xDF729E8D20CF7327','HAS_ENTITY_CLEAR_LOS_TO_ENTITY','0xB4EC2312F4E5B1F1','0x6D0858B8EDFD2B7D','AimControl','AimBotEnabled')) { if ($aimBotSource -notmatch [regex]::Escape($aimToken)) { throw "Aim Bot targeting or camera assistance check missing: $aimToken" } }
           foreach ($aimToken in @('0xB980061DA992779D','0xF162E133B4E7A675','0x12534C348C6CB68B','World.GetNearbyPeds','player.IsInVehicle()','IntersectOptions.Objects','prop_range_target_01','_lastLoggedTargetHandle','_hasScanned','_errorTimes','_aimBotItem.Checked','pedType == 27','0x9A9112A0FE9A4713','0x29439776AAA00A62','-0.05f','0.18f')) { if ($aimBotSource -notmatch [regex]::Escape($aimToken)) { throw "Aim Bot human/friendly filtering, bounded scanning or recovery check missing: $aimToken" } }
           if ($aimBotSource -match '0x6F972C1AB75A1ED0|0x9BB01E3834671191|World.GetAllProps|World.GetAllPeds|CurrentPedGroup') { throw 'Aim Bot contains an invalid train/group native or an unbounded world-pool scan.' }
           if ($aimBotSource -notmatch 'now - _lastScanTime >= ScanInterval' -or $aimBotSource -notmatch 'now - _errorTimes.Peek\(\) > 10000') { throw 'Aim Bot scan throttling or rolling error window is missing.' }
           if ($aimBotSource -match '0x32C27A11307B01CC|0x3F428D08BE5AAE31') { throw 'Aim Bot contains an unsupported native or a mismatched bone-coordinate native.' }
-          if ($aimBotSource -notmatch 'World\.Raycast' -or $aimBotSource -notmatch 'IntersectOptions\.Objects' -or $aimBotSource -match 'IntersectOptions\.Everything|World\.GetNearbyProps' -or $aimBotSource -notmatch 'player\.IsInVehicle\(\)') { throw 'Aim Bot must use the object-only raycast, avoid nearby-prop pool scans and suspend while the player is in a vehicle.' }
+          if ($aimBotSource -match 'RangeTarget|IsRangeTarget|IntersectOptions\.Objects|World\.Raycast|prop_range_target_01|Ammu-Nation') { throw 'Aim Bot must not contain shooting-range or prop-target acquisition.' }
+          if ($aimBotSource -notmatch 'World\.GetNearbyPeds' -or $aimBotSource -notmatch 'player\.IsInVehicle\(\)') { throw 'Aim Bot must scan nearby hostile NPCs and suspend while the player is in a vehicle.' }
           $diagnosticsSource = Get-Content (Join-Path $root 'src\Core\DiagnosticsManager.cs') -Raw
           foreach ($diagnosticToken in @('MaxBufferedEntries = 256','FlushIntervalMilliseconds = 5000','Flush()','OnScriptAborted','MaxLogBytes = 2097152','UnhandledException','ProcessExit','ZipFile.CreateFromDirectory','LogException','LogDetail','TryCreateReport')) { if ($diagnosticsSource -notmatch [regex]::Escape($diagnosticToken)) { throw "Diagnostics manager check missing: $diagnosticToken" } }
           if ($diagnosticsSource -notmatch 'Queue<string>' -or $diagnosticsSource -notmatch 'AvernesTreiner.previous.log' -or $diagnosticsSource -notmatch ([regex]::Escape('Flush()')) -or $diagnosticsSource -notmatch 'OnScriptAborted') { throw 'Diagnostics bounded buffer or log rotation is missing.' }
@@ -145,7 +147,7 @@ jobs:
           if ($aimBotSource -match 'SET_PED_SHOOTS_AT_COORD|TASK_SHOOT_AT_ENTITY|SHOOT_SINGLE_BULLET') { throw 'Aim Bot must not fire weapons automatically.' }
           if ($core -match 'GolfAssistModule|GolfAssistant') { throw 'Golf Assistant references remain in the trainer core.' }
           $weaponSource = Get-Content (Join-Path $root 'src\Modules\WeaponModule.cs') -Raw
-          if ($weaponSource -notmatch 'public uint WeaponHash \{ get; set; \}' -or $weaponSource -notmatch 'public List<WeaponInventoryEntry> Weapons \{ get; set; \}' -or $weaponSource -notmatch 'WeaponInventoryPath \+ ".bak"' -or $weaponSource -notmatch 'File.Copy\(candidate, WeaponInventoryPath, true\)') { throw 'Weapon inventory JSON round-trip or backup recovery is missing.' }
+          if ($weaponSource -notmatch 'weaponHashesToCapture' -or $weaponSource -notmatch 'snapshot.SelectedWeapon' -or $weaponSource -notmatch 'public uint WeaponHash \{ get; set; \}' -or $weaponSource -notmatch 'public List<WeaponInventoryEntry> Weapons \{ get; set; \}' -or $weaponSource -notmatch 'WeaponInventoryPath \+ ".bak"' -or $weaponSource -notmatch 'File.Copy\(candidate, WeaponInventoryPath, true\)') { throw 'Weapon inventory JSON round-trip or backup recovery is missing.' }
           foreach ($languageFile in @($english, $russian)) { foreach ($key in @('AimBotTitle','AimBotEnabled','AimBotEnabledDesc')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing Aim Bot localization key: $key" } } if ($languageFile -match 'Golf|Minigames') { throw 'Removed Golf Assistant localization remains.' } }
           foreach ($languageFile in @($english, $russian)) { foreach ($key in @('InfiniteSpecialAbility','InfiniteSpecialAbilityDesc','MaxAllStats','MaxAllStatsDesc','SavedVehicleNameEmpty','SavedVehicleNameDuplicate','DeleteSavedVehicle','DeleteSavedVehicleDesc','DeleteSavedVehiclePrompt','DeleteSavedVehicleCancelled','DeleteSavedVehicleFailed','SavedVehicleDeleted')) { if ($languageFile -notmatch ('(?m)^' + $key + '=')) { throw "Missing localization key: $key" } } }
           foreach ($languageFile in @($english, $russian)) { if ($languageFile -match '(?m)^CopsIgnore(?:Desc)?=') { throw 'Removed Cops Ignore localization keys remain.' } }
@@ -180,7 +182,7 @@ jobs:
           if ((Get-Item $zip).Length -lt 10000) { throw 'Install ZIP is unexpectedly small.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: AvernesTreiner-0.9.11-GTA5-Legacy
-          path: AvernesTreiner-0.9.11-GTA5-Legacy.zip
+          name: AvernesTreiner-0.9.12-GTA5-Legacy
+          path: AvernesTreiner-0.9.12-GTA5-Legacy.zip
           if-no-files-found: error
           retention-days: 30
